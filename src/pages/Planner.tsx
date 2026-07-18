@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
-import { Plus, X, CheckCircle2, Circle, Trash2, CalendarDays, Repeat, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, X, CheckCircle2, Circle, Trash2, Repeat, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const PLATFORMS = ['Instagram', 'X (Twitter)', 'TikTok', 'YouTube', 'LinkedIn', 'Threads']
 
