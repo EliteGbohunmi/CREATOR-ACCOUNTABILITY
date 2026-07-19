@@ -286,6 +286,7 @@ export default function Planner() {
           )
         })}
       </div>
+      <div className="mobile-spacer" />
     </Layout>
   )
 }

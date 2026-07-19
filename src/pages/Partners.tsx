@@ -187,7 +187,19 @@ export default function Partners() {
             {!partnerCheckedIn && (
               <div style={styles.missedAlert}>
                 <AlertCircle size={15} color="#E53E3E" />
-                <span>{partner.partnerName} hasn't checked in today. Send them a nudge!</span>
+                <span> <div style={styles.missedAlert}>
+  <AlertCircle size={15} color="#E53E3E" />
+  <span style={{ flex: 1 }}>{partner.partnerName} hasn't checked in today.</span>
+  <button
+    style={{ background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '6px', padding: '0.4rem 0.85rem', fontWeight: '600', fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}
+    onClick={() => {
+      navigator.clipboard.writeText(`Hey ${partner.partnerName}! 👋 You haven't posted today yet. Don't break your streak — go create something! 🔥`)
+      alert('Nudge copied! Paste it in WhatsApp or DM.')
+    }}
+  >
+    Copy Nudge
+  </button>
+</div>   </span>
               </div>
             )}
 

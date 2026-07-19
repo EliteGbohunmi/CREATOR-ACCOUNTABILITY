@@ -64,7 +64,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main style={styles.main}>
-        {children}
+{children}
+        <div style={{ height: '120px' }} />
       </main>
 
       {/* Mobile bottom nav */}
@@ -187,10 +188,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.65rem 0.85rem', fontSize: '0.85rem', cursor: 'pointer'
   },
   main: {
-    marginLeft: '230px', flex: 1, minWidth: 0,
-    padding: '2.5rem', maxWidth: '860px', paddingBottom: '8rem'
-  
-  },
+  marginLeft: '230px', flex: 1, minWidth: 0,
+  padding: '2.5rem', maxWidth: '860px', paddingBottom: '160px'
+},
   mobileNav: {
     display: 'flex', position: 'fixed', bottom: 0, left: 0, right: 0,
     background: '#111111', borderTop: '1px solid #1E1E1E',

@@ -52,3 +52,22 @@ input, select, textarea {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+.mobile-spacer {
+  height: 120px;
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .mobile-spacer {
+    display: none;
+  }
+  
+  aside {
+    display: flex !important;
+  }
+  
+  nav.mobile-nav {
+    display: none !important;
+  }
+}
