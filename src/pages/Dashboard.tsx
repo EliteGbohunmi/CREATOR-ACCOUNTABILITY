@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
 import ShareCard from '../components/ShareCard'
-import { checkAndAwardAchievements } from '../lib/achievements'
 import Heatmap from '../components/Heatmap'
 import { Flame, CheckCircle2, Circle, BarChart2, TrendingUp, Calendar } from 'lucide-react'
 

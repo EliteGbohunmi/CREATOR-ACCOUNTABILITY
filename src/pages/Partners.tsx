@@ -112,7 +112,7 @@ export default function Partners() {
   }
 
   const partnerCheckedIn = partner?.streak?.last_checked_in === today
-  const iCheckedIn = true // will be passed from dashboard context ideally
+  
 
   if (loading) {
     return (
