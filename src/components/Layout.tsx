@@ -149,7 +149,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  wrapper: { display: 'flex', minHeight: '100vh', background: '#0A0A0A' },
+  wrapper: { display: 'flex', minHeight: '100vh', background: '#0A0A0A ' },
   sidebar: {
     width: '230px',
     background: '#111111',
@@ -189,6 +189,7 @@ const styles: Record<string, React.CSSProperties> = {
   main: {
     marginLeft: '230px', flex: 1, minWidth: 0,
     padding: '2.5rem', maxWidth: '860px', paddingBottom: '8rem'
+  
   },
   mobileNav: {
     display: 'flex', position: 'fixed', bottom: 0, left: 0, right: 0,

@@ -6,6 +6,7 @@ import Layout from '../components/Layout'
 import ShareCard from '../components/ShareCard'
 import Heatmap from '../components/Heatmap'
 import { Flame, CheckCircle2, Circle, BarChart2, TrendingUp, Calendar } from 'lucide-react'
+import AICoach from '../components/AICoach'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -201,6 +202,12 @@ export default function Dashboard() {
         <Heatmap />
 
       </motion.div>
+      <AICoach
+  streak={streak?.current_streak || 0}
+  name={profile?.name || 'Creator'}
+  todayDone={todayDone}
+  tasksCount={tasksToday.length}
+/>
     </Layout>
   )
 }
