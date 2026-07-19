@@ -6,7 +6,7 @@ import Layout from '../components/Layout'
 import ShareCard from '../components/ShareCard'
 import Heatmap from '../components/Heatmap'
 import { checkAndAwardAchievements } from '../lib/achievements'
-import { Flame, CheckCircle2, Circle, Calendar, Share2, TrendingUp, User } from 'lucide-react'
+import { Flame, CheckCircle2, Circle, Calendar, TrendingUp, User } from 'lucide-react'
 import AICoach from '../components/AICoach'
 
 export default function Dashboard() {
