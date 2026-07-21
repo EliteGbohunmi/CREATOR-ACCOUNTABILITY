@@ -15,6 +15,7 @@ const mainNav = [
 ]
 
 const moreNav = [
+{ path: '/feed', label: 'Feed', icon: BarChart2 },
   { path: '/analytics', label: 'Analytics', icon: BarChart2 },
   { path: '/achievements', label: 'Achievements', icon: Award },
   { path: '/vault', label: 'Content Vault', icon: BookMarked },

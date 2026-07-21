@@ -14,10 +14,15 @@ export default function Leaderboard() {
   const fetchLeaderboard = async () => {
     const { data } = await supabase
       .from('streaks')
-      .select('*, profiles(name)')
+      .select('*, profiles(name, is_public, show_streak)')
       .order('current_streak', { ascending: false })
-      .limit(20)
-    setEntries(data || [])
+      .limit(50)
+
+    const filtered = (data || []).filter((e: any) =>
+      e.profiles?.is_public !== false && e.profiles?.show_streak !== false
+    ).slice(0, 20)
+
+    setEntries(filtered)
     setLoading(false)
   }
 
@@ -136,9 +141,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex', justifyContent: 'center', alignItems: 'flex-end',
     gap: '1rem', marginBottom: '2rem', padding: '1rem 0'
   },
-  podiumItem: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem'
-  },
+  podiumItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' },
   podiumAvatar: {
     width: '48px', height: '48px', borderRadius: '50%',
     border: '2px solid', background: '#0A0A0A',
@@ -153,9 +156,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '12px', padding: '0.85rem 1rem',
     display: 'flex', alignItems: 'center', gap: '1rem'
   },
-  rank: {
-    width: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center'
-  },
+  rank: { width: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   empty: {
     background: '#111111', border: '1px dashed #1E1E1E', borderRadius: '14px',
     padding: '2.5rem', color: '#555', textAlign: 'center',

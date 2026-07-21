@@ -93,7 +93,6 @@ export default function Settings() {
     fireReminder()
   }
 
-  const toggle = (val: boolean, setter: (v: boolean) => void) => setter(!val)
 
   return (
     <Layout>
@@ -232,14 +231,25 @@ export default function Settings() {
             <Shield size={13} color="#555" />
             Privacy
           </div>
-          <div style={styles.row} onClick={() => toggle(isPublic, setIsPublic)}>
+          <div style={styles.row} onClick={async () => {
+  const newVal = !isPublic
+  setIsPublic(newVal)
+  await supabase.from('profiles').update({ is_public: newVal }).eq('id', user!.id)
+}}>
             <span style={styles.rowLabel}>Public Profile</span>
             <div style={{ ...styles.toggleSwitch, background: isPublic ? '#F5A623' : '#1E1E1E' }}>
               <div style={{ ...styles.toggleDot, transform: isPublic ? 'translateX(20px)' : 'translateX(2px)' }} />
             </div>
           </div>
           <div style={{ height: '1px', background: '#1A1A1A' }} />
-          <div style={styles.row} onClick={() => toggle(showStreak, setShowStreak)}>
+          
+          <div style={styles.row} onClick={async () => {
+  const newVal = !showStreak
+  setShowStreak(newVal)
+  await supabase.from('profiles').update({ show_streak: newVal }).eq('id', user!.id)
+}}>
+          
+
             <span style={styles.rowLabel}>Show Streak on Leaderboard</span>
             <div style={{ ...styles.toggleSwitch, background: showStreak ? '#F5A623' : '#1E1E1E' }}>
               <div style={{ ...styles.toggleDot, transform: showStreak ? 'translateX(20px)' : 'translateX(2px)' }} />

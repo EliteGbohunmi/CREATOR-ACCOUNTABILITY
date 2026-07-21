@@ -9,6 +9,7 @@ import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Achievements from './pages/Achievements'
 import Vault from './pages/Vault'
+import Feed from './pages/Feed'
 import Partners from './pages/Partners'
 import Leaderboard from './pages/Leaderboard'
 
@@ -34,6 +35,7 @@ function AppRoutes() {
       <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
       <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
       <Route path="/vault" element={<ProtectedRoute><Vault /></ProtectedRoute>} />
+      <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
       <Route path="/partners" element={<ProtectedRoute><Partners /></ProtectedRoute>} />
     </Routes>
   )
