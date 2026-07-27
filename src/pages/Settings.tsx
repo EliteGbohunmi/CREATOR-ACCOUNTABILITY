@@ -43,7 +43,6 @@ export default function Settings() {
           setShowStreak(data.show_streak ?? true)
           setLeavesUsed(data.leaves_used || 0)
           setWeeklyTarget(data.weekly_target || 7)
-          setWeeklyTarget(data.weekly_target || 7)
         }
       })
 
@@ -51,7 +50,7 @@ export default function Settings() {
 
     const savedTime = getSavedReminderTime()
     if (savedTime) {
-      setReminderTime(`${String(savedTime.hour).padStart(2,'0')}:${String(savedTime.minute).padStart(2,'0')}`)
+      setReminderTime(`${String(savedTime.hour).padStart(2, '0')}:${String(savedTime.minute).padStart(2, '0')}`)
       setReminderSet(true)
     }
   }, [])
@@ -62,7 +61,6 @@ export default function Settings() {
       name, username, bio,
       default_platform: defaultPlatform,
       week_start: weekStart,
-      weekly_target: weeklyTarget,
       weekly_target: weeklyTarget,
       is_public: isPublic,
       show_streak: showStreak
@@ -97,7 +95,6 @@ export default function Settings() {
     setNotifAllowed(true)
     fireReminder()
   }
-
 
   return (
     <Layout>
@@ -208,54 +205,60 @@ export default function Settings() {
                   {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
-              <div style={styles.field}>
-  <label style={styles.label}>Weekly Posting Target</label>
-  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-    {[1,2,3,4,5,6,7].map(n => (
-      <button
-        key={n}
-        style={{
-          width: '40px', height: '40px', borderRadius: '8px', border: 'none',
-          background: weeklyTarget === n ? '#F5A623' : '#0A0A0A',
-          color: weeklyTarget === n ? '#0A0A0A' : '#555',
-          fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer',
-          border: weeklyTarget === n ? 'none' : '1px solid #1E1E1E'
-        }}
-        onClick={() => setWeeklyTarget(n)}
-      >
-        {n}
-      </button>
-    ))}
-  </div>
-  <p style={{ color: '#444', fontSize: '0.75rem', margin: 0 }}>
-    {weeklyTarget === 7 ? 'Daily — every day counts' : `${weeklyTarget}x per week — streak resets if you miss your weekly target`}
-  </p>
-</div>
 
               <div style={styles.field}>
-                <div style={styles.field}>
                 <label style={styles.label}>Weekly Posting Target</label>
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {[1,2,3,4,5,6,7].map(n => (
-                    <button key={n} style={{ width: "40px", height: "40px", borderRadius: "8px", background: weeklyTarget === n ? "#F5A623" : "#0A0A0A", color: weeklyTarget === n ? "#0A0A0A" : "#555", fontWeight: "600", fontSize: "0.9rem", cursor: "pointer", border: weeklyTarget === n ? "none" : "1px solid #1E1E1E" }} onClick={() => setWeeklyTarget(n)}>{n}</button>
+                    <button
+                      key={n}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        background: weeklyTarget === n ? '#F5A623' : '#0A0A0A',
+                        color: weeklyTarget === n ? '#0A0A0A' : '#555',
+                        fontWeight: '600',
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        border: weeklyTarget === n ? 'none' : '1px solid #1E1E1E'
+                      }}
+                      onClick={() => setWeeklyTarget(n)}
+                    >
+                      {n}
+                    </button>
                   ))}
                 </div>
-                <p style={{ color: "#444", fontSize: "0.75rem", margin: 0 }}>{weeklyTarget === 7 ? "Daily" : weeklyTarget + "x per week"}</p>
+                <p style={{ color: '#444', fontSize: '0.75rem', margin: 0 }}>
+                  {weeklyTarget === 7 ? 'Daily — every day counts' : `${weeklyTarget}x per week — streak resets if you miss your weekly target`}
+                </p>
               </div>
-              <label style={styles.label}>Week Starts On</label>
+
+              <div style={styles.field}>
+                <label style={styles.label}>Week Starts On</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {['monday', 'sunday'].map(d => (
-                    <button key={d} style={{
-                      ...styles.toggleBtn,
-                      background: weekStart === d ? '#F5A623' : '#0A0A0A',
-                      color: weekStart === d ? '#0A0A0A' : '#555',
-                      border: weekStart === d ? 'none' : '1px solid #1E1E1E'
-                    }} onClick={() => setWeekStart(d)}>
+                    <button
+                      key={d}
+                      style={{
+                        flex: 1,
+                        borderRadius: '8px',
+                        padding: '0.65rem',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        background: weekStart === d ? '#F5A623' : '#0A0A0A',
+                        color: weekStart === d ? '#0A0A0A' : '#555',
+                        border: weekStart === d ? 'none' : '1px solid #1E1E1E'
+                      }}
+                      onClick={() => setWeekStart(d)}
+                    >
                       {d.charAt(0).toUpperCase() + d.slice(1)}
                     </button>
                   ))}
                 </div>
               </div>
+
               <button style={styles.saveBtn} onClick={save} disabled={saving}>
                 {saved ? 'Saved ✓' : 'Save'}
               </button>
@@ -270,24 +273,21 @@ export default function Settings() {
             Privacy
           </div>
           <div style={styles.row} onClick={async () => {
-  const newVal = !isPublic
-  setIsPublic(newVal)
-  await supabase.from('profiles').update({ is_public: newVal }).eq('id', user!.id)
-}}>
+            const newVal = !isPublic
+            setIsPublic(newVal)
+            await supabase.from('profiles').update({ is_public: newVal }).eq('id', user!.id)
+          }}>
             <span style={styles.rowLabel}>Public Profile</span>
             <div style={{ ...styles.toggleSwitch, background: isPublic ? '#F5A623' : '#1E1E1E' }}>
               <div style={{ ...styles.toggleDot, transform: isPublic ? 'translateX(20px)' : 'translateX(2px)' }} />
             </div>
           </div>
           <div style={{ height: '1px', background: '#1A1A1A' }} />
-          
           <div style={styles.row} onClick={async () => {
-  const newVal = !showStreak
-  setShowStreak(newVal)
-  await supabase.from('profiles').update({ show_streak: newVal }).eq('id', user!.id)
-}}>
-          
-
+            const newVal = !showStreak
+            setShowStreak(newVal)
+            await supabase.from('profiles').update({ show_streak: newVal }).eq('id', user!.id)
+          }}>
             <span style={styles.rowLabel}>Show Streak on Leaderboard</span>
             <div style={{ ...styles.toggleSwitch, background: showStreak ? '#F5A623' : '#1E1E1E' }}>
               <div style={{ ...styles.toggleDot, transform: showStreak ? 'translateX(20px)' : 'translateX(2px)' }} />
