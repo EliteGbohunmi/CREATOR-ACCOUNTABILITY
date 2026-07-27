@@ -19,6 +19,7 @@ export default function Settings() {
   const [weekStart, setWeekStart] = useState('monday')
   const [isPublic, setIsPublic] = useState(true)
   const [showStreak, setShowStreak] = useState(true)
+  const [weeklyTarget, setWeeklyTarget] = useState(7)
   const [leavesUsed, setLeavesUsed] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -41,6 +42,8 @@ export default function Settings() {
           setIsPublic(data.is_public ?? true)
           setShowStreak(data.show_streak ?? true)
           setLeavesUsed(data.leaves_used || 0)
+          setWeeklyTarget(data.weekly_target || 7)
+          setWeeklyTarget(data.weekly_target || 7)
         }
       })
 
@@ -59,6 +62,8 @@ export default function Settings() {
       name, username, bio,
       default_platform: defaultPlatform,
       week_start: weekStart,
+      weekly_target: weeklyTarget,
+      weekly_target: weeklyTarget,
       is_public: isPublic,
       show_streak: showStreak
     }).eq('id', user!.id)
@@ -204,7 +209,40 @@ export default function Settings() {
                 </select>
               </div>
               <div style={styles.field}>
-                <label style={styles.label}>Week Starts On</label>
+  <label style={styles.label}>Weekly Posting Target</label>
+  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+    {[1,2,3,4,5,6,7].map(n => (
+      <button
+        key={n}
+        style={{
+          width: '40px', height: '40px', borderRadius: '8px', border: 'none',
+          background: weeklyTarget === n ? '#F5A623' : '#0A0A0A',
+          color: weeklyTarget === n ? '#0A0A0A' : '#555',
+          fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer',
+          border: weeklyTarget === n ? 'none' : '1px solid #1E1E1E'
+        }}
+        onClick={() => setWeeklyTarget(n)}
+      >
+        {n}
+      </button>
+    ))}
+  </div>
+  <p style={{ color: '#444', fontSize: '0.75rem', margin: 0 }}>
+    {weeklyTarget === 7 ? 'Daily — every day counts' : `${weeklyTarget}x per week — streak resets if you miss your weekly target`}
+  </p>
+</div>
+
+              <div style={styles.field}>
+                <div style={styles.field}>
+                <label style={styles.label}>Weekly Posting Target</label>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {[1,2,3,4,5,6,7].map(n => (
+                    <button key={n} style={{ width: "40px", height: "40px", borderRadius: "8px", background: weeklyTarget === n ? "#F5A623" : "#0A0A0A", color: weeklyTarget === n ? "#0A0A0A" : "#555", fontWeight: "600", fontSize: "0.9rem", cursor: "pointer", border: weeklyTarget === n ? "none" : "1px solid #1E1E1E" }} onClick={() => setWeeklyTarget(n)}>{n}</button>
+                  ))}
+                </div>
+                <p style={{ color: "#444", fontSize: "0.75rem", margin: 0 }}>{weeklyTarget === 7 ? "Daily" : weeklyTarget + "x per week"}</p>
+              </div>
+              <label style={styles.label}>Week Starts On</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {['monday', 'sunday'].map(d => (
                     <button key={d} style={{

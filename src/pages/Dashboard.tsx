@@ -14,6 +14,8 @@ import { Flame, CheckCircle2, Circle, Calendar, TrendingUp, User, Upload, X, Clo
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const [weeklyTarget, setWeeklyTarget] = useState(7)
+const [weekPosts, setWeekPosts] = useState(0)
   const [profile, setProfile] = useState<any>(null)
   const [streak, setStreak] = useState<any>(null)
   const [todayDone, setTodayDone] = useState(false)
@@ -69,7 +71,7 @@ export default function Dashboard() {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
       const yesterdayStr = yesterday.toISOString().split('T')[0]
-      if (str.last_checked_in < yesterdayStr && str.current_streak > 0) {
+      if (str.last_checked_in < yesterdayStr && str.current_streak > 0 && (prof?.weekly_target === 7 || weekPosts < (prof?.weekly_target || 7))) {
         await supabase.from('streaks').update({ current_streak: 0 }).eq('user_id', user!.id)
         setLostStreak(str.current_streak)
         setStreak((prev: any) => ({ ...prev, current_streak: 0 }))
@@ -106,7 +108,22 @@ export default function Dashboard() {
     }
 
     setLoading(false)
+
+const weekStart = new Date()
+weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+const weekStartStr = weekStart.toISOString().split('T')[0]
+const { data: weekCheckins } = await supabase
+  .from('checkin_proofs')
+  .select('id')
+  .eq('user_id', user!.id)
+  .eq('status', 'confirmed')
+  .gte('date', weekStartStr)
+
+setWeeklyTarget(prof?.weekly_target || 7)
+setWeekPosts(weekCheckins?.length || 0)
+
   }
+
 
   const submitProof = async () => {
     if (!proofLink.trim() && !proofFile) {
@@ -370,11 +387,29 @@ if (newAchievements.length > 0) {
                 ))}
               </div>
               <div style={{ color: '#444', fontSize: '0.72rem', marginTop: '0.4rem' }}>
-                {7 - ((streak?.current_streak || 0) % 7) === 7 && (streak?.current_streak || 0) > 0
+                {weeklyTarget < 7 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#0A0A0A', borderRadius: '8px' }}>
+                <span style={{ color: '#555', fontSize: '0.78rem' }}>This week</span>
+                <span style={{ color: weekPosts >= weeklyTarget ? '#4CAF50' : '#F5A623', fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '0.9rem' }}>
+                  {weekPosts}/{weeklyTarget} posts{weekPosts >= weeklyTarget ? ' ✓' : ''}
+                </span>
+              </div>
+            )}
+            {7 - ((streak?.current_streak || 0) % 7) === 7 && (streak?.current_streak || 0) > 0
                   ? 'Week complete!'
                   : `${7 - ((streak?.current_streak || 0) % 7)} days to next week milestone`}
               </div>
             </motion.div>
+            
+            {weeklyTarget < 7 && (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#0A0A0A', borderRadius: '8px' }}>
+    <span style={{ color: '#555', fontSize: '0.78rem' }}>This week</span>
+    <span style={{ color: weekPosts >= weeklyTarget ? '#4CAF50' : '#F5A623', fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '0.9rem' }}>
+      {weekPosts}/{weeklyTarget} posts
+      {weekPosts >= weeklyTarget ? ' ✓' : ''}
+    </span>
+  </div>
+)}
 
             {/* Check-in buttons */}
             <div style={{ marginTop: '1rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

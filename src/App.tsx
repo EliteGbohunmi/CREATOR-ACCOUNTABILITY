@@ -8,6 +8,7 @@ import Challenges from './pages/Challenges'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Achievements from './pages/Achievements'
+import Landing from './pages/Landing'
 import Vault from './pages/Vault'
 import Feed from './pages/Feed'
 import Partners from './pages/Partners'
@@ -24,7 +25,7 @@ function AppRoutes() {
   const { user } = useAuth()
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} />
+      <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
