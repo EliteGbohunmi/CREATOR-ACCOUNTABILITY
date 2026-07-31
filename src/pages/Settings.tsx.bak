@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
-import { Camera, Bell, Shield, LogOut, ChevronRight, User, Sliders, Sparkles } from 'lucide-react'
+import { Camera, Bell, Shield, LogOut, ChevronRight, User, Sliders } from 'lucide-react'
 import { requestNotificationPermission, fireReminder, saveReminderTime, getSavedReminderTime } from '../lib/notifications'
 
 const PLATFORMS = ['Instagram', 'X (Twitter)', 'TikTok', 'YouTube', 'LinkedIn', 'Threads', 'Blog', 'Podcast']
@@ -23,51 +23,37 @@ export default function Settings() {
   const [leavesUsed, setLeavesUsed] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [aiPersona, setAiPersona] = useState("")
+  const [showPersonaTemplate, setShowPersonaTemplate] = useState(false)
+
+  const savePersona = async () => {
+    setSaving(true)
+    await supabase.from("profiles").update({ ai_persona: aiPersona.trim() }).eq("id", user!.id)
+    setSaved(true)
+    setSaving(false)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const personaTemplate = `I need you to analyze my writing style...`
+
+  const [aiPersona, setAiPersona] = useState("")
+  const [showPersonaTemplate, setShowPersonaTemplate] = useState(false)
+
+  const savePersona = async () => {
+    setSaving(true)
+    await supabase.from("profiles").update({ ai_persona: aiPersona.trim() }).eq("id", user!.id)
+    setSaved(true)
+    setSaving(false)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const personaTemplate = `I need you to analyze my writing style...`
+
   const [uploading, setUploading] = useState(false)
   const [reminderTime, setReminderTime] = useState('09:00')
   const [reminderSet, setReminderSet] = useState(false)
   const [notifAllowed, setNotifAllowed] = useState(false)
   const [activeSection, setActiveSection] = useState<string | null>(null)
-
-  // PERSONA STATE
-  const [aiPersona, setAiPersona] = useState('')
-  const [showPersonaTemplate, setShowPersonaTemplate] = useState(false)
-
-  const personaTemplate = `I need you to analyze my writing style and create a detailed persona description.
-
-Here are examples of my content:
-
-[PASTE YOUR BEST POSTS HERE]
-
-Based on these examples, create a persona description with these sections:
-
-CONTENT VOICE:
-(2-3 sentences describing the overall voice)
-
-WRITING STYLE:
-(Specific details about sentence structure, length, format, vocabulary)
-
-TONE:
-(Emotional tone – e.g., "warm and encouraging", "direct and honest", "witty and sarcastic")
-
-COMMON PATTERNS:
-(Phrases you use often, topics you cover, formats you prefer)
-
-AUDIENCE:
-(Who you're writing for – e.g., "young entrepreneurs", "busy moms", "tech enthusiasts")
-
-UNIQUE FLAVOR:
-(What makes your writing distinct – e.g., "uses personal stories", "breaks down complex topics simply")
-
-Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
-
-  const savePersona = async () => {
-    setSaving(true)
-    await supabase.from('profiles').update({ ai_persona: aiPersona.trim() }).eq('id', user!.id)
-    setSaved(true)
-    setSaving(false)
-    setTimeout(() => setSaved(false), 2000)
-  }
 
   useEffect(() => {
     supabase.from('profiles').select('*').eq('id', user!.id).single()
@@ -83,7 +69,10 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
           setShowStreak(data.show_streak ?? true)
           setLeavesUsed(data.leaves_used || 0)
           setWeeklyTarget(data.weekly_target || 7)
-          setAiPersona(data.ai_persona || '')
+      setAiPersona(data.ai_persona || "")
+
+      setAiPersona(data.ai_persona || "")
+
         }
       })
 
@@ -144,7 +133,7 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
         <h1 style={{ fontSize: '1.8rem', fontFamily: 'Space Grotesk', fontWeight: '700' }}>Settings</h1>
       </div>
 
-      {/* Profile card */}
+      {/* Profile card at top */}
       <div style={styles.profileCard}>
         <div style={styles.avatarWrap} onClick={() => fileRef.current?.click()}>
           {avatarUrl
@@ -169,6 +158,7 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
         </button>
       </div>
 
+      {/* Edit profile expanded */}
       {activeSection === 'profile' && (
         <div style={styles.expandedCard}>
           <div style={styles.field}>
@@ -245,6 +235,7 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
                   {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
+
               <div style={styles.field}>
                 <label style={styles.label}>Weekly Posting Target</label>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -252,10 +243,14 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
                     <button
                       key={n}
                       style={{
-                        width: '40px', height: '40px', borderRadius: '8px',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
                         background: weeklyTarget === n ? '#F5A623' : '#0A0A0A',
                         color: weeklyTarget === n ? '#0A0A0A' : '#555',
-                        fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
                         border: weeklyTarget === n ? 'none' : '1px solid #1E1E1E'
                       }}
                       onClick={() => setWeeklyTarget(n)}
@@ -268,6 +263,7 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
                   {weeklyTarget === 7 ? 'Daily — every day counts' : `${weeklyTarget}x per week — streak resets if you miss your weekly target`}
                 </p>
               </div>
+
               <div style={styles.field}>
                 <label style={styles.label}>Week Starts On</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -275,8 +271,12 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
                     <button
                       key={d}
                       style={{
-                        flex: 1, borderRadius: '8px', padding: '0.65rem',
-                        fontWeight: '500', cursor: 'pointer', fontSize: '0.85rem',
+                        flex: 1,
+                        borderRadius: '8px',
+                        padding: '0.65rem',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
                         background: weekStart === d ? '#F5A623' : '#0A0A0A',
                         color: weekStart === d ? '#0A0A0A' : '#555',
                         border: weekStart === d ? 'none' : '1px solid #1E1E1E'
@@ -288,6 +288,7 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
                   ))}
                 </div>
               </div>
+
               <button style={styles.saveBtn} onClick={save} disabled={saving}>
                 {saved ? 'Saved ✓' : 'Save'}
               </button>
@@ -327,98 +328,6 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
               {saved ? 'Saved ✓' : 'Save Privacy Settings'}
             </button>
           </div>
-        </div>
-
-        {/* AI PERSONA */}
-        <div style={styles.settingsGroup}>
-          <div style={styles.groupLabel}>
-            <Sparkles size={13} color="#555" />
-            AI Persona
-          </div>
-          <div style={styles.row} onClick={() => setActiveSection(activeSection === 'persona' ? null : 'persona')}>
-            <span style={styles.rowLabel}>Your Content Voice</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: '#555', fontSize: '0.8rem' }}>
-                {aiPersona ? '✓ Persona set' : 'Not set'}
-              </span>
-              <ChevronRight size={15} color="#333" />
-            </div>
-          </div>
-          {activeSection === 'persona' && (
-            <div style={styles.expandedInner}>
-              {!aiPersona ? (
-                <>
-                  <p style={{ color: '#555', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '1rem' }}>
-                    To make our AI sound like <strong>you</strong>, we need to understand your unique voice.
-                    Follow these 3 simple steps:
-                  </p>
-                  <div style={{ background: '#0A0A0A', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                      <span style={{ color: '#F5A623', fontWeight: '700' }}>1.</span>
-                      <span style={{ color: '#F0EDE8' }}>Copy the template prompt below</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                      <span style={{ color: '#F5A623', fontWeight: '700' }}>2.</span>
-                      <span style={{ color: '#F0EDE8' }}>Paste it into ChatGPT, Claude, or any AI</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                      <span style={{ color: '#F5A623', fontWeight: '700' }}>3.</span>
-                      <span style={{ color: '#F0EDE8' }}>Paste the AI's response below</span>
-                    </div>
-                  </div>
-                  <button
-                    style={styles.templateBtn}
-                    onClick={() => setShowPersonaTemplate(!showPersonaTemplate)}
-                  >
-                    {showPersonaTemplate ? 'Hide Template' : 'Show Template Prompt'}
-                  </button>
-                  {showPersonaTemplate && (
-                    <div style={{ background: '#0A0A0A', border: '1px solid #F5A62330', borderRadius: '10px', padding: '1rem', margin: '0.75rem 0', position: 'relative' }}>
-                      <button
-                        style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: '#F5A623', border: 'none', borderRadius: '6px', padding: '0.25rem 0.75rem', fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer', color: '#0A0A0A' }}
-                        onClick={() => { navigator.clipboard.writeText(personaTemplate); alert('Template copied!') }}
-                      >
-                        Copy
-                      </button>
-                      <pre style={{ color: '#888', fontSize: '0.82rem', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'Inter', margin: 0, paddingRight: '3rem' }}>
-                        {personaTemplate}
-                      </pre>
-                    </div>
-                  )}
-                  <textarea
-                    style={{ ...styles.input, minHeight: '120px', resize: 'vertical', marginTop: '0.75rem' }}
-                    placeholder="Paste your AI's analysis of your voice here..."
-                    value={aiPersona}
-                    onChange={e => setAiPersona(e.target.value)}
-                  />
-                  <button style={styles.saveBtn} onClick={savePersona}>
-                    Save Persona
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div style={{ background: '#0D2010', border: '1px solid #4CAF5030', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '0.75rem' }}>
-                    <div style={{ color: '#4CAF50', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      ✓ Persona set! Your content will now sound like you.
-                    </div>
-                  </div>
-                  <div style={{ background: '#0A0A0A', borderRadius: '8px', padding: '0.75rem 1rem', maxHeight: '100px', overflow: 'auto', marginBottom: '0.75rem' }}>
-                    <pre style={{ color: '#888', fontSize: '0.78rem', margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'Inter' }}>
-                      {aiPersona.slice(0, 300)}{aiPersona.length > 300 ? '...' : ''}
-                    </pre>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button style={{ ...styles.saveBtn, background: '#E53E3E', color: '#fff' }} onClick={() => { setAiPersona(''); savePersona() }}>
-                      Remove Persona
-                    </button>
-                    <button style={styles.saveBtn} onClick={() => setActiveSection(null)}>
-                      Done
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Plan */}
@@ -509,6 +418,10 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'absolute', top: '2px', width: '20px', height: '20px',
     borderRadius: '50%', background: '#fff', transition: 'transform 0.2s'
   },
+  toggleBtn: {
+    flex: 1, borderRadius: '8px', padding: '0.65rem',
+    fontWeight: '500', cursor: 'pointer', fontSize: '0.85rem'
+  },
   saveBtn: {
     background: '#F5A623', color: '#0A0A0A', border: 'none',
     borderRadius: '8px', padding: '0.7rem 1.25rem', fontWeight: '600',
@@ -517,12 +430,6 @@ const styles: Record<string, React.CSSProperties> = {
   cancelBtn: {
     background: 'none', border: '1px solid #1E1E1E', borderRadius: '8px',
     padding: '0.7rem 1.25rem', color: '#666', cursor: 'pointer', fontSize: '0.88rem'
-  },
-  templateBtn: {
-    background: '#1A1A1A', color: '#F0EDE8',
-    border: '1px solid #2A2A2A', borderRadius: '8px',
-    padding: '0.65rem 1rem', fontSize: '0.85rem',
-    cursor: 'pointer', marginBottom: '0.5rem'
   },
   upgradeBtn: {
     background: 'linear-gradient(135deg, #F5A623, #E8900A)',
@@ -536,4 +443,22 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '1rem', fontSize: '0.9rem', fontWeight: '500',
     cursor: 'pointer', width: '100%'
   }
-}
+    background: "#1A1A1A",
+    color: "#F0EDE8",
+    border: "1px solid #2A2A2A",
+    borderRadius: "8px",
+    padding: "0.65rem 1rem",
+    fontSize: "0.85rem",
+    cursor: "pointer",
+    marginBottom: "0.5rem"
+  },
+  templateBtn: {
+    background: "#1A1A1A",
+    color: "#F0EDE8",
+    border: "1px solid #2A2A2A",
+    borderRadius: "8px",
+    padding: "0.65rem 1rem",
+    fontSize: "0.85rem",
+    cursor: "pointer",
+    marginBottom: "0.5rem"
+  },

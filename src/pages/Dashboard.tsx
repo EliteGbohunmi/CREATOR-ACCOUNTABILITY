@@ -8,14 +8,14 @@ import Heatmap from '../components/Heatmap'
 import AICoach from '../components/AICoach'
 import MissedDayReflection from '../components/MissedDayReflection'
 import MilestoneCard from '../components/MilestoneCard'
+import OnboardingTour from '../components/OnboardingTour'
 import { checkAndAwardAchievements } from '../lib/achievements'
 import { checkAndAwardToken, useRestToken } from '../lib/restTokens'
-import { Flame, CheckCircle2, Circle, Calendar, TrendingUp, User, Upload, X, Clock, Coffee, BookMarked, Zap } from 'lucide-react'
+import { awardScore, getScoreLabel } from '../lib/creatorScore'
+import { Flame, CheckCircle2, Circle, Calendar, TrendingUp, User, Upload, X, Clock, Coffee, Zap, BookMarked, Star } from 'lucide-react'
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const [weeklyTarget, setWeeklyTarget] = useState(7)
-const [weekPosts, setWeekPosts] = useState(0)
   const [profile, setProfile] = useState<any>(null)
   const [streak, setStreak] = useState<any>(null)
   const [todayDone, setTodayDone] = useState(false)
@@ -35,8 +35,12 @@ const [weekPosts, setWeekPosts] = useState(0)
   const [usingRestToken, setUsingRestToken] = useState(false)
   const [toast, setToast] = useState('')
   const [showReflection, setShowReflection] = useState(false)
-  const [currentMilestone, setCurrentMilestone] = useState<string | null>(null)
   const [lostStreak, setLostStreak] = useState(0)
+  const [currentMilestone, setCurrentMilestone] = useState<string | null>(null)
+  const [creatorScore, setCreatorScore] = useState(0)
+  const [weeklyTarget, setWeeklyTarget] = useState(7)
+  const [weekPosts, setWeekPosts] = useState(0)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const today = new Date().toISOString().split('T')[0]
@@ -60,6 +64,17 @@ const [weekPosts, setWeekPosts] = useState(0)
     setStreak(str)
     setTasksToday(tasks || [])
     setRestTokens(prof?.rest_tokens || 0)
+    setCreatorScore(prof?.creator_score || 0)
+    setWeeklyTarget(prof?.weekly_target || 7)
+
+    const weekStart = new Date()
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+    const weekStartStr = weekStart.toISOString().split('T')[0]
+    const { data: weekCheckins } = await supabase
+      .from('checkin_proofs').select('id')
+      .eq('user_id', user!.id).eq('status', 'confirmed')
+      .gte('date', weekStartStr)
+    setWeekPosts(weekCheckins?.length || 0)
 
     if (str?.last_checked_in === today) {
       if (str?.on_rest_day) setTodayRest(true)
@@ -71,7 +86,7 @@ const [weekPosts, setWeekPosts] = useState(0)
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
       const yesterdayStr = yesterday.toISOString().split('T')[0]
-      if (str.last_checked_in < yesterdayStr && str.current_streak > 0 && (prof?.weekly_target === 7 || weekPosts < (prof?.weekly_target || 7))) {
+      if (str.last_checked_in < yesterdayStr && str.current_streak > 0) {
         await supabase.from('streaks').update({ current_streak: 0 }).eq('user_id', user!.id)
         setLostStreak(str.current_streak)
         setStreak((prev: any) => ({ ...prev, current_streak: 0 }))
@@ -81,7 +96,7 @@ const [weekPosts, setWeekPosts] = useState(0)
 
     const hour = new Date().getHours()
     if (hour >= 20 && str?.last_checked_in !== today && (prof?.rest_tokens || 0) > 0) {
-      showToast(`Don't forget — you have ${prof?.rest_tokens} rest token(s) available.`)
+      showToast(`You have ${prof?.rest_tokens} rest token(s) available tonight.`)
     }
 
     const { data: p1 } = await supabase
@@ -97,33 +112,18 @@ const [weekPosts, setWeekPosts] = useState(0)
     if (activePartner) {
       const partnerId = activePartner.user1_id === user!.id ? activePartner.user2_id : activePartner.user1_id
       setPartner({ id: partnerId, name: activePartner.profiles?.name })
-
       const { data: pendingProofs } = await supabase
-        .from('checkin_proofs')
-        .select('*, profiles(name)')
-        .eq('user_id', partnerId)
-        .eq('status', 'pending')
-
+        .from('checkin_proofs').select('*, profiles(name)')
+        .eq('user_id', partnerId).eq('status', 'pending')
       setPendingConfirmations(pendingProofs || [])
     }
 
     setLoading(false)
 
-const weekStart = new Date()
-weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-const weekStartStr = weekStart.toISOString().split('T')[0]
-const { data: weekCheckins } = await supabase
-  .from('checkin_proofs')
-  .select('id')
-  .eq('user_id', user!.id)
-  .eq('status', 'confirmed')
-  .gte('date', weekStartStr)
-
-setWeeklyTarget(prof?.weekly_target || 7)
-setWeekPosts(weekCheckins?.length || 0)
-
+    if (!localStorage.getItem('onboarding_complete')) {
+      setTimeout(() => setShowOnboarding(true), 500)
+    }
   }
-
 
   const submitProof = async () => {
     if (!proofLink.trim() && !proofFile) {
@@ -132,7 +132,6 @@ setWeekPosts(weekCheckins?.length || 0)
     }
     setSubmittingProof(true)
     let proofUrl = ''
-
     if (proofFile) {
       const ext = proofFile.name.split('.').pop()
       const path = `${user!.id}/${today}.${ext}`
@@ -142,16 +141,13 @@ setWeekPosts(weekCheckins?.length || 0)
         proofUrl = data.publicUrl
       }
     }
-
     await supabase.from('checkin_proofs').upsert({
       user_id: user!.id, date: today,
       proof_url: proofUrl, proof_link: proofLink,
       status: partner ? 'pending' : 'confirmed'
     })
-
     if (!partner) await confirmStreak()
     else setTodayPending(true)
-
     setShowProofForm(false)
     setProofLink('')
     setProofFile(null)
@@ -162,7 +158,6 @@ setWeekPosts(weekCheckins?.length || 0)
   const confirmStreak = async () => {
     const newStreak = (streak?.current_streak || 0) + 1
     const bestStreak = Math.max(newStreak, streak?.best_streak || 0)
-
     await supabase.from('streaks').update({
       current_streak: newStreak, best_streak: bestStreak,
       last_checked_in: today, on_rest_day: false
@@ -171,7 +166,6 @@ setWeekPosts(weekCheckins?.length || 0)
     const { data: userChallenges } = await supabase
       .from('user_challenges').select('*, challenges(*)')
       .eq('user_id', user!.id).is('left_at', null)
-
     if (userChallenges) {
       for (const uc of userChallenges) {
         if (uc.progress < uc.challenges.days) {
@@ -185,11 +179,20 @@ setWeekPosts(weekCheckins?.length || 0)
     setTodayPending(false)
     setCelebrated(true)
     setTimeout(() => setCelebrated(false), 3000)
+
     const newAchievements = await checkAndAwardAchievements(user!.id)
-if (newAchievements.length > 0) {
-  setCurrentMilestone(newAchievements[0])
-}
+    if (newAchievements.length > 0) setCurrentMilestone(newAchievements[0])
     await checkAndAwardToken(user!.id)
+
+    if (partner) {
+      await awardScore(user!.id, 'POST_CONFIRMED')
+    } else {
+      await awardScore(user!.id, 'SELF_CHECKIN')
+    }
+    if (newStreak === 7) await awardScore(user!.id, 'STREAK_7')
+    if (newStreak === 30) await awardScore(user!.id, 'STREAK_30')
+    if (newStreak === 60) await awardScore(user!.id, 'STREAK_60')
+    if (newStreak === 100) await awardScore(user!.id, 'STREAK_100')
   }
 
   const handleUseRestToken = async () => {
@@ -206,14 +209,14 @@ if (newAchievements.length > 0) {
   }
 
   const confirmPartnerProof = async (proof: any) => {
+    await awardScore(proof.user_id, 'POST_CONFIRMED')
+    await awardScore(user!.id, 'PARTNER_BONUS')
     await supabase.from('checkin_proofs').update({
       status: 'confirmed', confirmed_by: user!.id,
       confirmed_at: new Date().toISOString()
     }).eq('id', proof.id)
-
     const { data: partnerStreak } = await supabase
       .from('streaks').select('*').eq('user_id', proof.user_id).single()
-
     if (partnerStreak) {
       const newStreak = (partnerStreak.current_streak || 0) + 1
       await supabase.from('streaks').update({
@@ -256,26 +259,39 @@ if (newAchievements.length > 0) {
   }
 
   const firstName = profile?.name?.split(' ')[0] || 'Creator'
+  const scoreInfo = getScoreLabel(creatorScore)
 
   return (
     <Layout>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <div>
-            <p style={{ color: '#555', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.3rem' }}>
-              {greeting()}
-            </p>
-            <h1 style={{ fontSize: '1.9rem', fontFamily: 'Space Grotesk', fontWeight: '700', color: '#F0EDE8', lineHeight: 1.1 }}>
-              {firstName} 👋
-            </h1>
-          </div>
-          <div style={styles.avatarWrap}>
-            {profile?.avatar_url
-              ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-              : <User size={22} color="#555" />
-            }
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p style={{ color: '#555', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem' }}>
+                {greeting()}
+              </p>
+              <h1 style={{ fontSize: '1.7rem', fontFamily: 'Space Grotesk', fontWeight: '700', color: '#F0EDE8', lineHeight: 1.1, marginBottom: '0.3rem' }}>
+                {firstName}
+              </h1>
+              <p style={{ color: todayDone ? '#4CAF50' : todayPending ? '#F5A623' : todayRest ? '#888' : '#555', fontSize: '0.82rem' }}>
+                {todayDone ? 'Posted today ✓' : todayPending ? 'Awaiting confirmation' : todayRest ? 'Rest day active' : 'Not posted yet'}
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+              <div style={styles.avatarWrap}>
+                {profile?.avatar_url
+                  ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                  : <User size={20} color="#555" />
+                }
+              </div>
+              <a href="/score" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: '#1A1400', border: '1px solid #F5A62320', borderRadius: '20px', padding: '0.25rem 0.65rem', textDecoration: 'none' }}>
+                <Star size={11} color="#F5A623" />
+                <span style={{ color: '#F5A623', fontSize: '0.68rem', fontWeight: '600', fontFamily: 'Space Grotesk' }}>{creatorScore}</span>
+                <span style={{ color: '#555', fontSize: '0.65rem' }}>{scoreInfo.label}</span>
+              </a>
+            </div>
           </div>
         </div>
 
@@ -299,13 +315,6 @@ if (newAchievements.length > 0) {
 
         {mode === 'operator' ? (
           <>
-            <p style={{ color: todayDone ? '#4CAF50' : todayPending ? '#F5A623' : todayRest ? '#888' : '#666', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-              {todayDone ? "You've posted today. Streak alive."
-                : todayPending ? 'Waiting for partner confirmation.'
-                : todayRest ? 'Rest day. Streak protected.'
-                : "Haven't posted yet. Don't break the streak."}
-            </p>
-
             {/* Partner confirmations */}
             {pendingConfirmations.length > 0 && (
               <div style={{ marginBottom: '1.25rem' }}>
@@ -386,30 +395,20 @@ if (newAchievements.length > 0) {
                   }} />
                 ))}
               </div>
+              {weeklyTarget < 7 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: '#0A0A0A', borderRadius: '8px' }}>
+                  <span style={{ color: '#555', fontSize: '0.75rem' }}>This week</span>
+                  <span style={{ color: weekPosts >= weeklyTarget ? '#4CAF50' : '#F5A623', fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '0.85rem' }}>
+                    {weekPosts}/{weeklyTarget} posts {weekPosts >= weeklyTarget ? '✓' : ''}
+                  </span>
+                </div>
+              )}
               <div style={{ color: '#444', fontSize: '0.72rem', marginTop: '0.4rem' }}>
-                {weeklyTarget < 7 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#0A0A0A', borderRadius: '8px' }}>
-                <span style={{ color: '#555', fontSize: '0.78rem' }}>This week</span>
-                <span style={{ color: weekPosts >= weeklyTarget ? '#4CAF50' : '#F5A623', fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '0.9rem' }}>
-                  {weekPosts}/{weeklyTarget} posts{weekPosts >= weeklyTarget ? ' ✓' : ''}
-                </span>
-              </div>
-            )}
-            {7 - ((streak?.current_streak || 0) % 7) === 7 && (streak?.current_streak || 0) > 0
+                {7 - ((streak?.current_streak || 0) % 7) === 7 && (streak?.current_streak || 0) > 0
                   ? 'Week complete!'
                   : `${7 - ((streak?.current_streak || 0) % 7)} days to next week milestone`}
               </div>
             </motion.div>
-            
-            {weeklyTarget < 7 && (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#0A0A0A', borderRadius: '8px' }}>
-    <span style={{ color: '#555', fontSize: '0.78rem' }}>This week</span>
-    <span style={{ color: weekPosts >= weeklyTarget ? '#4CAF50' : '#F5A623', fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '0.9rem' }}>
-      {weekPosts}/{weeklyTarget} posts
-      {weekPosts >= weeklyTarget ? ' ✓' : ''}
-    </span>
-  </div>
-)}
 
             {/* Check-in buttons */}
             <div style={{ marginTop: '1rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -516,12 +515,7 @@ if (newAchievements.length > 0) {
           </>
         ) : (
           <>
-            {/* Creator Mode */}
-            <p style={{ color: '#555', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-              Distraction-free. Just create.
-            </p>
-
-            {/* Quick idea capture */}
+            <p style={{ color: '#555', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Distraction-free. Just create.</p>
             <div style={{ background: '#111111', border: '1px solid #1E1E1E', borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem' }}>
               <p style={{ color: '#555', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>Quick Capture</p>
               <input
@@ -537,63 +531,43 @@ if (newAchievements.length > 0) {
               />
               <p style={{ color: '#333', fontSize: '0.75rem', marginTop: '0.5rem' }}>Press Enter to save to Content Vault</p>
             </div>
-
-            {/* Today's tasks in creator mode */}
             {tasksToday.length > 0 && (
               <div style={{ background: '#111111', border: '1px solid #1E1E1E', borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem' }}>
                 <p style={{ color: '#555', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
-                  Today's Tasks — {tasksToday.filter(t => t.completed).length}/{tasksToday.length} done
+                  Today — {tasksToday.filter(t => t.completed).length}/{tasksToday.length} done
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {tasksToday.map(task => (
-                    <TaskItem key={task.id} task={task} onToggle={fetchAll} />
-                  ))}
+                  {tasksToday.map(task => <TaskItem key={task.id} task={task} onToggle={fetchAll} />)}
                 </div>
               </div>
             )}
-
-            {/* Quick links */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <a href="/vault" style={styles.creatorLink}>
-                <div>
-                  <div style={{ fontWeight: '600', marginBottom: '0.2rem' }}>Content Vault</div>
-                  <div style={{ color: '#555', fontSize: '0.82rem' }}>Browse and manage your ideas</div>
-                </div>
-                <div style={{ color: '#F5A623', fontSize: '0.82rem' }}>Open →</div>
-              </a>
-              <a href="/planner" style={styles.creatorLink}>
-                <div>
-                  <div style={{ fontWeight: '600', marginBottom: '0.2rem' }}>Content Planner</div>
-                  <div style={{ color: '#555', fontSize: '0.82rem' }}>Plan what to post this week</div>
-                </div>
-                <div style={{ color: '#F5A623', fontSize: '0.82rem' }}>Open →</div>
-              </a>
-              <a href="/challenges" style={styles.creatorLink}>
-                <div>
-                  <div style={{ fontWeight: '600', marginBottom: '0.2rem' }}>Challenges</div>
-                  <div style={{ color: '#555', fontSize: '0.82rem' }}>Stay on track with your commitments</div>
-                </div>
-                <div style={{ color: '#F5A623', fontSize: '0.82rem' }}>Open →</div>
-              </a>
+              {[
+                { href: '/vault', title: 'Content Vault', desc: 'Browse and manage your ideas' },
+                { href: '/planner', title: 'Content Planner', desc: 'Plan what to post this week' },
+                { href: '/challenges', title: 'Challenges', desc: 'Stay on track with your commitments' },
+              ].map(link => (
+                <a key={link.href} href={link.href} style={styles.creatorLink}>
+                  <div>
+                    <div style={{ fontWeight: '600', marginBottom: '0.2rem' }}>{link.title}</div>
+                    <div style={{ color: '#555', fontSize: '0.82rem' }}>{link.desc}</div>
+                  </div>
+                  <div style={{ color: '#F5A623', fontSize: '0.82rem' }}>Open →</div>
+                </a>
+              ))}
             </div>
           </>
         )}
 
         {showReflection && (
-          <MissedDayReflection
-            streakLost={lostStreak}
-            onClose={() => setShowReflection(false)}
-          />
+          <MissedDayReflection streakLost={lostStreak} onClose={() => setShowReflection(false)} />
         )}
-        
         {currentMilestone && (
-  <MilestoneCard
-    milestone={currentMilestone}
-    name={profile?.name || 'Creator'}
-    stat={streak?.current_streak}
-    onClose={() => setCurrentMilestone(null)}
-  />
-)}
+          <MilestoneCard milestone={currentMilestone} name={profile?.name || 'Creator'} stat={streak?.current_streak} onClose={() => setCurrentMilestone(null)} />
+        )}
+        {showOnboarding && (
+          <OnboardingTour onComplete={() => setShowOnboarding(false)} />
+        )}
 
         <AICoach name={profile?.name || 'Creator'} streak={streak?.current_streak || 0} todayDone={todayDone} tasksCount={tasksToday.length} />
 
@@ -619,102 +593,27 @@ function TaskItem({ task, onToggle }: any) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  skel: {
-    background: 'linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%)',
-    backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', borderRadius: '8px'
-  },
-  avatarWrap: {
-    width: '52px', height: '52px', borderRadius: '50%',
-    background: '#1A1A1A', border: '2px solid #2A2A2A',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden', flexShrink: 0
-  },
-  modeToggle: {
-    display: 'flex', background: '#111111', border: '1px solid #1E1E1E',
-    borderRadius: '10px', padding: '0.25rem', marginBottom: '1.25rem', gap: '0.25rem'
-  },
-  modeBtn: {
-    flex: 1, padding: '0.5rem', borderRadius: '8px', border: 'none',
-    fontWeight: '600', fontSize: '0.82rem', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
-  },
+  skel: { background: 'linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', borderRadius: '8px' },
+  avatarWrap: { width: '48px', height: '48px', borderRadius: '50%', background: '#1A1A1A', border: '2px solid #2A2A2A', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
+  modeToggle: { display: 'flex', background: '#111111', border: '1px solid #1E1E1E', borderRadius: '10px', padding: '0.25rem', marginBottom: '1.25rem', gap: '0.25rem' },
+  modeBtn: { flex: 1, padding: '0.5rem', borderRadius: '8px', border: 'none', fontWeight: '600', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' },
   streakCard: { border: '1px solid #1E1E1E', borderRadius: '20px', padding: '1.5rem' },
   flameWrap: { borderRadius: '14px', padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  checkInBtn: {
-    width: '100%', background: '#F5A623', color: '#0A0A0A', border: 'none',
-    borderRadius: '14px', padding: '1rem', fontSize: '1rem', fontWeight: '700',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', cursor: 'pointer'
-  },
-  restBtn: {
-    width: '100%', background: 'none', color: '#666', border: '1px solid #1E1E1E',
-    borderRadius: '14px', padding: '0.75rem', fontSize: '0.88rem', fontWeight: '500',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer'
-  },
-  checkedIn: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
-    padding: '1rem', background: '#111111', border: '1px solid #1E1E1E',
-    borderRadius: '14px', color: '#4CAF50', fontWeight: '500', fontSize: '0.92rem'
-  },
-  confirmCard: {
-    background: '#111111', border: '1px solid #F5A62330',
-    borderRadius: '14px', padding: '1.1rem', marginBottom: '0.75rem'
-  },
-  confirmBtn: {
-    flex: 1, background: '#F5A623', color: '#0A0A0A', border: 'none',
-    borderRadius: '8px', padding: '0.7rem', fontWeight: '700', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem'
-  },
-  rejectBtn: {
-    background: 'none', border: '1px solid #E53E3E30', borderRadius: '8px',
-    padding: '0.7rem 1rem', color: '#E53E3E', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem'
-  },
-  proofForm: {
-    background: '#111111', border: '1px solid #1E1E1E',
-    borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem'
-  },
+  checkInBtn: { width: '100%', background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '14px', padding: '1rem', fontSize: '1rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', cursor: 'pointer' },
+  restBtn: { width: '100%', background: 'none', color: '#666', border: '1px solid #1E1E1E', borderRadius: '14px', padding: '0.75rem', fontSize: '0.88rem', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer' },
+  checkedIn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', padding: '1rem', background: '#111111', border: '1px solid #1E1E1E', borderRadius: '14px', color: '#4CAF50', fontWeight: '500', fontSize: '0.92rem' },
+  confirmCard: { background: '#111111', border: '1px solid #F5A62330', borderRadius: '14px', padding: '1.1rem', marginBottom: '0.75rem' },
+  confirmBtn: { flex: 1, background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '8px', padding: '0.7rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' },
+  rejectBtn: { background: 'none', border: '1px solid #E53E3E30', borderRadius: '8px', padding: '0.7rem 1rem', color: '#E53E3E', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' },
+  proofForm: { background: '#111111', border: '1px solid #1E1E1E', borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem' },
   label: { color: '#555', fontSize: '0.72rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' },
-  input: {
-    background: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: '8px',
-    padding: '0.75rem 1rem', color: '#F0EDE8', fontSize: '0.92rem',
-    outline: 'none', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'Inter'
-  },
-  uploadBox: {
-    background: '#0A0A0A', border: '1px dashed #2A2A2A', borderRadius: '8px',
-    padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem',
-    cursor: 'pointer', marginTop: '0.3rem'
-  },
-  submitBtn: {
-    width: '100%', background: '#F5A623', color: '#0A0A0A', border: 'none',
-    borderRadius: '8px', padding: '0.75rem', fontWeight: '700', cursor: 'pointer', fontSize: '0.88rem'
-  },
-  quickAction: {
-    display: 'flex', alignItems: 'center', gap: '0.5rem',
-    background: '#111111', color: '#888', border: '1px solid #1E1E1E',
-    borderRadius: '8px', padding: '0.65rem 1rem', fontWeight: '500',
-    cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'none'
-  },
-  creatorLink: {
-    background: '#111111', border: '1px solid #1E1E1E', borderRadius: '14px',
-    padding: '1.1rem', textDecoration: 'none', color: '#F0EDE8',
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-  },
-  emptyBox: {
-    background: '#111111', border: '1px dashed #1E1E1E', borderRadius: '12px',
-    padding: '1.25rem', color: '#555', textAlign: 'center', fontSize: '0.88rem'
-  },
-  taskItem: {
-    background: '#111111', border: '1px solid #1E1E1E', borderRadius: '10px',
-    padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer'
-  },
-  platform: {
-    background: '#1A1400', color: '#F5A623', padding: '0.2rem 0.6rem',
-    borderRadius: '20px', fontSize: '0.7rem', fontWeight: '500'
-  },
-  toast: {
-    position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)',
-    background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '10px',
-    padding: '0.75rem 1.25rem', color: '#F0EDE8', fontSize: '0.85rem',
-    zIndex: 999, whiteSpace: 'nowrap' as const, boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
-  }
+  input: { background: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: '8px', padding: '0.75rem 1rem', color: '#F0EDE8', fontSize: '0.92rem', outline: 'none', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'Inter' },
+  uploadBox: { background: '#0A0A0A', border: '1px dashed #2A2A2A', borderRadius: '8px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginTop: '0.3rem' },
+  submitBtn: { width: '100%', background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '8px', padding: '0.75rem', fontWeight: '700', cursor: 'pointer', fontSize: '0.88rem' },
+  quickAction: { display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#111111', color: '#888', border: '1px solid #1E1E1E', borderRadius: '8px', padding: '0.65rem 1rem', fontWeight: '500', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'none' },
+  emptyBox: { background: '#111111', border: '1px dashed #1E1E1E', borderRadius: '12px', padding: '1.25rem', color: '#555', textAlign: 'center', fontSize: '0.88rem' },
+  taskItem: { background: '#111111', border: '1px solid #1E1E1E', borderRadius: '10px', padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' },
+  platform: { background: '#1A1400', color: '#F5A623', padding: '0.2rem 0.6rem', borderRadius: '20px', fontSize: '0.7rem', fontWeight: '500' },
+  creatorLink: { background: '#111111', border: '1px solid #1E1E1E', borderRadius: '14px', padding: '1.1rem', textDecoration: 'none', color: '#F0EDE8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  toast: { position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)', background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '10px', padding: '0.75rem 1.25rem', color: '#F0EDE8', fontSize: '0.85rem', zIndex: 999, whiteSpace: 'nowrap' as const, boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }
 }
