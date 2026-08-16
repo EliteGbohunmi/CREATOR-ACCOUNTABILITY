@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
+import { sendNudge } from '../lib/backend'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
 import { Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock } from 'lucide-react'
@@ -15,8 +16,10 @@ export default function Partners() {
   const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState<string | null>(null)
+  const [toast, setToast] = useState('') // 👈 added
 
   const today = new Date().toISOString().split('T')[0]
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
   useEffect(() => { fetchAll() }, [])
 
@@ -112,7 +115,21 @@ export default function Partners() {
   }
 
   const partnerCheckedIn = partner?.streak?.last_checked_in === today
-  
+
+  const toastStyle: React.CSSProperties = {
+    position: 'fixed',
+    bottom: '90px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: '#1C1C1C',
+    border: '1px solid #2A2A2A',
+    borderRadius: '10px',
+    padding: '0.75rem 1.25rem',
+    color: '#F0EDE8',
+    fontSize: '0.85rem',
+    zIndex: 999,
+    whiteSpace: 'nowrap'
+  }
 
   if (loading) {
     return (
@@ -122,6 +139,7 @@ export default function Partners() {
             <div key={i} style={{ height: '120px', borderRadius: '14px', background: '#111', border: '1px solid #1E1E1E' }} />
           ))}
         </div>
+        {toast && <div style={toastStyle}>{toast}</div>}
       </Layout>
     )
   }
@@ -187,19 +205,17 @@ export default function Partners() {
             {!partnerCheckedIn && (
               <div style={styles.missedAlert}>
                 <AlertCircle size={15} color="#E53E3E" />
-                <span> <div style={styles.missedAlert}>
-  <AlertCircle size={15} color="#E53E3E" />
-  <span style={{ flex: 1 }}>{partner.partnerName} hasn't checked in today.</span>
-  <button
-    style={{ background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '6px', padding: '0.4rem 0.85rem', fontWeight: '600', fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}
-    onClick={() => {
-      navigator.clipboard.writeText(`Hey ${partner.partnerName}! 👋 You haven't posted today yet. Don't break your streak — go create something! 🔥`)
-      alert('Nudge copied! Paste it in WhatsApp or DM.')
-    }}
-  >
-    Copy Nudge
-  </button>
-</div>   </span>
+                <span style={{ flex: 1 }}>{partner.partnerName} hasn't checked in today.</span>
+                <button
+                  style={{ background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '6px', padding: '0.4rem 0.85rem', fontWeight: '600', fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}
+                  onClick={async () => {
+                    await sendNudge(user!.id, partner.partnerId)
+                    navigator.clipboard.writeText(`Hey ${partner.partnerName}! 👋 You haven't posted today yet. Don't break your streak — go create something! 🔥`)
+                    showToast('Nudge sent to partner!')
+                  }}
+                >
+                  Copy Nudge
+                </button>
               </div>
             )}
 
@@ -338,6 +354,9 @@ export default function Partners() {
           </p>
         </div>
       )}
+
+      {/* Toast notification */}
+      {toast && <div style={toastStyle}>{toast}</div>}
     </Layout>
   )
 }

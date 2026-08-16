@@ -1,23 +1,22 @@
-self.addEventListener('install', e => self.skipWaiting())
-self.addEventListener('activate', e => e.waitUntil(clients.claim()))
+self.addEventListener('push', event => {
+  if (!event.data) return
+  const data = event.data.json()
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: data.data || {}
+    })
+  )
+})
 
-self.addEventListener('message', e => {
-  if (e.data.type === 'SCHEDULE_REMINDER') {
-    const { hour, minute } = e.data
-
-    const now = new Date()
-    const target = new Date()
-    target.setHours(hour, minute, 0, 0)
-    if (target <= now) target.setDate(target.getDate() + 1)
-
-    const delay = target.getTime() - now.getTime()
-
-    setTimeout(() => {
-      self.registration.showNotification('🔥 Creator Accountability', {
-        body: "Don't break your streak! Have you posted today?",
-        icon: '/vite.svg',
-        badge: '/vite.svg'
-      })
-    }, delay)
-  }
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  const action = event.notification.data?.action || 'dashboard'
+  const url = action === 'checkin' ? '/dashboard'
+    : action === 'analytics' ? '/analytics'
+    : action === 'reflection' ? '/dashboard'
+    : '/dashboard'
+  event.waitUntil(clients.openWindow(url))
 })

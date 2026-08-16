@@ -12,6 +12,7 @@ import OnboardingTour from '../components/OnboardingTour'
 import { checkAndAwardAchievements } from '../lib/achievements'
 import { checkAndAwardToken, useRestToken } from '../lib/restTokens'
 import { awardScore, getScoreLabel } from '../lib/creatorScore'
+import { notifyPartnerCheckin } from '../lib/backend'
 import { Flame, CheckCircle2, Circle, Calendar, TrendingUp, User, Upload, X, Clock, Coffee, Zap, BookMarked, Star } from 'lucide-react'
 
 export default function Dashboard() {
@@ -183,6 +184,7 @@ export default function Dashboard() {
     const newAchievements = await checkAndAwardAchievements(user!.id)
     if (newAchievements.length > 0) setCurrentMilestone(newAchievements[0])
     await checkAndAwardToken(user!.id)
+    await notifyPartnerCheckin(user!.id)
 
     if (partner) {
       await awardScore(user!.id, 'POST_CONFIRMED')

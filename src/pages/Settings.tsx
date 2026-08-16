@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
-import { Camera, Bell, Shield, LogOut, ChevronRight, User, Sliders, Sparkles } from 'lucide-react'
+import { Camera, Shield, LogOut, ChevronRight, User, Sliders, Sparkles, Calendar, Copy } from 'lucide-react'
 import { requestNotificationPermission, fireReminder, saveReminderTime, getSavedReminderTime } from '../lib/notifications'
 
 const PLATFORMS = ['Instagram', 'X (Twitter)', 'TikTok', 'YouTube', 'LinkedIn', 'Threads', 'Blog', 'Podcast']
@@ -28,40 +28,44 @@ export default function Settings() {
   const [reminderSet, setReminderSet] = useState(false)
   const [notifAllowed, setNotifAllowed] = useState(false)
   const [activeSection, setActiveSection] = useState<string | null>(null)
+  const [currentStreak, setCurrentStreak] = useState(0)
+  const [icsContent, setIcsContent] = useState('') // for copy fallback
 
-  // PERSONA STATE
+  // Persona state
   const [aiPersona, setAiPersona] = useState('')
   const [showPersonaTemplate, setShowPersonaTemplate] = useState(false)
 
-  const personaTemplate = `I need you to analyze my writing style and create a detailed persona description.
+  const personaTemplate = `Based on our past conversations, analyze my writing style and create a detailed persona description.
 
-Here are examples of my content:
-
-[PASTE YOUR BEST POSTS HERE]
-
-Based on these examples, create a persona description with these sections:
+Create a persona description with these sections:
 
 CONTENT VOICE:
-(2-3 sentences describing the overall voice)
+(2-3 sentences describing my overall voice)
 
 WRITING STYLE:
-(Specific details about sentence structure, length, format, vocabulary)
+(Specific details about my sentence structure, length, format, vocabulary)
 
 TONE:
-(Emotional tone – e.g., "warm and encouraging", "direct and honest", "witty and sarcastic")
+(My emotional tone – e.g., "warm and encouraging", "direct and honest", "witty and sarcastic")
 
 COMMON PATTERNS:
-(Phrases you use often, topics you cover, formats you prefer)
+(Phrases I use often, topics I cover, formats I prefer)
 
 AUDIENCE:
-(Who you're writing for – e.g., "young entrepreneurs", "busy moms", "tech enthusiasts")
+(Who I'm writing for – e.g., "young entrepreneurs", "busy moms", "tech enthusiasts")
 
 UNIQUE FLAVOR:
-(What makes your writing distinct – e.g., "uses personal stories", "breaks down complex topics simply")
+(What makes my writing distinct – e.g., "uses personal stories", "breaks down complex topics simply")
 
-Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
+Also include a section called:
+
+STRATEGIC GOALS:
+(My content goals – e.g., "build authority", "educate beginners", "inspire action")
+
+Be specific. Use what you know about me from our conversations.`
 
   const savePersona = async () => {
+    if (!aiPersona.trim()) return
     setSaving(true)
     await supabase.from('profiles').update({ ai_persona: aiPersona.trim() }).eq('id', user!.id)
     setSaved(true)
@@ -85,6 +89,11 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
           setWeeklyTarget(data.weekly_target || 7)
           setAiPersona(data.ai_persona || '')
         }
+      })
+
+    supabase.from('streaks').select('current_streak').eq('user_id', user!.id).single()
+      .then(({ data }) => {
+        if (data) setCurrentStreak(data.current_streak || 0)
       })
 
     if ('Notification' in window) setNotifAllowed(Notification.permission === 'granted')
@@ -127,14 +136,74 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
     setUploading(false)
   }
 
-  const setReminder = async () => {
-    const granted = await requestNotificationPermission()
-    if (!granted) { alert('Please allow notifications in your browser settings.'); return }
-    const [h, m] = reminderTime.split(':')
-    saveReminderTime(parseInt(h), parseInt(m))
+  // Generate ICS content
+  const generateICS = (hour: number, minute: number): string => {
+    const now = new Date()
+    const eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute)
+    if (eventDate < now) eventDate.setDate(eventDate.getDate() + 1)
+    const formattedDate = eventDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+
+    const displayName = name.trim() || 'Creator'
+    const streakMsg = currentStreak > 0 ? `You're on a ${currentStreak}-day streak! Keep it going!` : 'Every day counts. Start your streak today!'
+
+    return `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Streak//Reminder//EN
+BEGIN:VEVENT
+UID:${Date.now()}@streak.app
+DTSTAMP:${formattedDate}
+DTSTART:${formattedDate}
+DURATION:PT0H0M
+SUMMARY:🔥 ${displayName}, post today! Keep your streak alive!
+DESCRIPTION:${streakMsg}\n\nPost your content and stay consistent. Your audience is waiting. You've got this!\n\nOpen the app now and check in.
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Time to post! Don't break your streak!
+END:VALARM
+END:VEVENT
+END:VCALENDAR`
+  }
+
+  // Set reminder – opens ICS in a new tab (always works)
+  const setReminder = () => {
+    const [h, m] = reminderTime.split(':').map(Number)
+    saveReminderTime(h, m)
     setReminderSet(true)
     setNotifAllowed(true)
-    fireReminder()
+
+    const content = generateICS(h, m)
+    setIcsContent(content)
+
+    // Open in new tab – this always triggers download or calendar app
+    const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(content)
+    window.open(dataUri, '_blank')
+
+    // Also copy to clipboard as fallback (optional)
+    // We'll show a copy button in the UI
+
+    // Browser notification if allowed
+    if (Notification.permission === 'granted') {
+      fireReminder()
+    } else {
+      requestNotificationPermission().then(granted => {
+        if (granted) fireReminder()
+      })
+    }
+
+    // Show a success message
+    alert(`📅 Reminder file opened in new tab! If it doesn't download automatically, copy the text below and save it as a .ics file.`)
+  }
+
+  // Copy ICS content to clipboard
+  const copyICS = async () => {
+    if (!icsContent) return
+    try {
+      await navigator.clipboard.writeText(icsContent)
+      alert('✅ Calendar content copied! Paste it into a text file and save as .ics')
+    } catch {
+      alert('Could not copy. Please select the text and copy manually.')
+    }
   }
 
   return (
@@ -196,17 +265,16 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
         </div>
       )}
 
-      {/* Settings list */}
       <div style={styles.settingsList}>
 
-        {/* Notifications */}
+        {/* Reminder */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
-            <Bell size={13} color="#555" />
-            Notifications
+            <Calendar size={13} color="#555" />
+            Daily Reminder
           </div>
           <div style={styles.row} onClick={() => setActiveSection(activeSection === 'notif' ? null : 'notif')}>
-            <span style={styles.rowLabel}>Daily Reminder</span>
+            <span style={styles.rowLabel}>Set Posting Reminder</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ color: notifAllowed ? '#4CAF50' : '#555', fontSize: '0.8rem' }}>
                 {reminderSet ? reminderTime : 'Not set'}
@@ -216,14 +284,60 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
           </div>
           {activeSection === 'notif' && (
             <div style={styles.expandedInner}>
-              <input style={styles.input} type="time" value={reminderTime} onChange={e => setReminderTime(e.target.value)} />
-              <button style={styles.saveBtn} onClick={setReminder}>Set Reminder</button>
-              {reminderSet && <p style={{ color: '#4CAF50', fontSize: '0.8rem', margin: 0 }}>✓ Saved for {reminderTime}</p>}
+              <p style={{ color: '#555', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+                Set a time and we'll open a calendar file with an alarm.
+                {currentStreak > 0 && ` 🔥 You're on a ${currentStreak}-day streak!`}
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input 
+                  style={{ ...styles.input, flex: 1 }} 
+                  type="time" 
+                  value={reminderTime} 
+                  onChange={e => setReminderTime(e.target.value)} 
+                />
+                <button 
+                  style={{ ...styles.saveBtn, flexShrink: 0, alignSelf: 'stretch' }} 
+                  onClick={setReminder}
+                >
+                  Open .ics
+                </button>
+              </div>
+              {reminderSet && (
+                <div style={{ 
+                  background: '#0D2010', 
+                  border: '1px solid #4CAF5030', 
+                  borderRadius: '8px', 
+                  padding: '0.75rem 1rem',
+                  marginTop: '0.5rem'
+                }}>
+                  <div style={{ color: '#4CAF50', fontSize: '0.85rem' }}>
+                    ✓ Reminder set for {reminderTime}
+                  </div>
+                  <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '0.2rem' }}>
+                    A new tab opened with the calendar file. If it didn't download, use the copy button below.
+                  </div>
+                  {icsContent && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <button 
+                        onClick={copyICS}
+                        style={{ ...styles.saveBtn, padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                      >
+                        <Copy size={14} /> Copy ICS Content
+                      </button>
+                      <textarea 
+                        value={icsContent}
+                        readOnly
+                        style={{ ...styles.input, marginTop: '0.5rem', fontSize: '0.7rem', minHeight: '80px', fontFamily: 'monospace' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Preferences */}
+        {/* Preferences, Privacy, Persona, Plan, Sign out – same as before */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
             <Sliders size={13} color="#555" />
@@ -295,7 +409,6 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
           )}
         </div>
 
-        {/* Privacy */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
             <Shield size={13} color="#555" />
@@ -329,7 +442,6 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
           </div>
         </div>
 
-        {/* AI PERSONA */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
             <Sparkles size={13} color="#555" />
@@ -349,28 +461,23 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
               {!aiPersona ? (
                 <>
                   <p style={{ color: '#555', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '1rem' }}>
-                    To make our AI sound like <strong>you</strong>, we need to understand your unique voice.
-                    Follow these 3 simple steps:
+                    To make our AI sound like <strong>you</strong>, we need to understand your unique voice. Just 2 steps:
                   </p>
                   <div style={{ background: '#0A0A0A', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem' }}>
                       <span style={{ color: '#F5A623', fontWeight: '700' }}>1.</span>
-                      <span style={{ color: '#F0EDE8' }}>Copy the template prompt below</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                      <span style={{ color: '#F5A623', fontWeight: '700' }}>2.</span>
-                      <span style={{ color: '#F0EDE8' }}>Paste it into ChatGPT, Claude, or any AI</span>
+                      <span style={{ color: '#F0EDE8' }}>Copy the prompt below</span>
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
-                      <span style={{ color: '#F5A623', fontWeight: '700' }}>3.</span>
-                      <span style={{ color: '#F0EDE8' }}>Paste the AI's response below</span>
+                      <span style={{ color: '#F5A623', fontWeight: '700' }}>2.</span>
+                      <span style={{ color: '#F0EDE8' }}>Paste into ChatGPT/Claude, then paste the response here</span>
                     </div>
                   </div>
                   <button
                     style={styles.templateBtn}
                     onClick={() => setShowPersonaTemplate(!showPersonaTemplate)}
                   >
-                    {showPersonaTemplate ? 'Hide Template' : 'Show Template Prompt'}
+                    {showPersonaTemplate ? 'Hide Prompt' : 'Show Prompt'}
                   </button>
                   {showPersonaTemplate && (
                     <div style={{ background: '#0A0A0A', border: '1px solid #F5A62330', borderRadius: '10px', padding: '1rem', margin: '0.75rem 0', position: 'relative' }}>
@@ -387,12 +494,12 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
                   )}
                   <textarea
                     style={{ ...styles.input, minHeight: '120px', resize: 'vertical', marginTop: '0.75rem' }}
-                    placeholder="Paste your AI's analysis of your voice here..."
+                    placeholder="Paste your AI's response here..."
                     value={aiPersona}
                     onChange={e => setAiPersona(e.target.value)}
                   />
-                  <button style={styles.saveBtn} onClick={savePersona}>
-                    Save Persona
+                  <button style={styles.saveBtn} onClick={savePersona} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Persona'}
                   </button>
                 </>
               ) : (
@@ -421,7 +528,6 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
           )}
         </div>
 
-        {/* Plan */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
             <Shield size={13} color="#555" />
@@ -439,7 +545,6 @@ Be specific. Don't be generic. The goal is to make an AI sound exactly like me.`
           </div>
         </div>
 
-        {/* Sign out */}
         <div style={styles.settingsGroup}>
           <button style={styles.signOutRow} onClick={signOut}>
             <LogOut size={16} color="#E53E3E" />
