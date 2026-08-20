@@ -3,7 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { Send, Trash2, Link2, MessageCircle, Heart, ExternalLink } from 'lucide-react';
+import { Send, Trash2, Link2, MessageCircle, Heart, ExternalLink, Plus, X } from 'lucide-react';
 
 export default function Community() {
   const { user } = useAuth();
@@ -15,7 +15,13 @@ export default function Community() {
   const [replyPostId, setReplyPostId] = useState<string | null>(null);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [composerFocused, setComposerFocused] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+  const [isReplying, setIsReplying] = useState(false);
+  const [showComposeFab, setShowComposeFab] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const MAX_LENGTH = 2000;
 
   const fetchPosts = async () => {
     try {
@@ -24,11 +30,23 @@ export default function Community() {
         .select(`
           *,
           profiles!community_posts_user_id_fkey (id, name, email),
-          comments: community_comments (id, content, user_id, created_at, profiles!community_comments_user_id_fkey (name))
+          comments: community_comments (id, content, user_id, created_at, profiles!community_comments_user_id_fkey (name)),
+          likes: community_likes (id, user_id)
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('created_at', { foreignTable: 'community_comments', ascending: true });
       if (error) throw error;
+
       setPosts(data || []);
+
+      // Seed which posts the current user has liked, from the joined data.
+      if (user) {
+        const liked = new Set<string>();
+        (data || []).forEach((p: any) => {
+          if ((p.likes || []).some((l: any) => l.user_id === user.id)) liked.add(p.id);
+        });
+        setLikedPosts(liked);
+      }
     } catch (err) {
       toast.error('Failed to load messages');
     } finally {
@@ -38,9 +56,32 @@ export default function Community() {
 
   useEffect(() => {
     fetchPosts();
-    const interval = setInterval(fetchPosts, 30000);
-    return () => clearInterval(interval);
+
+    // Realtime instead of polling: refetch whenever posts/comments/likes change.
+    const channel = supabase
+      .channel('community-feed')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_posts' }, () => fetchPosts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_comments' }, () => fetchPosts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_likes' }, () => fetchPosts())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Show a floating "compose" button once the user has scrolled past the composer.
+  useEffect(() => {
+    const onScroll = () => setShowComposeFab(window.scrollY > 400);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const scrollToCompose = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => textareaRef.current?.focus(), 350);
+  };
 
   const formatTime = (dateString: string) => {
     const now = new Date();
@@ -61,16 +102,47 @@ export default function Community() {
     });
   };
 
+  // Only allow http(s) links; blocks javascript: and other dangerous schemes.
+  const sanitizeLink = (raw: string): string | null => {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    if (/^javascript:/i.test(trimmed)) return null;
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      const url = new URL(withScheme);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+      return url.toString();
+    } catch {
+      return null;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPosting) return;
     if (!newContent.trim()) {
       toast.error('Please write something');
       return;
     }
+    if (!user) {
+      toast.error('You need to be signed in to post');
+      return;
+    }
+
+    let link: string | null = null;
+    if (newLink.trim()) {
+      link = sanitizeLink(newLink);
+      if (!link) {
+        toast.error('Please enter a valid link');
+        return;
+      }
+    }
+
+    setIsPosting(true);
     try {
       const { data, error } = await supabase
         .from('community_posts')
-        .insert([{ user_id: user!.id, content: newContent.trim(), link: newLink.trim() || null }])
+        .insert([{ user_id: user.id, content: newContent.trim(), link }])
         .select();
       if (error) throw error;
       toast.success('Message sent');
@@ -80,6 +152,8 @@ export default function Community() {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (err) {
       toast.error('Failed to post');
+    } finally {
+      setIsPosting(false);
     }
   };
 
@@ -95,45 +169,70 @@ export default function Community() {
   };
 
   const handleReply = async (postId: string) => {
+    if (isReplying) return;
     if (!replyContent.trim()) {
       toast.error('Write a reply');
       return;
     }
+    if (!user) {
+      toast.error('You need to be signed in to reply');
+      return;
+    }
+    setIsReplying(true);
     try {
       await supabase
         .from('community_comments')
-        .insert([{ post_id: postId, user_id: user!.id, content: replyContent.trim() }]);
+        .insert([{ post_id: postId, user_id: user.id, content: replyContent.trim() }]);
       toast.success('Reply added');
       setReplyContent('');
       setReplyPostId(null);
       fetchPosts();
     } catch (err) {
       toast.error('Failed to reply');
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
+  const handleDeleteReply = async (postId: string, commentId: string) => {
+    try {
+      await supabase.from('community_comments').delete().eq('id', commentId);
+      setPosts(prev =>
+        prev.map(p =>
+          p.id === postId ? { ...p, comments: (p.comments || []).filter((c: any) => c.id !== commentId) } : p
+        )
+      );
+    } catch (err) {
+      toast.error('Failed to delete reply');
     }
   };
 
   const handleLike = async (postId: string) => {
-    try {
-      const isLiked = likedPosts.has(postId);
-      const { data: existing } = await supabase
-        .from('community_likes')
-        .select('id')
-        .eq('post_id', postId)
-        .eq('user_id', user!.id)
-        .maybeSingle();
+    if (!user) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    const existingLike = (post.likes || []).find((l: any) => l.user_id === user.id);
 
-      if (existing) {
-        await supabase.from('community_likes').delete().eq('id', existing.id);
-        setLikedPosts(prev => { const newSet = new Set(prev); newSet.delete(postId); return newSet; });
-        setPosts(prev => prev.map(p =>
-          p.id === postId ? { ...p, likes: p.likes?.filter((l: any) => l.user_id !== user!.id) || [] } : p
-        ));
+    try {
+      if (existingLike) {
+        await supabase.from('community_likes').delete().eq('id', existingLike.id);
+        setLikedPosts(prev => { const s = new Set(prev); s.delete(postId); return s; });
+        setPosts(prev =>
+          prev.map(p =>
+            p.id === postId ? { ...p, likes: (p.likes || []).filter((l: any) => l.id !== existingLike.id) } : p
+          )
+        );
       } else {
-        await supabase.from('community_likes').insert([{ post_id: postId, user_id: user!.id }]);
+        const { data, error } = await supabase
+          .from('community_likes')
+          .insert([{ post_id: postId, user_id: user.id }])
+          .select();
+        if (error) throw error;
+        const newLike = data?.[0] || { user_id: user.id };
         setLikedPosts(prev => new Set(prev).add(postId));
-        setPosts(prev => prev.map(p =>
-          p.id === postId ? { ...p, likes: [...(p.likes || []), { user_id: user!.id }] } : p
-        ));
+        setPosts(prev =>
+          prev.map(p => (p.id === postId ? { ...p, likes: [...(p.likes || []), newLike] } : p))
+        );
       }
     } catch (err) {
       toast.error('Failed to like');
@@ -179,8 +278,16 @@ export default function Community() {
         .delete-btn { transition: background 0.2s ease, border-color 0.2s ease; }
         .delete-btn:hover { background: rgba(229, 62, 62, 0.12); border-color: #E53E3E; }
 
+        .reply-delete-btn { transition: opacity 0.2s ease; opacity: 0.5; }
+        .reply-delete-btn:hover { opacity: 1; }
+
         .reply-send-btn { transition: transform 0.15s ease, opacity 0.15s ease; }
         .reply-send-btn:hover:not(:disabled) { transform: translateY(-1px); }
+
+        .compose-fab {
+          transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.2s ease;
+        }
+        .compose-fab:hover { box-shadow: 0 6px 24px rgba(245, 166, 35, 0.45); transform: translateY(-2px); }
       `}</style>
 
       <div style={styles.container}>
@@ -195,15 +302,18 @@ export default function Community() {
           style={styles.form}
         >
           <textarea
+            ref={textareaRef}
             className="composer-textarea"
             placeholder="What's on your mind?"
             value={newContent}
+            maxLength={MAX_LENGTH}
             onChange={e => setNewContent(e.target.value)}
             onFocus={() => setComposerFocused(true)}
             onBlur={() => setComposerFocused(false)}
             style={styles.textarea}
             rows={3}
           />
+          <div style={styles.charCount}>{newContent.length}/{MAX_LENGTH}</div>
 
           <div style={styles.composerFooter}>
             <div style={styles.linkInputWrapper}>
@@ -219,8 +329,8 @@ export default function Community() {
               />
             </div>
 
-            <button type="submit" className="send-btn" disabled={!newContent.trim()} style={styles.sendBtn}>
-              <span>Post</span>
+            <button type="submit" className="send-btn" disabled={!newContent.trim() || isPosting} style={styles.sendBtn}>
+              <span>{isPosting ? 'Posting…' : 'Post'}</span>
               <Send size={16} />
             </button>
           </div>
@@ -296,8 +406,19 @@ export default function Community() {
                 <div style={styles.replyThread}>
                   {(post.comments || []).map((c: any) => (
                     <div key={c.id} style={styles.replyItem}>
-                      <span style={styles.replySender}>{c.profiles?.name || 'Anonymous'}</span>
-                      <span style={styles.replyText}>{c.content}</span>
+                      <div style={styles.replyTextGroup}>
+                        <span style={styles.replySender}>{c.profiles?.name || 'Anonymous'}</span>
+                        <span style={styles.replyText}>{c.content}</span>
+                      </div>
+                      {c.user_id === user?.id && (
+                        <button
+                          onClick={() => handleDeleteReply(post.id, c.id)}
+                          className="reply-delete-btn"
+                          style={styles.replyDeleteBtn}
+                        >
+                          <X size={13} color="#888" />
+                        </button>
+                      )}
                     </div>
                   ))}
                   <div style={styles.replyInputRow}>
@@ -311,7 +432,7 @@ export default function Community() {
                     <button
                       onClick={() => handleReply(post.id)}
                       className="reply-send-btn"
-                      disabled={!replyContent.trim()}
+                      disabled={!replyContent.trim() || isReplying}
                       style={styles.replySendBtn}
                     >
                       <Send size={14} />
@@ -324,6 +445,12 @@ export default function Community() {
         )}
         <div ref={bottomRef} />
       </div>
+
+      {showComposeFab && (
+        <button className="compose-fab" onClick={scrollToCompose} style={styles.composeFab} aria-label="New post">
+          <Plus size={22} color="#0A0A0A" />
+        </button>
+      )}
     </Layout>
   );
 }
@@ -371,11 +498,17 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: '70px',
     outline: 'none',
   },
+  charCount: {
+    textAlign: 'right',
+    fontSize: '0.72rem',
+    color: '#555',
+    marginTop: '0.3rem',
+  },
   composerFooter: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    marginTop: '0.85rem',
+    marginTop: '0.5rem',
   },
   linkInputWrapper: {
     flex: 1,
@@ -482,6 +615,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.97rem',
     lineHeight: 1.65,
     color: '#DDD',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
   },
   linkChip: {
     display: 'flex',
@@ -533,11 +668,18 @@ const styles: Record<string, React.CSSProperties> = {
   },
   replyItem: {
     display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: '0.5rem',
     fontSize: '0.9rem',
     padding: '0.45rem 0',
     borderBottom: '1px solid #1E1E1E',
     color: '#CCC',
+  },
+  replyTextGroup: {
+    display: 'flex',
+    gap: '0.5rem',
+    minWidth: 0,
   },
   replySender: {
     fontWeight: '600',
@@ -547,6 +689,13 @@ const styles: Record<string, React.CSSProperties> = {
   replyText: {
     color: '#CCC',
     wordBreak: 'break-word',
+  },
+  replyDeleteBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '0.15rem',
+    flexShrink: 0,
   },
   replyInputRow: {
     display: 'flex',
@@ -577,6 +726,22 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     color: '#0A0A0A',
     flexShrink: 0,
+  },
+  composeFab: {
+    position: 'fixed',
+    bottom: '2rem',
+    right: '2rem',
+    width: '56px',
+    height: '56px',
+    borderRadius: '50%',
+    background: '#F5A623',
+    border: 'none',
+    boxShadow: '0 4px 18px rgba(245, 166, 35, 0.35)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    zIndex: 50,
   },
   loading: {
     padding: '2rem',
