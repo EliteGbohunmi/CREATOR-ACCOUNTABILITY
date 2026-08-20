@@ -3,7 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { Send, Trash2, Link2, Reply } from 'lucide-react';
+import { Send, Trash2, Link2, MessageCircle, Heart, User } from 'lucide-react';
 
 export default function Community() {
   const { user } = useAuth();
@@ -13,6 +13,7 @@ export default function Community() {
   const [newLink, setNewLink] = useState('');
   const [replyContent, setReplyContent] = useState('');
   const [replyPostId, setReplyPostId] = useState<string | null>(null);
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchPosts = async () => {
@@ -39,6 +40,18 @@ export default function Community() {
     const interval = setInterval(fetchPosts, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const formatTime = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+    return date.toLocaleDateString();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +104,34 @@ export default function Community() {
     }
   };
 
+  const handleLike = async (postId: string) => {
+    try {
+      const isLiked = likedPosts.has(postId);
+      const { data: existing } = await supabase
+        .from('community_likes')
+        .select('id')
+        .eq('post_id', postId)
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from('community_likes').delete().eq('id', existing.id);
+        setLikedPosts(prev => { const newSet = new Set(prev); newSet.delete(postId); return newSet; });
+        setPosts(prev => prev.map(p => 
+          p.id === postId ? { ...p, likes: p.likes?.filter((l: any) => l.user_id !== user!.id) || [] } : p
+        ));
+      } else {
+        await supabase.from('community_likes').insert([{ post_id: postId, user_id: user!.id }]);
+        setLikedPosts(prev => new Set(prev).add(postId));
+        setPosts(prev => prev.map(p => 
+          p.id === postId ? { ...p, likes: [...(p.likes || []), { user_id: user!.id }] } : p
+        ));
+      }
+    } catch (err) {
+      toast.error('Failed to like');
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -120,12 +161,15 @@ export default function Community() {
               <Send size={18} />
             </button>
           </div>
-          <input
-            placeholder="Optional: paste a link"
-            value={newLink}
-            onChange={e => setNewLink(e.target.value)}
-            style={styles.linkInput}
-          />
+          <div style={styles.linkInputWrapper}>
+            <Link2 size={16} color="#666" style={{ flexShrink: 0 }} />
+            <input
+              placeholder="Paste a link (optional)"
+              value={newLink}
+              onChange={e => setNewLink(e.target.value)}
+              style={styles.linkInput}
+            />
+          </div>
         </form>
 
         {posts.length === 0 ? (
@@ -139,9 +183,7 @@ export default function Community() {
                 </div>
                 <div style={styles.meta}>
                   <span style={styles.sender}>{post.profiles?.name || 'Unknown'}</span>
-                  <span style={styles.time}>
-                    {new Date(post.created_at).toLocaleString()}
-                  </span>
+                  <span style={styles.time}>{formatTime(post.created_at)}</span>
                 </div>
                 {post.user_id === user?.id && (
                   <button onClick={() => handleDelete(post.id)} style={styles.deleteBtn}>
@@ -149,18 +191,29 @@ export default function Community() {
                   </button>
                 )}
               </div>
+
               <p style={styles.content}>{post.content}</p>
+
               {post.link && (
-                <a href={post.link} target="_blank" rel="noopener noreferrer" style={styles.link}>
-                  <Link2 size={14} /> {post.link}
-                </a>
+                <div style={styles.linkContainer}>
+                  <Link2 size={14} color="#F5A623" />
+                  <a href={post.link} target="_blank" rel="noopener noreferrer" style={styles.link}>
+                    {post.link}
+                  </a>
+                </div>
               )}
-              <button
-                onClick={() => setReplyPostId(replyPostId === post.id ? null : post.id)}
-                style={styles.replyToggle}
-              >
-                <Reply size={14} /> {post.comments?.length || 0} replies
-              </button>
+
+              <div style={styles.actionBar}>
+                <button onClick={() => handleLike(post.id)} style={styles.actionBtn}>
+                  <Heart size={16} color={likedPosts.has(post.id) ? '#F5A623' : '#666'} />
+                  <span>{post.likes?.length || 0}</span>
+                </button>
+                <button onClick={() => setReplyPostId(replyPostId === post.id ? null : post.id)} style={styles.actionBtn}>
+                  <MessageCircle size={16} color="#666" />
+                  <span>{post.comments?.length || 0}</span>
+                </button>
+              </div>
+
               {replyPostId === post.id && (
                 <div style={styles.replyThread}>
                   {(post.comments || []).map((c: any) => (
@@ -193,9 +246,9 @@ export default function Community() {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    maxWidth: '800px',
+    maxWidth: '820px',
     margin: '0 auto',
-    padding: '1rem 0',
+    padding: '1.5rem 0 2rem',
   },
   header: {
     marginBottom: '2rem',
@@ -213,15 +266,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
   },
   form: {
-    background: '#1C1C1C',
+    background: '#181818',
     borderRadius: '16px',
-    padding: '1rem',
+    padding: '1.25rem',
     marginBottom: '2rem',
     border: '1px solid #2A2A2A',
+    boxShadow: '0 0 20px rgba(245, 166, 35, 0.06)',
+    transition: 'border-color 0.3s, box-shadow 0.3s',
   },
   inputRow: {
     display: 'flex',
-    gap: '0.5rem',
+    gap: '0.75rem',
     alignItems: 'flex-start',
   },
   textarea: {
@@ -229,20 +284,20 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#0A0A0A',
     border: '1px solid #2A2A2A',
     borderRadius: '12px',
-    padding: '0.75rem',
+    padding: '0.85rem 1rem',
     color: '#F0EDE8',
     fontSize: '0.95rem',
     resize: 'vertical',
     fontFamily: 'inherit',
     minHeight: '60px',
     outline: 'none',
-    transition: 'border-color 0.2s',
+    transition: 'border-color 0.3s, box-shadow 0.3s',
   },
   sendBtn: {
     background: '#F5A623',
     border: 'none',
     borderRadius: '12px',
-    padding: '0.6rem 1rem',
+    padding: '0 1.2rem',
     cursor: 'pointer',
     height: '48px',
     display: 'flex',
@@ -250,19 +305,29 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     color: '#0A0A0A',
     fontWeight: '600',
-    transition: 'background 0.2s',
+    transition: 'background 0.2s, transform 0.1s',
+    flexShrink: 0,
   },
-  linkInput: {
-    width: '100%',
+  linkInputWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.6rem',
     background: '#0A0A0A',
     border: '1px solid #2A2A2A',
     borderRadius: '12px',
-    padding: '0.75rem',
+    padding: '0 0.85rem',
+    marginTop: '0.6rem',
+    transition: 'border-color 0.3s',
+  },
+  linkInput: {
+    flex: 1,
+    background: 'transparent',
+    border: 'none',
+    padding: '0.7rem 0',
     color: '#F0EDE8',
     fontSize: '0.9rem',
-    marginTop: '0.5rem',
     outline: 'none',
-    transition: 'border-color 0.2s',
+    fontFamily: 'inherit',
   },
   empty: {
     color: '#555',
@@ -272,27 +337,27 @@ const styles: Record<string, React.CSSProperties> = {
   messageCard: {
     background: '#1A1A1A',
     borderRadius: '16px',
-    padding: '1rem 1.25rem',
-    marginBottom: '1rem',
+    padding: '1.25rem 1.5rem',
+    marginBottom: '1.25rem',
     border: '1px solid #2A2A2A',
-    transition: 'border-color 0.2s',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
   },
   messageHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    marginBottom: '0.5rem',
+    marginBottom: '0.6rem',
   },
   avatar: {
-    width: '36px',
-    height: '36px',
+    width: '40px',
+    height: '40px',
     borderRadius: '50%',
     background: '#F5A623',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontWeight: '600',
-    fontSize: '0.9rem',
+    fontSize: '1rem',
     color: '#0A0A0A',
     flexShrink: 0,
   },
@@ -300,6 +365,7 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
+    gap: '0.05rem',
   },
   sender: {
     fontWeight: '600',
@@ -311,20 +377,27 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#666',
   },
   content: {
-    margin: '0.3rem 0 0.5rem',
+    margin: '0.2rem 0 0.6rem',
     fontSize: '0.95rem',
-    lineHeight: 1.5,
+    lineHeight: 1.6,
     color: '#DDD',
   },
-  link: {
-    display: 'inline-flex',
+  linkContainer: {
+    display: 'flex',
     alignItems: 'center',
-    gap: '0.3rem',
+    gap: '0.5rem',
+    background: '#0D0D0D',
+    padding: '0.55rem 0.85rem',
+    borderRadius: '8px',
+    marginBottom: '0.75rem',
+    border: '1px solid #2A2A2A',
+  },
+  link: {
     color: '#F5A623',
     fontSize: '0.85rem',
     textDecoration: 'none',
-    marginBottom: '0.5rem',
     wordBreak: 'break-all',
+    flex: 1,
   },
   deleteBtn: {
     background: 'none',
@@ -333,18 +406,25 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.2rem',
     borderRadius: '4px',
     transition: 'background 0.2s',
+    flexShrink: 0,
   },
-  replyToggle: {
+  actionBar: {
+    display: 'flex',
+    gap: '1.5rem',
+    marginTop: '0.3rem',
+    paddingTop: '0.6rem',
+    borderTop: '1px solid #282828',
+  },
+  actionBtn: {
     background: 'none',
     border: 'none',
-    color: '#888',
+    color: '#666',
     cursor: 'pointer',
-    display: 'inline-flex',
+    display: 'flex',
     alignItems: 'center',
-    gap: '0.3rem',
+    gap: '0.4rem',
     fontSize: '0.85rem',
-    padding: '0.2rem 0',
-    marginTop: '0.3rem',
+    padding: '0.2rem 0.1rem',
     transition: 'color 0.2s',
   },
   replyThread: {
@@ -363,9 +443,11 @@ const styles: Record<string, React.CSSProperties> = {
   replySender: {
     fontWeight: '600',
     color: '#F0EDE8',
+    flexShrink: 0,
   },
   replyText: {
     color: '#CCC',
+    wordBreak: 'break-word',
   },
   replyInputRow: {
     display: 'flex',
@@ -395,6 +477,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     color: '#0A0A0A',
+    flexShrink: 0,
   },
   loading: {
     padding: '2rem',
