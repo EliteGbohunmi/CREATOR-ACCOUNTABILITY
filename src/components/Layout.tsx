@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import {
   LayoutDashboard, CalendarDays, Trophy, BarChart2, Settings,
-  Flame, LogOut, Users, Award, BookMarked, UserCheck, Grid, X
+  Flame, LogOut, Users, Award, BookMarked, UserCheck, Grid, X,
+  MessageCircle   // <-- NEW
 } from 'lucide-react'
 
 const mainNav = [
@@ -20,6 +21,7 @@ const moreNav = [
   { path: '/achievements', label: 'Achievements', icon: Award },
   { path: '/vault', label: 'Content Vault', icon: BookMarked },
   { path: '/partners', label: 'Partners', icon: UserCheck },
+  { path: '/community', label: 'Community', icon: MessageCircle },   // NEW
 ]
 
 const allNav = [...mainNav, ...moreNav]
