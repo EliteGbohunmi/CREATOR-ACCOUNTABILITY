@@ -6,6 +6,7 @@ export function NotificationModal() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [show, setShow] = useState(false);
 
   const fetchUnread = async () => {
     if (!user) return;
@@ -20,6 +21,7 @@ export function NotificationModal() {
     else {
       console.log('📦', data);
       setNotifications(data || []);
+      if (data && data.length > 0) setShow(true);
     }
     setLoading(false);
   };
@@ -40,9 +42,29 @@ export function NotificationModal() {
   const markAsRead = async (id: string) => {
     await supabase.from('user_notifications').update({ read: true }).eq('id', id);
     setNotifications(prev => prev.filter(n => n.id !== id));
+    if (notifications.length <= 1) setShow(false);
   };
 
-  if (loading || notifications.length === 0) return null;
+  if (!user || loading) return null;
+  if (!show && notifications.length === 0) {
+    // Show a small refresh button only (no modal)
+    return (
+      <button
+        onClick={fetchUnread}
+        style={{
+          position: 'fixed', bottom: '80px', right: '20px',
+          background: '#1C1C1C', border: '1px solid #2A2A2A',
+          borderRadius: '50%', width: '48px', height: '48px',
+          color: '#F5A623', fontSize: '20px', zIndex: 999,
+          cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.6)'
+        }}
+      >
+        ↻
+      </button>
+    );
+  }
+
+  if (!show || notifications.length === 0) return null;
 
   return (
     <div style={{
