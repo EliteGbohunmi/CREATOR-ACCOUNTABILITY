@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { Bell, CheckCircle, X } from 'lucide-react';
@@ -9,6 +9,7 @@ export function NotificationModal() {
   const [loading, setLoading] = useState(true);
   const [show, setShow] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchUnread = async () => {
     if (!user) return;
@@ -19,7 +20,7 @@ export function NotificationModal() {
       .eq('read', false)
       .order('created_at', { ascending: false });
     if (error) {
-      console.error('❌', error);
+      console.error('❌ Fetch error:', error);
     } else {
       setNotifications(data || []);
       if (data && data.length > 0) setShow(true);
@@ -39,6 +40,7 @@ export function NotificationModal() {
       return () => {
         clearInterval(interval);
         document.removeEventListener('visibilitychange', handleVisibility);
+        if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
       };
     }
   }, [user]);
@@ -46,7 +48,11 @@ export function NotificationModal() {
   const markAsRead = async (id: string) => {
     if (isUpdating) return;
     setIsUpdating(true);
-    await supabase.from('user_notifications').update({ read: true }).eq('id', id);
+    try {
+      await supabase.from('user_notifications').update({ read: true }).eq('id', id);
+    } catch (err) {
+      console.error('❌ Mark read error:', err);
+    }
     await fetchUnread();
     setIsUpdating(false);
   };
@@ -55,10 +61,27 @@ export function NotificationModal() {
     if (isUpdating || notifications.length === 0) return;
     setIsUpdating(true);
     const ids = notifications.map(n => n.id);
-    await supabase.from('user_notifications').update({ read: true }).in('id', ids);
-    await fetchUnread(); // refresh immediately
-    setIsUpdating(false);
+    try {
+      await supabase.from('user_notifications').update({ read: true }).in('id', ids);
+    } catch (err) {
+      console.error('❌ Mark all read error:', err);
+    }
+    // Close modal immediately
+    setShow(false);
+    // Wait a moment for DB to commit, then refresh
+    if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchUnread();
+      setIsUpdating(false);
+    }, 500);
   };
+
+  // If not updating and notifications are zero, ensure modal is hidden
+  useEffect(() => {
+    if (!isUpdating && notifications.length === 0) {
+      setShow(false);
+    }
+  }, [notifications, isUpdating]);
 
   if (!user || loading) return null;
   if (!show || notifications.length === 0) return null;
@@ -71,7 +94,11 @@ export function NotificationModal() {
             <Bell size={24} color="#F5A623" />
             <h2 style={styles.title}>Nudges</h2>
           </div>
-          <button onClick={() => setShow(false)} style={styles.closeBtn}>
+          <button
+            onClick={() => setShow(false)}
+            style={styles.closeBtn}
+            disabled={isUpdating}
+          >
             <X size={20} color="#888" />
           </button>
         </div>
