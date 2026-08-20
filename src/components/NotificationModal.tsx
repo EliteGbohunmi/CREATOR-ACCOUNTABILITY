@@ -9,11 +9,7 @@ export function NotificationModal() {
   const [show, setShow] = useState(false);
 
   const fetchUnread = async () => {
-    if (!user) {
-      alert('No user');
-      return;
-    }
-    alert('🔍 Fetching for user: ' + user.id);
+    if (!user) return;
     const { data, error } = await supabase
       .from('user_notifications')
       .select('*')
@@ -21,10 +17,8 @@ export function NotificationModal() {
       .eq('read', false)
       .order('created_at', { ascending: false });
     if (error) {
-      alert('❌ Error: ' + error.message);
-      console.error(error);
+      console.error('❌ Fetch error:', error);
     } else {
-      alert('📦 Found ' + (data?.length || 0) + ' notifications');
       setNotifications(data || []);
       if (data && data.length > 0) setShow(true);
     }
@@ -35,7 +29,9 @@ export function NotificationModal() {
     if (user) {
       fetchUnread();
       const interval = setInterval(fetchUnread, 15000);
-      const handleVisibility = () => { if (document.visibilityState === 'visible') fetchUnread(); };
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') fetchUnread();
+      };
       document.addEventListener('visibilitychange', handleVisibility);
       return () => {
         clearInterval(interval);
@@ -52,14 +48,11 @@ export function NotificationModal() {
 
   if (!user || loading) return null;
 
-  // Always show the refresh button (even if no notifications)
+  // Always show the refresh button (only if you want manual fetch)
   return (
     <>
       <button
-        onClick={() => {
-          alert('Refresh clicked!');
-          fetchUnread();
-        }}
+        onClick={fetchUnread}
         style={{
           position: 'fixed', bottom: '80px', right: '20px',
           background: '#1C1C1C', border: '1px solid #2A2A2A',
@@ -70,6 +63,7 @@ export function NotificationModal() {
       >
         ↻
       </button>
+
       {show && notifications.length > 0 && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -95,7 +89,7 @@ export function NotificationModal() {
               </div>
             ))}
             <button
-              onClick={() => { alert('Manual refresh'); fetchUnread(); }}
+              onClick={fetchUnread}
               style={{ marginTop: '1rem', background: 'transparent', border: '1px solid #555', color: '#888', padding: '0.3rem 0.8rem', borderRadius: '6px', cursor: 'pointer' }}
             >
               ↻ Refresh
