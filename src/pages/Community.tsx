@@ -757,7 +757,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   composeFab: {
     position: 'fixed',
-    bottom: '2rem',
+    bottom: '5.5rem',
     right: '2rem',
     width: '56px',
     height: '56px',
