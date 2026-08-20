@@ -8,6 +8,7 @@ export function NotificationModal() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [show, setShow] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const fetchUnread = async () => {
     if (!user) return;
@@ -43,17 +44,20 @@ export function NotificationModal() {
   }, [user]);
 
   const markAsRead = async (id: string) => {
+    if (isUpdating) return;
+    setIsUpdating(true);
     await supabase.from('user_notifications').update({ read: true }).eq('id', id);
-    setNotifications(prev => prev.filter(n => n.id !== id));
-    if (notifications.length <= 1) setShow(false);
+    await fetchUnread();
+    setIsUpdating(false);
   };
 
   const markAllAsRead = async () => {
-    if (notifications.length === 0) return;
+    if (isUpdating || notifications.length === 0) return;
+    setIsUpdating(true);
     const ids = notifications.map(n => n.id);
     await supabase.from('user_notifications').update({ read: true }).in('id', ids);
-    setNotifications([]);
-    setShow(false);
+    await fetchUnread(); // refresh immediately
+    setIsUpdating(false);
   };
 
   if (!user || loading) return null;
@@ -62,7 +66,6 @@ export function NotificationModal() {
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        {/* Header */}
         <div style={styles.header}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Bell size={24} color="#F5A623" />
@@ -73,7 +76,6 @@ export function NotificationModal() {
           </button>
         </div>
 
-        {/* List */}
         <div style={styles.list}>
           {notifications.map(n => (
             <div key={n.id} style={styles.item}>
@@ -85,6 +87,7 @@ export function NotificationModal() {
               </div>
               <button
                 onClick={() => markAsRead(n.id)}
+                disabled={isUpdating}
                 style={styles.itemBtn}
               >
                 <CheckCircle size={18} color="#F5A623" />
@@ -93,15 +96,13 @@ export function NotificationModal() {
           ))}
         </div>
 
-        {/* Footer – Mark all as read */}
-        {notifications.length > 1 && (
-          <button onClick={markAllAsRead} style={styles.markAllBtn}>
-            Got it (All)
-          </button>
-        )}
-        {notifications.length === 1 && (
-          <button onClick={markAllAsRead} style={styles.markAllBtn}>
-            Got it
+        {notifications.length > 0 && (
+          <button
+            onClick={markAllAsRead}
+            disabled={isUpdating}
+            style={styles.markAllBtn}
+          >
+            {isUpdating ? '...' : notifications.length === 1 ? 'Got it' : 'Got it (All)'}
           </button>
         )}
       </div>
