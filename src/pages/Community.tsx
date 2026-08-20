@@ -3,7 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { Send, Trash2, Link2, MessageCircle, Heart, User } from 'lucide-react';
+import { Send, Trash2, Link2, MessageCircle, Heart, ExternalLink } from 'lucide-react';
 
 export default function Community() {
   const { user } = useAuth();
@@ -14,6 +14,7 @@ export default function Community() {
   const [replyContent, setReplyContent] = useState('');
   const [replyPostId, setReplyPostId] = useState<string | null>(null);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [composerFocused, setComposerFocused] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchPosts = async () => {
@@ -46,11 +47,18 @@ export default function Community() {
     const date = new Date(dateString);
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diff < 60) return 'Just now';
+    if (diff < 10) return 'Just now';
+    if (diff < 60) return `${diff}s ago`;
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-    return date.toLocaleDateString();
+
+    const sameYear = date.getFullYear() === now.getFullYear();
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: sameYear ? undefined : 'numeric',
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,13 +125,13 @@ export default function Community() {
       if (existing) {
         await supabase.from('community_likes').delete().eq('id', existing.id);
         setLikedPosts(prev => { const newSet = new Set(prev); newSet.delete(postId); return newSet; });
-        setPosts(prev => prev.map(p => 
+        setPosts(prev => prev.map(p =>
           p.id === postId ? { ...p, likes: p.likes?.filter((l: any) => l.user_id !== user!.id) || [] } : p
         ));
       } else {
         await supabase.from('community_likes').insert([{ post_id: postId, user_id: user!.id }]);
         setLikedPosts(prev => new Set(prev).add(postId));
-        setPosts(prev => prev.map(p => 
+        setPosts(prev => prev.map(p =>
           p.id === postId ? { ...p, likes: [...(p.likes || []), { user_id: user!.id }] } : p
         ));
       }
@@ -142,33 +150,79 @@ export default function Community() {
 
   return (
     <Layout>
+      <style>{`
+        .composer-shell {
+          transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+        }
+        .composer-shell.is-focused {
+          border-color: #F5A623 !important;
+          box-shadow: 0 0 0 1px rgba(245, 166, 35, 0.35), 0 0 24px rgba(245, 166, 35, 0.18);
+        }
+        .composer-textarea:focus, .composer-link:focus, .reply-input:focus {
+          outline: none;
+        }
+        .send-btn { transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease; }
+        .send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245, 166, 35, 0.35); }
+        .send-btn:active:not(:disabled) { transform: translateY(0); }
+        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .msg-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+        .msg-card:hover { border-color: #3A3A3A; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+
+        .link-chip { transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; text-decoration: none; }
+        .link-chip:hover { border-color: #F5A623; box-shadow: 0 0 16px rgba(245, 166, 35, 0.22); background: rgba(245, 166, 35, 0.1); }
+
+        .action-btn { transition: background 0.2s ease, color 0.2s ease; }
+        .action-btn:hover { background: #232323; color: #F0EDE8; }
+        .action-btn.is-active { color: #F5A623; }
+
+        .delete-btn { transition: background 0.2s ease, border-color 0.2s ease; }
+        .delete-btn:hover { background: rgba(229, 62, 62, 0.12); border-color: #E53E3E; }
+
+        .reply-send-btn { transition: transform 0.15s ease, opacity 0.15s ease; }
+        .reply-send-btn:hover:not(:disabled) { transform: translateY(-1px); }
+      `}</style>
+
       <div style={styles.container}>
         <div style={styles.header}>
           <h1 style={styles.title}>💬 Community</h1>
           <p style={styles.subtitle}>Share your wins, ask for feedback, and connect with creators.</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputRow}>
-            <textarea
-              placeholder="What's on your mind?"
-              value={newContent}
-              onChange={e => setNewContent(e.target.value)}
-              style={styles.textarea}
-              rows={2}
-            />
-            <button type="submit" style={styles.sendBtn}>
-              <Send size={18} />
+        <form
+          onSubmit={handleSubmit}
+          className={`composer-shell${composerFocused ? ' is-focused' : ''}`}
+          style={styles.form}
+        >
+          <textarea
+            className="composer-textarea"
+            placeholder="What's on your mind?"
+            value={newContent}
+            onChange={e => setNewContent(e.target.value)}
+            onFocus={() => setComposerFocused(true)}
+            onBlur={() => setComposerFocused(false)}
+            style={styles.textarea}
+            rows={3}
+          />
+
+          <div style={styles.composerFooter}>
+            <div style={styles.linkInputWrapper}>
+              <Link2 size={15} color="#F5A623" style={{ flexShrink: 0 }} />
+              <input
+                className="composer-link"
+                placeholder="Attach a link (optional)"
+                value={newLink}
+                onChange={e => setNewLink(e.target.value)}
+                onFocus={() => setComposerFocused(true)}
+                onBlur={() => setComposerFocused(false)}
+                style={styles.linkInput}
+              />
+            </div>
+
+            <button type="submit" className="send-btn" disabled={!newContent.trim()} style={styles.sendBtn}>
+              <span>Post</span>
+              <Send size={16} />
             </button>
-          </div>
-          <div style={styles.linkInputWrapper}>
-            <Link2 size={16} color="#666" style={{ flexShrink: 0 }} />
-            <input
-              placeholder="Paste a link (optional)"
-              value={newLink}
-              onChange={e => setNewLink(e.target.value)}
-              style={styles.linkInput}
-            />
           </div>
         </form>
 
@@ -176,7 +230,7 @@ export default function Community() {
           <p style={styles.empty}>No messages yet. Start the conversation!</p>
         ) : (
           posts.map(post => (
-            <div key={post.id} style={styles.messageCard}>
+            <div key={post.id} className="msg-card" style={styles.messageCard}>
               <div style={styles.messageHeader}>
                 <div style={styles.avatar}>
                   {post.profiles?.name?.[0]?.toUpperCase() || '?'}
@@ -186,8 +240,13 @@ export default function Community() {
                   <span style={styles.time}>{formatTime(post.created_at)}</span>
                 </div>
                 {post.user_id === user?.id && (
-                  <button onClick={() => handleDelete(post.id)} style={styles.deleteBtn}>
-                    <Trash2 size={16} color="#E53E3E" />
+                  <button
+                    onClick={() => handleDelete(post.id)}
+                    className="delete-btn"
+                    style={styles.deleteBtn}
+                  >
+                    <Trash2 size={14} color="#E53E3E" />
+                    <span>Delete</span>
                   </button>
                 )}
               </div>
@@ -195,22 +254,41 @@ export default function Community() {
               <p style={styles.content}>{post.content}</p>
 
               {post.link && (
-                <div style={styles.linkContainer}>
-                  <Link2 size={14} color="#F5A623" />
-                  <a href={post.link} target="_blank" rel="noopener noreferrer" style={styles.link}>
-                    {post.link}
-                  </a>
-                </div>
+                <a
+                  href={post.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link-chip"
+                  style={styles.linkChip}
+                >
+                  <div style={styles.linkChipLeft}>
+                    <Link2 size={15} color="#F5A623" />
+                    <span style={styles.linkChipText}>{post.link}</span>
+                  </div>
+                  <ExternalLink size={14} color="#F5A623" style={{ flexShrink: 0 }} />
+                </a>
               )}
 
               <div style={styles.actionBar}>
-                <button onClick={() => handleLike(post.id)} style={styles.actionBtn}>
-                  <Heart size={16} color={likedPosts.has(post.id) ? '#F5A623' : '#666'} />
-                  <span>{post.likes?.length || 0}</span>
+                <button
+                  onClick={() => handleLike(post.id)}
+                  className={`action-btn${likedPosts.has(post.id) ? ' is-active' : ''}`}
+                  style={styles.actionBtn}
+                >
+                  <Heart
+                    size={16}
+                    color={likedPosts.has(post.id) ? '#F5A623' : '#888'}
+                    fill={likedPosts.has(post.id) ? '#F5A623' : 'none'}
+                  />
+                  <span>{post.likes?.length || 0} {post.likes?.length === 1 ? 'Like' : 'Likes'}</span>
                 </button>
-                <button onClick={() => setReplyPostId(replyPostId === post.id ? null : post.id)} style={styles.actionBtn}>
-                  <MessageCircle size={16} color="#666" />
-                  <span>{post.comments?.length || 0}</span>
+                <button
+                  onClick={() => setReplyPostId(replyPostId === post.id ? null : post.id)}
+                  className={`action-btn${replyPostId === post.id ? ' is-active' : ''}`}
+                  style={styles.actionBtn}
+                >
+                  <MessageCircle size={16} color={replyPostId === post.id ? '#F5A623' : '#888'} />
+                  <span>{post.comments?.length || 0} {post.comments?.length === 1 ? 'Reply' : 'Replies'}</span>
                 </button>
               </div>
 
@@ -224,12 +302,18 @@ export default function Community() {
                   ))}
                   <div style={styles.replyInputRow}>
                     <input
+                      className="reply-input"
                       placeholder="Write a reply..."
                       value={replyContent}
                       onChange={e => setReplyContent(e.target.value)}
                       style={styles.replyInput}
                     />
-                    <button onClick={() => handleReply(post.id)} style={styles.replySendBtn}>
+                    <button
+                      onClick={() => handleReply(post.id)}
+                      className="reply-send-btn"
+                      disabled={!replyContent.trim()}
+                      style={styles.replySendBtn}
+                    >
                       <Send size={14} />
                     </button>
                   </div>
@@ -261,73 +345,73 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#F0EDE8',
   },
   subtitle: {
-    color: '#555',
+    color: '#888',
     margin: '0.3rem 0 0',
     fontSize: '0.9rem',
   },
   form: {
-    background: '#181818',
-    borderRadius: '16px',
-    padding: '1.25rem',
-    marginBottom: '2rem',
+    background: '#161616',
+    borderRadius: '18px',
+    padding: '1.4rem',
+    marginBottom: '2.5rem',
     border: '1px solid #2A2A2A',
-    boxShadow: '0 0 20px rgba(245, 166, 35, 0.06)',
-    transition: 'border-color 0.3s, box-shadow 0.3s',
-  },
-  inputRow: {
-    display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'flex-start',
+    boxShadow: '0 0 20px rgba(245, 166, 35, 0.05)',
   },
   textarea: {
-    flex: 1,
+    width: '100%',
+    boxSizing: 'border-box',
     background: '#0A0A0A',
     border: '1px solid #2A2A2A',
     borderRadius: '12px',
-    padding: '0.85rem 1rem',
+    padding: '0.9rem 1rem',
     color: '#F0EDE8',
     fontSize: '0.95rem',
     resize: 'vertical',
     fontFamily: 'inherit',
-    minHeight: '60px',
+    minHeight: '70px',
     outline: 'none',
-    transition: 'border-color 0.3s, box-shadow 0.3s',
   },
-  sendBtn: {
-    background: '#F5A623',
-    border: 'none',
-    borderRadius: '12px',
-    padding: '0 1.2rem',
-    cursor: 'pointer',
-    height: '48px',
+  composerFooter: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    color: '#0A0A0A',
-    fontWeight: '600',
-    transition: 'background 0.2s, transform 0.1s',
-    flexShrink: 0,
+    gap: '0.75rem',
+    marginTop: '0.85rem',
   },
   linkInputWrapper: {
+    flex: 1,
     display: 'flex',
     alignItems: 'center',
     gap: '0.6rem',
     background: '#0A0A0A',
     border: '1px solid #2A2A2A',
-    borderRadius: '12px',
+    borderRadius: '10px',
     padding: '0 0.85rem',
-    marginTop: '0.6rem',
-    transition: 'border-color 0.3s',
   },
   linkInput: {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    padding: '0.7rem 0',
+    padding: '0.6rem 0',
     color: '#F0EDE8',
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
     outline: 'none',
     fontFamily: 'inherit',
+  },
+  sendBtn: {
+    background: '#F5A623',
+    border: 'none',
+    borderRadius: '10px',
+    padding: '0 1.4rem',
+    cursor: 'pointer',
+    height: '42px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
+    color: '#0A0A0A',
+    fontWeight: '600',
+    fontSize: '0.9rem',
+    flexShrink: 0,
   },
   empty: {
     color: '#555',
@@ -336,21 +420,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   messageCard: {
     background: '#1A1A1A',
-    borderRadius: '16px',
-    padding: '1.25rem 1.5rem',
-    marginBottom: '1.25rem',
+    borderRadius: '18px',
+    padding: '1.5rem 1.6rem',
+    marginBottom: '1.5rem',
     border: '1px solid #2A2A2A',
-    transition: 'border-color 0.2s, box-shadow 0.2s',
   },
   messageHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.75rem',
-    marginBottom: '0.6rem',
+    gap: '0.85rem',
+    marginBottom: '0.9rem',
   },
   avatar: {
-    width: '40px',
-    height: '40px',
+    width: '42px',
+    height: '42px',
     borderRadius: '50%',
     background: '#F5A623',
     display: 'flex',
@@ -363,81 +446,97 @@ const styles: Record<string, React.CSSProperties> = {
   },
   meta: {
     flex: 1,
+    minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.05rem',
+    justifyContent: 'center',
+    gap: '0.15rem',
   },
   sender: {
     fontWeight: '600',
     fontSize: '0.95rem',
     color: '#F0EDE8',
+    lineHeight: 1.2,
   },
   time: {
-    fontSize: '0.7rem',
-    color: '#666',
-  },
-  content: {
-    margin: '0.2rem 0 0.6rem',
-    fontSize: '0.95rem',
-    lineHeight: 1.6,
-    color: '#DDD',
-  },
-  linkContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    background: '#0D0D0D',
-    padding: '0.55rem 0.85rem',
-    borderRadius: '8px',
-    marginBottom: '0.75rem',
-    border: '1px solid #2A2A2A',
-  },
-  link: {
-    color: '#F5A623',
-    fontSize: '0.85rem',
-    textDecoration: 'none',
-    wordBreak: 'break-all',
-    flex: 1,
+    fontSize: '0.75rem',
+    color: '#777',
+    lineHeight: 1.2,
   },
   deleteBtn: {
-    background: 'none',
-    border: 'none',
+    background: 'transparent',
+    border: '1px solid #2A2A2A',
+    borderRadius: '8px',
     cursor: 'pointer',
-    padding: '0.2rem',
-    borderRadius: '4px',
-    transition: 'background 0.2s',
+    padding: '0.4rem 0.7rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    color: '#E53E3E',
+    fontSize: '0.78rem',
+    fontWeight: '500',
     flexShrink: 0,
+  },
+  content: {
+    margin: '0 0 1rem',
+    fontSize: '0.97rem',
+    lineHeight: 1.65,
+    color: '#DDD',
+  },
+  linkChip: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.75rem',
+    background: 'rgba(245, 166, 35, 0.06)',
+    padding: '0.7rem 1rem',
+    borderRadius: '10px',
+    marginBottom: '1.1rem',
+    border: '1px solid rgba(245, 166, 35, 0.3)',
+  },
+  linkChipLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.6rem',
+    minWidth: 0,
+  },
+  linkChipText: {
+    color: '#F5A623',
+    fontSize: '0.85rem',
+    fontWeight: 500,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   actionBar: {
     display: 'flex',
-    gap: '1.5rem',
-    marginTop: '0.3rem',
-    paddingTop: '0.6rem',
-    borderTop: '1px solid #282828',
+    gap: '0.75rem',
+    paddingTop: '0.9rem',
+    borderTop: '1px solid #262626',
   },
   actionBtn: {
     background: 'none',
     border: 'none',
-    color: '#666',
+    color: '#888',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    gap: '0.4rem',
+    gap: '0.45rem',
     fontSize: '0.85rem',
-    padding: '0.2rem 0.1rem',
-    transition: 'color 0.2s',
+    padding: '0.45rem 0.8rem',
+    borderRadius: '8px',
   },
   replyThread: {
-    marginTop: '0.75rem',
-    paddingLeft: '1rem',
+    marginTop: '1rem',
+    paddingLeft: '1.1rem',
     borderLeft: '2px solid #2A2A2A',
   },
   replyItem: {
     display: 'flex',
     gap: '0.5rem',
     fontSize: '0.9rem',
-    padding: '0.3rem 0',
-    borderBottom: '1px solid #1A1A1A',
+    padding: '0.45rem 0',
+    borderBottom: '1px solid #1E1E1E',
     color: '#CCC',
   },
   replySender: {
@@ -452,7 +551,7 @@ const styles: Record<string, React.CSSProperties> = {
   replyInputRow: {
     display: 'flex',
     gap: '0.5rem',
-    marginTop: '0.5rem',
+    marginTop: '0.6rem',
     alignItems: 'center',
   },
   replyInput: {
@@ -460,7 +559,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#0A0A0A',
     border: '1px solid #2A2A2A',
     borderRadius: '8px',
-    padding: '0.5rem 0.75rem',
+    padding: '0.55rem 0.8rem',
     color: '#F0EDE8',
     fontSize: '0.9rem',
     outline: 'none',
@@ -472,7 +571,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     padding: '0.4rem 0.7rem',
     cursor: 'pointer',
-    height: '34px',
+    height: '36px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
