@@ -5,6 +5,7 @@ import { sendNudge } from '../lib/backend'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
 import { Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock, UserMinus } from 'lucide-react'
+import toast from 'react-hot-toast'   // <-- added
 
 const NUDGE_MESSAGES = [
   "Hey {partner}! 👋 You haven't posted today yet. Don't break your streak — go create something! 🔥",
@@ -44,11 +45,9 @@ export default function Partners() {
   const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState<string | null>(null)
-  const [toast, setToast] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
   useEffect(() => {
     if (user) {
@@ -64,7 +63,6 @@ export default function Partners() {
   const fetchAll = async () => {
     setError(null)
 
-    // 1. Get all partner relations (both directions)
     const { data: partnersData, error: pErr } = await supabase
       .from('accountability_partners')
       .select('user1_id, user2_id')
@@ -72,20 +70,17 @@ export default function Partners() {
 
     if (pErr) throw pErr
 
-    // 2. Build partner list with names and streaks
     const partnerList = []
     for (const p of partnersData || []) {
       const isUser1 = p.user1_id === user!.id
       const partnerId = isUser1 ? p.user2_id : p.user1_id
 
-      // Fetch partner profile separately
       const { data: profile } = await supabase
         .from('profiles')
         .select('name')
         .eq('id', partnerId)
         .single()
 
-      // Fetch partner streak
       const { data: streak } = await supabase
         .from('streaks')
         .select('current_streak, best_streak, last_checked_in')
@@ -101,7 +96,6 @@ export default function Partners() {
     }
     setPartners(partnerList)
 
-    // 3. Incoming requests
     const { data: incoming } = await supabase
       .from('partner_requests')
       .select('*, profiles!partner_requests_sender_id_fkey(id, name)')
@@ -109,7 +103,6 @@ export default function Partners() {
       .eq('status', 'pending')
     setRequests(incoming || [])
 
-    // 4. Sent requests
     const { data: outgoing } = await supabase
       .from('partner_requests')
       .select('*, profiles!partner_requests_receiver_id_fkey(id, name)')
@@ -133,7 +126,7 @@ export default function Partners() {
       const partnerIds = partners.map(p => p.partnerId)
       setSearchResults((data || []).filter(u => !partnerIds.includes(u.id)))
     } catch (err) {
-      showToast('❌ Search failed: ' + (err as Error).message)
+      toast.error('Search failed: ' + (err as Error).message)
     }
     setSearching(false)
   }
@@ -149,9 +142,9 @@ export default function Partners() {
       await fetchAll()
       setSearchResults([])
       setSearchQuery('')
-      showToast('✅ Request sent')
+      toast.success('Request sent')
     } catch (err) {
-      showToast('❌ Request failed: ' + (err as Error).message)
+      toast.error('Request failed: ' + (err as Error).message)
     }
     setSending(null)
   }
@@ -164,9 +157,9 @@ export default function Partners() {
         user2_id: user!.id
       })
       await fetchAll()
-      showToast('✅ Partner added')
+      toast.success('Partner added')
     } catch (err) {
-      showToast('❌ Accept failed: ' + (err as Error).message)
+      toast.error('Accept failed: ' + (err as Error).message)
     }
   }
 
@@ -175,7 +168,7 @@ export default function Partners() {
       await supabase.from('partner_requests').update({ status: 'declined' }).eq('id', requestId)
       await fetchAll()
     } catch (err) {
-      showToast('❌ Decline failed: ' + (err as Error).message)
+      toast.error('Decline failed: ' + (err as Error).message)
     }
   }
 
@@ -188,28 +181,13 @@ export default function Partners() {
         .or(`user1_id.eq.${partnerId},user2_id.eq.${partnerId}`)
         .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
       await fetchAll()
-      showToast('Partner removed')
+      toast.success('Partner removed')
     } catch (err) {
-      showToast('❌ Remove failed: ' + (err as Error).message)
+      toast.error('Remove failed: ' + (err as Error).message)
     }
   }
 
   const partnerCheckedIn = (streak: any) => streak?.last_checked_in === today
-
-  const toastStyle: React.CSSProperties = {
-    position: 'fixed',
-    bottom: '90px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: '#1C1C1C',
-    border: '1px solid #2A2A2A',
-    borderRadius: '10px',
-    padding: '0.75rem 1.25rem',
-    color: '#F0EDE8',
-    fontSize: '0.85rem',
-    zIndex: 999,
-    whiteSpace: 'nowrap'
-  }
 
   if (loading) {
     return (
@@ -219,7 +197,6 @@ export default function Partners() {
             <div key={i} style={{ height: '100px', borderRadius: '14px', background: '#111', border: '1px solid #1E1E1E' }} />
           ))}
         </div>
-        {toast && <div style={toastStyle}>{toast}</div>}
       </Layout>
     )
   }
@@ -233,7 +210,6 @@ export default function Partners() {
           <p style={{ color: '#888' }}>{error}</p>
           <button onClick={() => { setError(null); setLoading(true); fetchAll().catch(e => setError(e.message)) }} style={{ marginTop: '1.5rem', background: '#F5A623', color: '#000', border: 'none', padding: '0.6rem 1.5rem', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>Try Again</button>
         </div>
-        {toast && <div style={toastStyle}>{toast}</div>}
       </Layout>
     )
   }
@@ -281,9 +257,9 @@ export default function Partners() {
                               await sendNudge(user!.id, p.partnerId)
                               const message = getRandomNudgeMessage(p.partnerName)
                               await navigator.clipboard.writeText(message)
-                              showToast('✅ Nudge sent to ' + p.partnerName)
+                              toast.success('✅ Nudge sent to ' + p.partnerName)
                             } catch (err: any) {
-                              showToast('❌ Failed: ' + (err.message || 'Unknown error'))
+                              toast.error('❌ Failed: ' + (err.message || 'Unknown error'))
                             }
                           }}
                         >
@@ -435,8 +411,6 @@ export default function Partners() {
           </p>
         </div>
       )}
-
-      {toast && <div style={toastStyle}>{toast}</div>}
     </Layout>
   )
 }
