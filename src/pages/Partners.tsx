@@ -16,7 +16,7 @@ export default function Partners() {
   const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState<string | null>(null)
-  const [toast, setToast] = useState('') // 👈 added
+  const [toast, setToast] = useState('')
 
   const today = new Date().toISOString().split('T')[0]
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
@@ -209,9 +209,14 @@ export default function Partners() {
                 <button
                   style={{ background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '6px', padding: '0.4rem 0.85rem', fontWeight: '600', fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}
                   onClick={async () => {
-                    await sendNudge(user!.id, partner.partnerId)
-                    navigator.clipboard.writeText(`Hey ${partner.partnerName}! 👋 You haven't posted today yet. Don't break your streak — go create something! 🔥`)
-                    showToast('Nudge sent to partner!')
+                    try {
+                      await sendNudge(user!.id, partner.partnerId)
+                      await navigator.clipboard.writeText(`Hey ${partner.partnerName}! 👋 You haven't posted today yet. Don't break your streak — go create something! 🔥`)
+                      showToast('✅ Nudge sent to partner!')
+                    } catch (err: any) {
+                      console.error(err)
+                      showToast('❌ Failed to send nudge: ' + (err.message || 'Unknown error'))
+                    }
                   }}
                 >
                   Copy Nudge
