@@ -7,9 +7,8 @@ export function NotificationModal() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [show, setShow] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchUnread = async () => {
     if (!user) return;
@@ -23,8 +22,6 @@ export function NotificationModal() {
       console.error('❌ Fetch error:', error);
     } else {
       setNotifications(data || []);
-      if (data && data.length > 0) setShow(true);
-      else setShow(false);
     }
     setLoading(false);
   };
@@ -50,10 +47,10 @@ export function NotificationModal() {
     setIsUpdating(true);
     try {
       await supabase.from('user_notifications').update({ read: true }).eq('id', id);
+      await fetchUnread();
     } catch (err) {
       console.error('❌ Mark read error:', err);
     }
-    await fetchUnread();
     setIsUpdating(false);
   };
 
@@ -63,28 +60,15 @@ export function NotificationModal() {
     const ids = notifications.map(n => n.id);
     try {
       await supabase.from('user_notifications').update({ read: true }).in('id', ids);
+      // Force a fetch to clear the list immediately
+      await fetchUnread();
     } catch (err) {
       console.error('❌ Mark all read error:', err);
     }
-    // Close modal immediately
-    setShow(false);
-    // Wait a moment for DB to commit, then refresh
-    if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
-    fetchTimeoutRef.current = setTimeout(() => {
-      fetchUnread();
-      setIsUpdating(false);
-    }, 500);
+    setIsUpdating(false);
   };
 
-  // If not updating and notifications are zero, ensure modal is hidden
-  useEffect(() => {
-    if (!isUpdating && notifications.length === 0) {
-      setShow(false);
-    }
-  }, [notifications, isUpdating]);
-
-  if (!user || loading) return null;
-  if (!show || notifications.length === 0) return null;
+  if (loading || notifications.length === 0) return null;
 
   return (
     <div style={styles.overlay}>
@@ -95,7 +79,7 @@ export function NotificationModal() {
             <h2 style={styles.title}>Nudges</h2>
           </div>
           <button
-            onClick={() => setShow(false)}
+            onClick={() => setNotifications([])} // manually close (but next fetch may reopen)
             style={styles.closeBtn}
             disabled={isUpdating}
           >
