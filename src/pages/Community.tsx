@@ -35,22 +35,24 @@ export default function Community() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchPosts = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('community_posts')
-      .select(`
-        *,
-        profiles!community_posts_user_id_fkey (id, name, email),
-        comments: community_comments (id, content, user_id, created_at, profiles!community_comments_user_id_fkey (name))
-      `)
-      .order('created_at', { ascending: false });
-    if (error) {
-      toast.error('Failed to load messages');
-      console.error(error);
-    } else {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('community_posts')
+        .select(`
+          *,
+          profiles!community_posts_user_id_fkey (id, name, email),
+          comments: community_comments (id, content, user_id, created_at, profiles!community_comments_user_id_fkey (name))
+        `)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
       setPosts(data || []);
+    } catch (err: any) {
+      console.error('❌ Fetch error:', err);
+      toast.error('Failed to load messages');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -63,48 +65,62 @@ export default function Community() {
     e.preventDefault();
     if (!newContent.trim()) return toast.error('Please write something');
     setSubmitting(true);
-    const { data, error } = await supabase
-      .from('community_posts')
-      .insert([{ user_id: user!.id, content: newContent.trim(), link: newLink.trim() || null }])
-      .select();
-    if (error) {
-      toast.error('Failed to post');
-    } else {
+    try {
+      const { data, error } = await supabase
+        .from('community_posts')
+        .insert([{ user_id: user!.id, content: newContent.trim(), link: newLink.trim() || null }])
+        .select();
+      if (error) throw error;
       toast.success('Message sent');
       setNewContent('');
       setNewLink('');
       setPosts(prev => [data[0], ...prev]);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } catch (err: any) {
+      console.error('❌ Post error:', err);
+      toast.error('Failed to post');
     }
     setSubmitting(false);
   };
 
   const handleDelete = async (postId: string) => {
     if (!confirm('Delete this message?')) return;
-    const { error } = await supabase.from('community_posts').delete().eq('id', postId);
-    if (error) {
-      toast.error('Failed to delete');
-    } else {
+    try {
+      const { error } = await supabase.from('community_posts').delete().eq('id', postId);
+      if (error) throw error;
       toast.success('Message deleted');
       setPosts(prev => prev.filter(p => p.id !== postId));
+    } catch (err: any) {
+      console.error('❌ Delete error:', err);
+      toast.error('Failed to delete');
     }
   };
 
   const handleReply = async (postId: string) => {
     if (!replyContent.trim()) return toast.error('Write a reply');
-    const { data, error } = await supabase
-      .from('community_comments')
-      .insert([{ post_id: postId, user_id: user!.id, content: replyContent.trim() }])
-      .select();
-    if (error) {
-      toast.error('Failed to reply');
-    } else {
+    try {
+      const { data, error } = await supabase
+        .from('community_comments')
+        .insert([{ post_id: postId, user_id: user!.id, content: replyContent.trim() }])
+        .select();
+      if (error) throw error;
       toast.success('Reply added');
       setReplyContent('');
       setReplyOpen(null);
-      fetchPosts();
+      fetchPosts(); // refresh to show new comment
+    } catch (err: any) {
+      console.error('❌ Reply error:', err);
+      toast.error('Failed to reply');
     }
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div style={{ padding: '2rem', color: '#888' }}>Loading community...</div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -134,9 +150,7 @@ export default function Community() {
         />
       </form>
 
-      {loading ? (
-        <p>Loading...</p>
-      ) : posts.length === 0 ? (
+      {posts.length === 0 ? (
         <p style={{ color: '#555', textAlign: 'center' }}>No messages yet. Start the conversation!</p>
       ) : (
         posts.map(post => (

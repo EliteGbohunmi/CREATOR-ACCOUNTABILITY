@@ -4,7 +4,7 @@ import { useAuth } from '../lib/AuthContext'
 import {
   LayoutDashboard, CalendarDays, Trophy, BarChart2, Settings,
   Flame, LogOut, Users, Award, BookMarked, UserCheck, Grid, X,
-  MessageCircle   // <-- NEW
+  MessageCircle   // NEW
 } from 'lucide-react'
 
 const mainNav = [
