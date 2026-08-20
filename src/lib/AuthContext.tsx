@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from './supabase'
+import { subscribeToPush } from './pushNotifications'
 import type { User } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -19,14 +20,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get session first before rendering anything
     supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null)
+      const user = data.session?.user ?? null
+      setUser(user)
+      if (user) {
+        console.log('🔔 Calling subscribeToPush for user:', user.id)
+        subscribeToPush(user.id)
+      }
       setLoading(false)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      const user = session?.user ?? null
+      setUser(user)
+      if (user) {
+        subscribeToPush(user.id)
+      }
       setLoading(false)
     })
 

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/AuthContext'
+import { NotificationModal } from './components/NotificationModal'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
@@ -18,7 +19,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   if (loading) return <div style={{ color: '#F0EDE8', padding: '2rem' }}>Loading...</div>
   if (!user) return <Navigate to="/login" />
-  return <>{children}</>
+  return (
+    <>
+      {children}
+      <NotificationModal />
+    </>
+  )
 }
 
 function AppRoutes() {
