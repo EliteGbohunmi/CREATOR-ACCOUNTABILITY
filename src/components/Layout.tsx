@@ -6,14 +6,12 @@ import {
   Flame, LogOut, Users, Award, BookMarked, UserCheck, Grid, X
 } from 'lucide-react'
 
-// ===== ONLY 3 CORE TABS ON THE BOTTOM BAR =====
 const mainNav = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/planner', label: 'Planner', icon: CalendarDays },
   { path: '/challenges', label: 'Challenges', icon: Trophy },
 ]
 
-// ===== MOVED LEADERBOARD & SETTINGS INTO "MORE" =====
 const moreNav = [
   { path: '/leaderboard', label: 'Leaderboard', icon: Users },
   { path: '/settings', label: 'Settings', icon: Settings },
@@ -26,7 +24,6 @@ const moreNav = [
 
 const allNav = [...mainNav, ...moreNav]
 
-// ----- responsive hook -----
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(window.matchMedia(query).matches)
   useEffect(() => {
@@ -46,14 +43,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={styles.wrapper}>
-      {/* Desktop sidebar – hidden on mobile */}
       {!isMobile && (
         <aside style={styles.sidebar}>
           <div style={styles.brand}>
             <Flame size={22} color="#F5A623" />
             <span>Streak</span>
           </div>
-
           <nav style={styles.nav}>
             {allNav.map(item => {
               const Icon = item.icon
@@ -73,7 +68,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               )
             })}
           </nav>
-
           <button style={styles.signOut} onClick={signOut}>
             <LogOut size={15} color="#666" />
             <span>Sign out</span>
@@ -84,25 +78,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main style={{
         ...styles.main,
         marginLeft: isMobile ? '0' : '230px',
-        padding: isMobile ? '1.5rem' : '2.5rem',
-        paddingBottom: isMobile ? '100px' : '2.5rem',
+        padding: isMobile ? '1.5rem 1rem 100px' : '2rem 2rem 2rem',
       }}>
         {children}
         {!isMobile && <div style={{ height: '20px' }} />}
       </main>
 
-      {/* ===== MOBILE BOTTOM NAV – ONLY ON MOBILE ===== */}
       {isMobile && (
         <nav style={styles.mobileNav}>
           {mainNav.map(item => {
             const Icon = item.icon
             const active = location.pathname === item.path
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                style={styles.mobileItem}
-              >
+              <Link key={item.path} to={item.path} style={styles.mobileItem}>
                 <Icon
                   size={24}
                   color={active ? '#F5A623' : '#666'}
@@ -123,8 +111,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             )
           })}
-
-          {/* "More" button */}
           <button
             style={styles.mobileItem}
             onClick={() => setShowMore(!showMore)}
@@ -150,7 +136,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
       )}
 
-      {/* More drawer – only on mobile */}
       {isMobile && showMore && (
         <>
           <div style={styles.overlay} onClick={() => setShowMore(false)} />
@@ -276,11 +261,9 @@ const styles: Record<string, React.CSSProperties> = {
   main: {
     flex: 1,
     minWidth: 0,
-    maxWidth: '860px',
-    paddingBottom: '100px'
+    maxWidth: '100%',
+    paddingBottom: '100px',
   },
-
-  // ----- FLOATING BOTTOM NAV (3 tabs + More) -----
   mobileNav: {
     display: 'flex',
     position: 'fixed',
@@ -321,7 +304,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#F5A623',
     borderRadius: '4px'
   },
-
   overlay: {
     position: 'fixed',
     inset: 0,
