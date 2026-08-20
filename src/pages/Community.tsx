@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
@@ -13,6 +13,7 @@ export default function Community() {
   const [newLink, setNewLink] = useState('');
   const [replyContent, setReplyContent] = useState('');
   const [replyPostId, setReplyPostId] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchPosts = async () => {
     try {
@@ -27,7 +28,7 @@ export default function Community() {
       if (error) throw error;
       setPosts(data || []);
     } catch (err) {
-      // silent fail – show empty list
+      toast.error('Failed to load messages');
     } finally {
       setLoading(false);
     }
@@ -55,6 +56,7 @@ export default function Community() {
       setNewContent('');
       setNewLink('');
       setPosts(prev => [data[0], ...prev]);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (err) {
       toast.error('Failed to post');
     }
@@ -92,117 +94,311 @@ export default function Community() {
   if (loading) {
     return (
       <Layout>
-        <div style={{ padding: '2rem', color: '#888' }}>Loading community...</div>
+        <div style={styles.loading}>Loading community...</div>
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.8rem', fontFamily: 'Space Grotesk', fontWeight: '700' }}>💬 Community Chat</h1>
-        <p style={{ color: '#555' }}>Share your wins, ask for feedback, and connect with other creators.</p>
-      </div>
-
-      <form onSubmit={handleSubmit} style={cardStyle}>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-          <textarea
-            placeholder="What's on your mind? (required)"
-            value={newContent}
-            onChange={e => setNewContent(e.target.value)}
-            style={{ ...inputStyle, flex: 1, minHeight: '60px' }}
-            rows={2}
-          />
-          <button type="submit" style={buttonStyle}><Send size={18} /></button>
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>💬 Community</h1>
+          <p style={styles.subtitle}>Share your wins, ask for feedback, and connect with creators.</p>
         </div>
-        <input
-          placeholder="Optional: paste a link"
-          value={newLink}
-          onChange={e => setNewLink(e.target.value)}
-          style={inputStyle}
-        />
-      </form>
 
-      {posts.length === 0 ? (
-        <p style={{ color: '#555', textAlign: 'center' }}>No messages yet. Be the first!</p>
-      ) : (
-        posts.map(post => (
-          <div key={post.id} style={cardStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <strong style={{ color: '#F0EDE8' }}>{post.profiles?.name || 'Unknown'}</strong>
-                <span style={{ color: '#555', fontSize: '0.8rem', marginLeft: '0.5rem' }}>
-                  {new Date(post.created_at).toLocaleString()}
-                </span>
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <div style={styles.inputRow}>
+            <textarea
+              placeholder="What's on your mind?"
+              value={newContent}
+              onChange={e => setNewContent(e.target.value)}
+              style={styles.textarea}
+              rows={2}
+            />
+            <button type="submit" style={styles.sendBtn}>
+              <Send size={18} />
+            </button>
+          </div>
+          <input
+            placeholder="Optional: paste a link"
+            value={newLink}
+            onChange={e => setNewLink(e.target.value)}
+            style={styles.linkInput}
+          />
+        </form>
+
+        {posts.length === 0 ? (
+          <p style={styles.empty}>No messages yet. Start the conversation!</p>
+        ) : (
+          posts.map(post => (
+            <div key={post.id} style={styles.messageCard}>
+              <div style={styles.messageHeader}>
+                <div style={styles.avatar}>
+                  {post.profiles?.name?.[0]?.toUpperCase() || '?'}
+                </div>
+                <div style={styles.meta}>
+                  <span style={styles.sender}>{post.profiles?.name || 'Unknown'}</span>
+                  <span style={styles.time}>
+                    {new Date(post.created_at).toLocaleString()}
+                  </span>
+                </div>
+                {post.user_id === user?.id && (
+                  <button onClick={() => handleDelete(post.id)} style={styles.deleteBtn}>
+                    <Trash2 size={16} color="#E53E3E" />
+                  </button>
+                )}
               </div>
-              {post.user_id === user?.id && (
-                <button onClick={() => handleDelete(post.id)} style={{ background: 'none', border: 'none', color: '#E53E3E', cursor: 'pointer' }}>
-                  <Trash2 size={16} />
-                </button>
+              <p style={styles.content}>{post.content}</p>
+              {post.link && (
+                <a href={post.link} target="_blank" rel="noopener noreferrer" style={styles.link}>
+                  <Link2 size={14} /> {post.link}
+                </a>
+              )}
+              <button
+                onClick={() => setReplyPostId(replyPostId === post.id ? null : post.id)}
+                style={styles.replyToggle}
+              >
+                <Reply size={14} /> {post.comments?.length || 0} replies
+              </button>
+              {replyPostId === post.id && (
+                <div style={styles.replyThread}>
+                  {(post.comments || []).map((c: any) => (
+                    <div key={c.id} style={styles.replyItem}>
+                      <span style={styles.replySender}>{c.profiles?.name || 'Anonymous'}</span>
+                      <span style={styles.replyText}>{c.content}</span>
+                    </div>
+                  ))}
+                  <div style={styles.replyInputRow}>
+                    <input
+                      placeholder="Write a reply..."
+                      value={replyContent}
+                      onChange={e => setReplyContent(e.target.value)}
+                      style={styles.replyInput}
+                    />
+                    <button onClick={() => handleReply(post.id)} style={styles.replySendBtn}>
+                      <Send size={14} />
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
-            <p style={{ margin: '0.5rem 0', color: '#F0EDE8' }}>{post.content}</p>
-            {post.link && (
-              <a href={post.link} target="_blank" rel="noopener noreferrer" style={{ color: '#F5A623', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                <Link2 size={14} /> {post.link}
-              </a>
-            )}
-            <button onClick={() => setReplyPostId(replyPostId === post.id ? null : post.id)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Reply size={14} /> {post.comments?.length || 0} replies
-            </button>
-            {replyPostId === post.id && (
-              <div style={{ marginTop: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid #2A2A2A' }}>
-                {(post.comments || []).map((c: any) => (
-                  <div key={c.id} style={{ fontSize: '0.9rem', color: '#ccc', padding: '0.2rem 0', borderBottom: '1px solid #1A1A1A' }}>
-                    <strong>{c.profiles?.name || 'Anonymous'}</strong> {c.content}
-                  </div>
-                ))}
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <input
-                    placeholder="Write a reply..."
-                    value={replyContent}
-                    onChange={e => setReplyContent(e.target.value)}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <button onClick={() => handleReply(post.id)} style={buttonStyle}><Send size={16} /></button>
-                </div>
-              </div>
-            )}
-          </div>
-        ))
-      )}
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
     </Layout>
   );
 }
 
-const cardStyle: React.CSSProperties = {
-  background: '#111111',
-  border: '1px solid #1E1E1E',
-  borderRadius: '14px',
-  padding: '1.25rem',
-  marginBottom: '1rem',
-};
-
-const inputStyle: React.CSSProperties = {
-  background: '#0A0A0A',
-  border: '1px solid #1E1E1E',
-  borderRadius: '8px',
-  padding: '0.75rem',
-  color: '#F0EDE8',
-  fontSize: '0.95rem',
-  width: '100%',
-  marginTop: '0.5rem',
-  fontFamily: 'inherit',
-};
-
-const buttonStyle: React.CSSProperties = {
-  background: '#F5A623',
-  color: '#0A0A0A',
-  border: 'none',
-  borderRadius: '8px',
-  padding: '0.6rem 1rem',
-  cursor: 'pointer',
-  height: '44px',
-  display: 'flex',
-  alignItems: 'center',
+const styles: Record<string, React.CSSProperties> = {
+  container: {
+    maxWidth: '800px',
+    margin: '0 auto',
+    padding: '1rem 0',
+  },
+  header: {
+    marginBottom: '2rem',
+  },
+  title: {
+    fontSize: '1.8rem',
+    fontFamily: 'Space Grotesk',
+    fontWeight: '700',
+    margin: 0,
+    color: '#F0EDE8',
+  },
+  subtitle: {
+    color: '#555',
+    margin: '0.3rem 0 0',
+    fontSize: '0.9rem',
+  },
+  form: {
+    background: '#1C1C1C',
+    borderRadius: '16px',
+    padding: '1rem',
+    marginBottom: '2rem',
+    border: '1px solid #2A2A2A',
+  },
+  inputRow: {
+    display: 'flex',
+    gap: '0.5rem',
+    alignItems: 'flex-start',
+  },
+  textarea: {
+    flex: 1,
+    background: '#0A0A0A',
+    border: '1px solid #2A2A2A',
+    borderRadius: '12px',
+    padding: '0.75rem',
+    color: '#F0EDE8',
+    fontSize: '0.95rem',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    minHeight: '60px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  },
+  sendBtn: {
+    background: '#F5A623',
+    border: 'none',
+    borderRadius: '12px',
+    padding: '0.6rem 1rem',
+    cursor: 'pointer',
+    height: '48px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#0A0A0A',
+    fontWeight: '600',
+    transition: 'background 0.2s',
+  },
+  linkInput: {
+    width: '100%',
+    background: '#0A0A0A',
+    border: '1px solid #2A2A2A',
+    borderRadius: '12px',
+    padding: '0.75rem',
+    color: '#F0EDE8',
+    fontSize: '0.9rem',
+    marginTop: '0.5rem',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  },
+  empty: {
+    color: '#555',
+    textAlign: 'center',
+    padding: '2rem 0',
+  },
+  messageCard: {
+    background: '#1A1A1A',
+    borderRadius: '16px',
+    padding: '1rem 1.25rem',
+    marginBottom: '1rem',
+    border: '1px solid #2A2A2A',
+    transition: 'border-color 0.2s',
+  },
+  messageHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    marginBottom: '0.5rem',
+  },
+  avatar: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    background: '#F5A623',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: '600',
+    fontSize: '0.9rem',
+    color: '#0A0A0A',
+    flexShrink: 0,
+  },
+  meta: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  sender: {
+    fontWeight: '600',
+    fontSize: '0.95rem',
+    color: '#F0EDE8',
+  },
+  time: {
+    fontSize: '0.7rem',
+    color: '#666',
+  },
+  content: {
+    margin: '0.3rem 0 0.5rem',
+    fontSize: '0.95rem',
+    lineHeight: 1.5,
+    color: '#DDD',
+  },
+  link: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    color: '#F5A623',
+    fontSize: '0.85rem',
+    textDecoration: 'none',
+    marginBottom: '0.5rem',
+    wordBreak: 'break-all',
+  },
+  deleteBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '0.2rem',
+    borderRadius: '4px',
+    transition: 'background 0.2s',
+  },
+  replyToggle: {
+    background: 'none',
+    border: 'none',
+    color: '#888',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    fontSize: '0.85rem',
+    padding: '0.2rem 0',
+    marginTop: '0.3rem',
+    transition: 'color 0.2s',
+  },
+  replyThread: {
+    marginTop: '0.75rem',
+    paddingLeft: '1rem',
+    borderLeft: '2px solid #2A2A2A',
+  },
+  replyItem: {
+    display: 'flex',
+    gap: '0.5rem',
+    fontSize: '0.9rem',
+    padding: '0.3rem 0',
+    borderBottom: '1px solid #1A1A1A',
+    color: '#CCC',
+  },
+  replySender: {
+    fontWeight: '600',
+    color: '#F0EDE8',
+  },
+  replyText: {
+    color: '#CCC',
+  },
+  replyInputRow: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginTop: '0.5rem',
+    alignItems: 'center',
+  },
+  replyInput: {
+    flex: 1,
+    background: '#0A0A0A',
+    border: '1px solid #2A2A2A',
+    borderRadius: '8px',
+    padding: '0.5rem 0.75rem',
+    color: '#F0EDE8',
+    fontSize: '0.9rem',
+    outline: 'none',
+    fontFamily: 'inherit',
+  },
+  replySendBtn: {
+    background: '#F5A623',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '0.4rem 0.7rem',
+    cursor: 'pointer',
+    height: '34px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#0A0A0A',
+  },
+  loading: {
+    padding: '2rem',
+    color: '#888',
+    textAlign: 'center',
+  },
 };
