@@ -4,11 +4,39 @@ import { supabase } from '../lib/supabase'
 import { sendNudge } from '../lib/backend'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
-import { Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock } from 'lucide-react'
+import { Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock, UserMinus } from 'lucide-react'
+
+const NUDGE_MESSAGES = [
+  "Hey {partner}! 👋 You haven't posted today yet. Don't break your streak — go create something! 🔥",
+  "Your partner is checking on you, {partner}! Time to post and keep that streak alive.",
+  "{partner}, you're falling behind! Post something now – your streak depends on it.",
+  "Accountability check! Don't let your partner down – post today, {partner}!",
+  "{partner}, your streak is at risk! One post today keeps the flame alive.",
+  "Hey {partner}, your partner noticed you haven't posted yet. Let's go!",
+  "Your partner says: '{partner}, get that post up! Your streak needs you.'",
+  "{partner}, this is your nudge from your partner. One post today keeps the chain going.",
+  "Don't break the chain, {partner}! Your partner believes in you – post now!",
+  "{partner}, your partner is waiting for your post. You've got this!",
+  "Time to create, {partner}. Your partner just nudged you to share your work.",
+  "{partner}, your partner is holding you accountable. Post something!",
+  "Nudge from your partner: '{partner}, what are you waiting for? Post today!'",
+  "{partner}, your partner checked in and saw you missed today. Let's fix that!",
+  "Hey {partner}, your partner is on fire – don't let the streak die. Post now!",
+  "{partner}, this is your reminder to post. You'll thank yourself later.",
+  "Your partner says: '{partner}, don't procrastinate – post today!'",
+  "{partner}, your partner is watching your streak. Keep it going with one post!",
+  "Nudge! Your partner wants to see your post, {partner}. The community is waiting.",
+  "{partner}, your partner just sent a nudge – it's your turn to create something amazing!"
+];
+
+function getRandomNudgeMessage(partnerName: string): string {
+  const raw = NUDGE_MESSAGES[Math.floor(Math.random() * NUDGE_MESSAGES.length)];
+  return raw.replace(/{partner}/g, partnerName);
+}
 
 export default function Partners() {
   const { user } = useAuth()
-  const [partner, setPartner] = useState<any>(null)
+  const [partners, setPartners] = useState<any[]>([])
   const [requests, setRequests] = useState<any[]>([])
   const [sent, setSent] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -17,104 +45,144 @@ export default function Partners() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState<string | null>(null)
   const [toast, setToast] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => {
+    if (user) {
+      fetchAll().catch(err => {
+        setError(err.message || 'Network error')
+        setLoading(false)
+      })
+    } else {
+      setLoading(false)
+    }
+  }, [user])
 
   const fetchAll = async () => {
-    const [{ data: p1 }, { data: p2 }, { data: incoming }, { data: outgoing }] = await Promise.all([
-      supabase.from('accountability_partners')
-        .select('*, profiles!accountability_partners_user2_id_fkey(id, name)')
-        .eq('user1_id', user!.id).single(),
-      supabase.from('accountability_partners')
-        .select('*, profiles!accountability_partners_user1_id_fkey(id, name)')
-        .eq('user2_id', user!.id).single(),
-      supabase.from('partner_requests')
-        .select('*, profiles!partner_requests_sender_id_fkey(id, name)')
-        .eq('receiver_id', user!.id).eq('status', 'pending'),
-      supabase.from('partner_requests')
-        .select('*, profiles!partner_requests_receiver_id_fkey(id, name)')
-        .eq('sender_id', user!.id).eq('status', 'pending')
-    ])
+    setError(null)
+    const { data: partnersData, error: pErr } = await supabase
+      .from('accountability_partners')
+      .select('*, profiles!accountability_partners_user1_id_fkey(id, name), profiles!accountability_partners_user2_id_fkey(id, name)')
+      .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
 
-    const activePartner = p1 || p2
-    if (activePartner) {
-      const partnerId = activePartner.user1_id === user!.id
-        ? activePartner.user2_id
-        : activePartner.user1_id
-      const partnerName = activePartner.user1_id === user!.id
-        ? activePartner.profiles?.name
-        : activePartner.profiles?.name
+    if (pErr) throw pErr
 
-      const { data: partnerStreak } = await supabase
+    const partnerList = []
+    for (const p of partnersData || []) {
+      const isUser1 = p.user1_id === user!.id
+      const partnerId = isUser1 ? p.user2_id : p.user1_id
+      const partnerName = isUser1 ? p.profiles?.name : p.profiles?.name
+
+      const { data: streak } = await supabase
         .from('streaks')
         .select('current_streak, best_streak, last_checked_in')
         .eq('user_id', partnerId)
         .single()
 
-      setPartner({
-        ...activePartner,
+      partnerList.push({
+        ...p,
         partnerId,
         partnerName,
-        streak: partnerStreak
+        streak
       })
     }
+    setPartners(partnerList)
 
+    const { data: incoming } = await supabase
+      .from('partner_requests')
+      .select('*, profiles!partner_requests_sender_id_fkey(id, name)')
+      .eq('receiver_id', user!.id)
+      .eq('status', 'pending')
     setRequests(incoming || [])
+
+    const { data: outgoing } = await supabase
+      .from('partner_requests')
+      .select('*, profiles!partner_requests_receiver_id_fkey(id, name)')
+      .eq('sender_id', user!.id)
+      .eq('status', 'pending')
     setSent(outgoing || [])
+
     setLoading(false)
   }
 
   const searchUsers = async () => {
     if (!searchQuery.trim()) return
     setSearching(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, name, email')
-      .ilike('name', `%${searchQuery}%`)
-      .neq('id', user!.id)
-      .limit(10)
-    setSearchResults(data || [])
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .ilike('name', `%${searchQuery}%`)
+        .neq('id', user!.id)
+        .limit(10)
+      const partnerIds = partners.map(p => p.partnerId)
+      setSearchResults((data || []).filter(u => !partnerIds.includes(u.id)))
+    } catch (err) {
+      showToast('❌ Search failed: ' + (err as Error).message)
+    }
     setSearching(false)
   }
 
   const sendRequest = async (receiverId: string) => {
     setSending(receiverId)
-    await supabase.from('partner_requests').insert({
-      sender_id: user!.id,
-      receiver_id: receiverId,
-      status: 'pending'
-    })
-    await fetchAll()
-    setSearchResults([])
-    setSearchQuery('')
+    try {
+      await supabase.from('partner_requests').insert({
+        sender_id: user!.id,
+        receiver_id: receiverId,
+        status: 'pending'
+      })
+      await fetchAll()
+      setSearchResults([])
+      setSearchQuery('')
+      showToast('✅ Request sent')
+    } catch (err) {
+      showToast('❌ Request failed: ' + (err as Error).message)
+    }
     setSending(null)
   }
 
   const acceptRequest = async (requestId: string, senderId: string) => {
-    await supabase.from('partner_requests').update({ status: 'accepted' }).eq('id', requestId)
-    await supabase.from('accountability_partners').insert({
-      user1_id: senderId,
-      user2_id: user!.id
-    })
-    await fetchAll()
+    try {
+      await supabase.from('partner_requests').update({ status: 'accepted' }).eq('id', requestId)
+      await supabase.from('accountability_partners').insert({
+        user1_id: senderId,
+        user2_id: user!.id
+      })
+      await fetchAll()
+      showToast('✅ Partner added')
+    } catch (err) {
+      showToast('❌ Accept failed: ' + (err as Error).message)
+    }
   }
 
   const declineRequest = async (requestId: string) => {
-    await supabase.from('partner_requests').update({ status: 'declined' }).eq('id', requestId)
-    await fetchAll()
+    try {
+      await supabase.from('partner_requests').update({ status: 'declined' }).eq('id', requestId)
+      await fetchAll()
+    } catch (err) {
+      showToast('❌ Decline failed: ' + (err as Error).message)
+    }
   }
 
-  const removePartner = async () => {
-    if (!partner) return
-    await supabase.from('accountability_partners').delete().eq('id', partner.id)
-    setPartner(null)
-    await fetchAll()
+  const removePartner = async (partnerId: string) => {
+    if (!confirm('Remove this partner?')) return
+    try {
+      await supabase
+        .from('accountability_partners')
+        .delete()
+        .or(`user1_id.eq.${partnerId},user2_id.eq.${partnerId}`)
+        .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
+      await fetchAll()
+      showToast('Partner removed')
+    } catch (err) {
+      showToast('❌ Remove failed: ' + (err as Error).message)
+    }
   }
 
-  const partnerCheckedIn = partner?.streak?.last_checked_in === today
+  const partnerCheckedIn = (streak: any) => streak?.last_checked_in === today
 
   const toastStyle: React.CSSProperties = {
     position: 'fixed',
@@ -135,8 +203,8 @@ export default function Partners() {
     return (
       <Layout>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
-          {[1,2].map(i => (
-            <div key={i} style={{ height: '120px', borderRadius: '14px', background: '#111', border: '1px solid #1E1E1E' }} />
+          {[1,2,3].map(i => (
+            <div key={i} style={{ height: '100px', borderRadius: '14px', background: '#111', border: '1px solid #1E1E1E' }} />
           ))}
         </div>
         {toast && <div style={toastStyle}>{toast}</div>}
@@ -144,153 +212,151 @@ export default function Partners() {
     )
   }
 
+  if (error) {
+    return (
+      <Layout>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', textAlign: 'center' }}>
+          <AlertCircle size={48} color="#E53E3E" style={{ marginBottom: '1rem' }} />
+          <h2 style={{ color: '#E53E3E' }}>Oops</h2>
+          <p style={{ color: '#888' }}>{error}</p>
+          <button onClick={() => { setError(null); setLoading(true); fetchAll().catch(e => setError(e.message)) }} style={{ marginTop: '1.5rem', background: '#F5A623', color: '#000', border: 'none', padding: '0.6rem 1.5rem', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>Try Again</button>
+        </div>
+        {toast && <div style={toastStyle}>{toast}</div>}
+      </Layout>
+    )
+  }
+
+  const maxPartners = 5
+  const canAddMore = partners.length < maxPartners
+
   return (
     <Layout>
       <div style={{ marginBottom: '2rem' }}>
         <p style={{ color: '#555', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.3rem' }}>Accountability</p>
         <h1 style={{ fontSize: '1.8rem', fontFamily: 'Space Grotesk', fontWeight: '700' }}>Partners</h1>
-        <p style={{ color: '#555', marginTop: '0.3rem', fontSize: '0.9rem' }}>Stay accountable with another creator.</p>
+        <p style={{ color: '#555', marginTop: '0.3rem', fontSize: '0.9rem' }}>Stay accountable with other creators. Max {maxPartners} partners.</p>
       </div>
 
-      {/* Active partner */}
-      {partner ? (
+      {partners.length > 0 && (
         <div style={{ marginBottom: '2rem' }}>
           <div style={styles.sectionLabel}>
             <Users size={13} color="#F5A623" />
-            Your Partner
+            Your Partners ({partners.length}/{maxPartners})
           </div>
-          <div style={{ ...styles.card, borderColor: partnerCheckedIn ? '#4CAF5040' : '#E53E3E40' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-              <div>
-                <div style={{ fontWeight: '700', fontSize: '1.1rem', marginBottom: '0.25rem' }}>
-                  {partner.partnerName}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {partners.map(p => {
+              const checkedIn = partnerCheckedIn(p.streak)
+              return (
+                <div key={p.id} style={{ ...styles.card, borderColor: checkedIn ? '#4CAF5040' : '#E53E3E40' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: '600', fontSize: '1rem' }}>{p.partnerName}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
+                        <Flame size={14} color="#F5A623" />
+                        <span style={{ color: '#F5A623', fontWeight: '600' }}>{p.streak?.current_streak || 0}</span>
+                        <span style={{ color: '#555', fontSize: '0.8rem' }}>day streak</span>
+                        <span style={{ color: '#555', fontSize: '0.7rem', marginLeft: '0.5rem' }}>
+                          {checkedIn ? '✅ Posted today' : '❌ Missed today'}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {!checkedIn && (
+                        <button
+                          style={{ background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '6px', padding: '0.3rem 0.8rem', fontWeight: '600', fontSize: '0.75rem', cursor: 'pointer' }}
+                          onClick={async () => {
+                            try {
+                              await sendNudge(user!.id, p.partnerId)
+                              const message = getRandomNudgeMessage(p.partnerName)
+                              await navigator.clipboard.writeText(message)
+                              showToast('✅ Nudge sent to ' + p.partnerName)
+                            } catch (err: any) {
+                              showToast('❌ Failed: ' + (err.message || 'Unknown error'))
+                            }
+                          }}
+                        >
+                          Copy Nudge
+                        </button>
+                      )}
+                      <button
+                        style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer' }}
+                        onClick={() => removePartner(p.partnerId)}
+                      >
+                        <UserMinus size={16} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Flame size={14} color="#F5A623" />
-                  <span style={{ color: '#F5A623', fontWeight: '600', fontFamily: 'Space Grotesk' }}>
-                    {partner.streak?.current_streak || 0}
-                  </span>
-                  <span style={{ color: '#555', fontSize: '0.82rem' }}>day streak</span>
-                </div>
-              </div>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                background: partnerCheckedIn ? '#0D2010' : '#1A0000',
-                border: `1px solid ${partnerCheckedIn ? '#4CAF5030' : '#E53E3E30'}`,
-                borderRadius: '20px', padding: '0.35rem 0.85rem'
-              }}>
-                {partnerCheckedIn
-                  ? <><Check size={13} color="#4CAF50" /><span style={{ color: '#4CAF50', fontSize: '0.78rem' }}>Posted today</span></>
-                  : <><AlertCircle size={13} color="#E53E3E" /><span style={{ color: '#E53E3E', fontSize: '0.78rem' }}>Missed today</span></>
-                }
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div style={styles.statBox}>
-                <div style={{ color: '#555', fontSize: '0.72rem', marginBottom: '0.2rem' }}>Current streak</div>
-                <div style={{ fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '1.3rem', color: '#F5A623' }}>
-                  {partner.streak?.current_streak || 0}
-                </div>
-              </div>
-              <div style={styles.statBox}>
-                <div style={{ color: '#555', fontSize: '0.72rem', marginBottom: '0.2rem' }}>Best streak</div>
-                <div style={{ fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '1.3rem' }}>
-                  {partner.streak?.best_streak || 0}
-                </div>
-              </div>
-            </div>
-
-            {!partnerCheckedIn && (
-              <div style={styles.missedAlert}>
-                <AlertCircle size={15} color="#E53E3E" />
-                <span style={{ flex: 1 }}>{partner.partnerName} hasn't checked in today.</span>
-                <button
-                  style={{ background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '6px', padding: '0.4rem 0.85rem', fontWeight: '600', fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}
-                  onClick={async () => {
-                    try {
-                      await sendNudge(user!.id, partner.partnerId)
-                      await navigator.clipboard.writeText(`Hey ${partner.partnerName}! 👋 You haven't posted today yet. Don't break your streak — go create something! 🔥`)
-                      showToast('✅ Nudge sent to partner!')
-                    } catch (err: any) {
-                      console.error(err)
-                      showToast('❌ Failed to send nudge: ' + (err.message || 'Unknown error'))
-                    }
-                  }}
-                >
-                  Copy Nudge
-                </button>
-              </div>
-            )}
-
-            <button style={styles.removeBtn} onClick={removePartner}>
-              <X size={13} color="#555" />
-              Remove Partner
-            </button>
+              )
+            })}
           </div>
         </div>
-      ) : (
-        <>
-          {/* Search */}
-          <div style={styles.card}>
-            <div style={styles.sectionLabel}>
-              <UserPlus size={13} color="#555" />
-              Find a Partner
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                style={{ ...styles.input, flex: 1 }}
-                placeholder="Search by name..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && searchUsers()}
-              />
-              <button style={styles.searchBtn} onClick={searchUsers} disabled={searching}>
-                <Search size={16} color="#0A0A0A" />
-              </button>
-            </div>
-
-            <AnimatePresence>
-              {searchResults.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}
-                >
-                  {searchResults.map(u => {
-                    const alreadySent = sent.some(s => s.receiver_id === u.id)
-                    return (
-                      <div key={u.id} style={styles.resultRow}>
-                        <div>
-                          <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>{u.name}</div>
-                          <div style={{ color: '#555', fontSize: '0.78rem' }}>{u.email}</div>
-                        </div>
-                        {alreadySent ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#555', fontSize: '0.8rem' }}>
-                            <Clock size={13} color="#555" />
-                            Pending
-                          </div>
-                        ) : (
-                          <button
-                            style={styles.requestBtn}
-                            onClick={() => sendRequest(u.id)}
-                            disabled={sending === u.id}
-                          >
-                            {sending === u.id ? '...' : 'Request'}
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </>
       )}
 
-      {/* Incoming requests */}
+      {canAddMore && (
+        <div style={styles.card}>
+          <div style={styles.sectionLabel}>
+            <UserPlus size={13} color="#555" />
+            Find a New Partner
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              style={{ ...styles.input, flex: 1 }}
+              placeholder="Search by name..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && searchUsers()}
+            />
+            <button style={styles.searchBtn} onClick={searchUsers} disabled={searching}>
+              <Search size={16} color="#0A0A0A" />
+            </button>
+          </div>
+          <AnimatePresence>
+            {searchResults.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}
+              >
+                {searchResults.map(u => {
+                  const alreadySent = sent.some(s => s.receiver_id === u.id)
+                  return (
+                    <div key={u.id} style={styles.resultRow}>
+                      <div>
+                        <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>{u.name}</div>
+                        <div style={{ color: '#555', fontSize: '0.78rem' }}>{u.email}</div>
+                      </div>
+                      {alreadySent ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#555', fontSize: '0.8rem' }}>
+                          <Clock size={13} color="#555" />
+                          Pending
+                        </div>
+                      ) : (
+                        <button
+                          style={styles.requestBtn}
+                          onClick={() => sendRequest(u.id)}
+                          disabled={sending === u.id}
+                        >
+                          {sending === u.id ? '...' : 'Request'}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {!canAddMore && (
+        <div style={{ ...styles.card, borderColor: '#F5A62340' }}>
+          <p style={{ color: '#F5A623', fontSize: '0.9rem', margin: 0 }}>
+            ✅ You have reached the maximum of {maxPartners} partners. Remove one to add another.
+          </p>
+        </div>
+      )}
+
       {requests.length > 0 && (
         <div style={{ marginBottom: '2rem' }}>
           <div style={styles.sectionLabel}>
@@ -322,7 +388,6 @@ export default function Partners() {
         </div>
       )}
 
-      {/* Sent requests */}
       {sent.length > 0 && (
         <div>
           <div style={styles.sectionLabel}>
@@ -350,17 +415,15 @@ export default function Partners() {
         </div>
       )}
 
-      {/* Empty state */}
-      {!partner && requests.length === 0 && sent.length === 0 && searchResults.length === 0 && (
+      {partners.length === 0 && requests.length === 0 && sent.length === 0 && searchResults.length === 0 && (
         <div style={styles.empty}>
           <Users size={32} color="#2A2A2A" style={{ marginBottom: '0.75rem' }} />
           <p style={{ margin: 0, color: '#555', textAlign: 'center' }}>
-            No partner yet. Search for a creator above and send a request.
+            No partners yet. Search for a creator above and send a request.
           </p>
         </div>
       )}
 
-      {/* Toast notification */}
       {toast && <div style={toastStyle}>{toast}</div>}
     </Layout>
   )
@@ -374,7 +437,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     background: '#111111', border: '1px solid #1E1E1E',
-    borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem'
+    borderRadius: '14px', padding: '1rem 1.25rem', marginBottom: '1rem'
   },
   statBox: {
     background: '#0A0A0A', borderRadius: '10px', padding: '0.85rem'
