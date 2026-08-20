@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import {
@@ -26,110 +26,132 @@ const moreNav = [
 
 const allNav = [...mainNav, ...moreNav]
 
+// ----- responsive hook -----
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(window.matchMedia(query).matches)
+  useEffect(() => {
+    const media = window.matchMedia(query)
+    const listener = () => setMatches(media.matches)
+    media.addEventListener('change', listener)
+    return () => media.removeEventListener('change', listener)
+  }, [query])
+  return matches
+}
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { signOut } = useAuth()
   const [showMore, setShowMore] = useState(false)
+  const isMobile = useMediaQuery('(max-width: 768px)')
 
   return (
     <div style={styles.wrapper}>
-      {/* Desktop sidebar (shows ALL items – unchanged) */}
-      <aside style={styles.sidebar}>
-        <div style={styles.brand}>
-          <Flame size={22} color="#F5A623" />
-          <span>Streak</span>
-        </div>
+      {/* Desktop sidebar – hidden on mobile */}
+      {!isMobile && (
+        <aside style={styles.sidebar}>
+          <div style={styles.brand}>
+            <Flame size={22} color="#F5A623" />
+            <span>Streak</span>
+          </div>
 
-        <nav style={styles.nav}>
-          {allNav.map(item => {
+          <nav style={styles.nav}>
+            {allNav.map(item => {
+              const Icon = item.icon
+              const active = location.pathname === item.path
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  style={{
+                    ...styles.navItem,
+                    ...(active ? styles.navActive : {})
+                  }}
+                >
+                  <Icon size={18} color={active ? '#F5A623' : '#666'} />
+                  <span>{item.label}</span>
+                </Link>
+              )
+            })}
+          </nav>
+
+          <button style={styles.signOut} onClick={signOut}>
+            <LogOut size={15} color="#666" />
+            <span>Sign out</span>
+          </button>
+        </aside>
+      )}
+
+      <main style={{
+        ...styles.main,
+        marginLeft: isMobile ? '0' : '230px',
+        padding: isMobile ? '1.5rem' : '2.5rem',
+        paddingBottom: isMobile ? '100px' : '2.5rem',
+      }}>
+        {children}
+        {!isMobile && <div style={{ height: '20px' }} />}
+      </main>
+
+      {/* ===== MOBILE BOTTOM NAV – ONLY ON MOBILE ===== */}
+      {isMobile && (
+        <nav style={styles.mobileNav}>
+          {mainNav.map(item => {
             const Icon = item.icon
             const active = location.pathname === item.path
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                style={{
-                  ...styles.navItem,
-                  ...(active ? styles.navActive : {})
-                }}
+                style={styles.mobileItem}
               >
-                <Icon size={18} color={active ? '#F5A623' : '#666'} />
-                <span>{item.label}</span>
+                <Icon
+                  size={24}
+                  color={active ? '#F5A623' : '#666'}
+                  style={{
+                    transform: active ? 'translateY(-2px)' : 'translateY(0)',
+                    transition: 'transform 0.2s'
+                  }}
+                />
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  color: active ? '#F5A623' : '#888',
+                  letterSpacing: '0.2px'
+                }}>
+                  {item.label}
+                </span>
+                {active && <div style={styles.activeDot} />}
               </Link>
             )
           })}
+
+          {/* "More" button */}
+          <button
+            style={styles.mobileItem}
+            onClick={() => setShowMore(!showMore)}
+          >
+            <Grid
+              size={24}
+              color={showMore ? '#F5A623' : '#666'}
+              style={{
+                transform: showMore ? 'translateY(-2px)' : 'translateY(0)',
+                transition: 'transform 0.2s'
+              }}
+            />
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '500',
+              color: showMore ? '#F5A623' : '#888',
+              letterSpacing: '0.2px'
+            }}>
+              More
+            </span>
+            {showMore && <div style={styles.activeDot} />}
+          </button>
         </nav>
+      )}
 
-        <button style={styles.signOut} onClick={signOut}>
-          <LogOut size={15} color="#666" />
-          <span>Sign out</span>
-        </button>
-      </aside>
-
-      <main style={styles.main}>
-        {children}
-        <div style={{ height: '90px' }} />
-      </main>
-
-      {/* ===== MOBILE BOTTOM NAV – NOW WITH ONLY 3 TABS ===== */}
-      <nav style={styles.mobileNav}>
-        {mainNav.map(item => {
-          const Icon = item.icon
-          const active = location.pathname === item.path
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              style={styles.mobileItem}
-            >
-              <Icon
-                size={24}
-                color={active ? '#F5A623' : '#666'}
-                style={{
-                  transform: active ? 'translateY(-2px)' : 'translateY(0)',
-                  transition: 'transform 0.2s'
-                }}
-              />
-              <span style={{
-                fontSize: '11px',
-                fontWeight: '500',
-                color: active ? '#F5A623' : '#888',
-                letterSpacing: '0.2px'
-              }}>
-                {item.label}
-              </span>
-              {active && <div style={styles.activeDot} />}
-            </Link>
-          )
-        })}
-
-        {/* "More" button – opens the drawer with all other items */}
-        <button
-          style={styles.mobileItem}
-          onClick={() => setShowMore(!showMore)}
-        >
-          <Grid
-            size={24}
-            color={showMore ? '#F5A623' : '#666'}
-            style={{
-              transform: showMore ? 'translateY(-2px)' : 'translateY(0)',
-              transition: 'transform 0.2s'
-            }}
-          />
-          <span style={{
-            fontSize: '11px',
-            fontWeight: '500',
-            color: showMore ? '#F5A623' : '#888',
-            letterSpacing: '0.2px'
-          }}>
-            More
-          </span>
-          {showMore && <div style={styles.activeDot} />}
-        </button>
-      </nav>
-
-      {/* More drawer – now includes Leaderboard, Settings, etc. */}
-      {showMore && (
+      {/* More drawer – only on mobile */}
+      {isMobile && showMore && (
         <>
           <div style={styles.overlay} onClick={() => setShowMore(false)} />
           <div style={styles.moreDrawer}>
@@ -252,10 +274,8 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer'
   },
   main: {
-    marginLeft: '230px',
     flex: 1,
     minWidth: 0,
-    padding: '2.5rem',
     maxWidth: '860px',
     paddingBottom: '100px'
   },
