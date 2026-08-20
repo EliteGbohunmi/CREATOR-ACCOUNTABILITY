@@ -63,19 +63,29 @@ export default function Partners() {
 
   const fetchAll = async () => {
     setError(null)
+
+    // 1. Get all partner relations (both directions)
     const { data: partnersData, error: pErr } = await supabase
       .from('accountability_partners')
-      .select('*, profiles!accountability_partners_user1_id_fkey(id, name), profiles!accountability_partners_user2_id_fkey(id, name)')
+      .select('user1_id, user2_id')
       .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
 
     if (pErr) throw pErr
 
+    // 2. Build partner list with names and streaks
     const partnerList = []
     for (const p of partnersData || []) {
       const isUser1 = p.user1_id === user!.id
       const partnerId = isUser1 ? p.user2_id : p.user1_id
-      const partnerName = isUser1 ? p.profiles?.name : p.profiles?.name
 
+      // Fetch partner profile separately
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', partnerId)
+        .single()
+
+      // Fetch partner streak
       const { data: streak } = await supabase
         .from('streaks')
         .select('current_streak, best_streak, last_checked_in')
@@ -85,12 +95,13 @@ export default function Partners() {
       partnerList.push({
         ...p,
         partnerId,
-        partnerName,
+        partnerName: profile?.name || 'Unknown',
         streak
       })
     }
     setPartners(partnerList)
 
+    // 3. Incoming requests
     const { data: incoming } = await supabase
       .from('partner_requests')
       .select('*, profiles!partner_requests_sender_id_fkey(id, name)')
@@ -98,6 +109,7 @@ export default function Partners() {
       .eq('status', 'pending')
     setRequests(incoming || [])
 
+    // 4. Sent requests
     const { data: outgoing } = await supabase
       .from('partner_requests')
       .select('*, profiles!partner_requests_receiver_id_fkey(id, name)')
