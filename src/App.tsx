@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/AuthContext'
-import { NotificationModal } from './components/NotificationModal'
+import NotificationModal from './components/NotificationModal'   // default import
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
@@ -14,7 +14,7 @@ import Vault from './pages/Vault'
 import Feed from './pages/Feed'
 import Partners from './pages/Partners'
 import Leaderboard from './pages/Leaderboard'
-import Community from './pages/Community'   // NEW
+import Community from './pages/Community'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
