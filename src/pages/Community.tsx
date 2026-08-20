@@ -25,29 +25,60 @@ export default function Community() {
 
   const fetchPosts = async () => {
     try {
-      const { data, error } = await supabase
+      // Base query: posts + comments only (this is the shape that was already working).
+      const { data: postsData, error } = await supabase
         .from('community_posts')
         .select(`
           *,
           profiles!community_posts_user_id_fkey (id, name, email),
-          comments: community_comments (id, content, user_id, created_at, profiles!community_comments_user_id_fkey (name)),
-          likes: community_likes (id, user_id)
+          comments: community_comments (id, content, user_id, created_at, profiles!community_comments_user_id_fkey (name))
         `)
-        .order('created_at', { ascending: false })
-        .order('created_at', { foreignTable: 'community_comments', ascending: true });
+        .order('created_at', { ascending: false });
       if (error) throw error;
 
-      setPosts(data || []);
+      let rows = postsData || [];
 
-      // Seed which posts the current user has liked, from the joined data.
+      // Sort each post's comments oldest-first client-side (avoids relying on
+      // ordering embedded/foreign-table rows at the query level).
+      rows = rows.map((p: any) => ({
+        ...p,
+        comments: [...(p.comments || [])].sort(
+          (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        ),
+      }));
+
+      // Likes fetched separately (own query, own table) so a missing/ambiguous
+      // relationship on community_likes can't break the whole feed load.
+      const postIds = rows.map((p: any) => p.id);
+      let likesByPost: Record<string, any[]> = {};
+      if (postIds.length > 0) {
+        const { data: likesData, error: likesError } = await supabase
+          .from('community_likes')
+          .select('id, post_id, user_id')
+          .in('post_id', postIds);
+        if (likesError) {
+          // Don't fail the whole feed just because likes couldn't load.
+          console.error('Failed to load likes', likesError);
+        } else {
+          likesByPost = (likesData || []).reduce((acc: Record<string, any[]>, like: any) => {
+            (acc[like.post_id] ||= []).push(like);
+            return acc;
+          }, {});
+        }
+      }
+
+      rows = rows.map((p: any) => ({ ...p, likes: likesByPost[p.id] || [] }));
+      setPosts(rows);
+
       if (user) {
         const liked = new Set<string>();
-        (data || []).forEach((p: any) => {
+        rows.forEach((p: any) => {
           if ((p.likes || []).some((l: any) => l.user_id === user.id)) liked.add(p.id);
         });
         setLikedPosts(liked);
       }
     } catch (err) {
+      console.error(err);
       toast.error('Failed to load messages');
     } finally {
       setLoading(false);
@@ -57,7 +88,6 @@ export default function Community() {
   useEffect(() => {
     fetchPosts();
 
-    // Realtime instead of polling: refetch whenever posts/comments/likes change.
     const channel = supabase
       .channel('community-feed')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'community_posts' }, () => fetchPosts())
@@ -71,7 +101,6 @@ export default function Community() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Show a floating "compose" button once the user has scrolled past the composer.
   useEffect(() => {
     const onScroll = () => setShowComposeFab(window.scrollY > 400);
     window.addEventListener('scroll', onScroll);
@@ -102,7 +131,6 @@ export default function Community() {
     });
   };
 
-  // Only allow http(s) links; blocks javascript: and other dangerous schemes.
   const sanitizeLink = (raw: string): string | null => {
     const trimmed = raw.trim();
     if (!trimmed) return null;
@@ -148,7 +176,7 @@ export default function Community() {
       toast.success('Message sent');
       setNewContent('');
       setNewLink('');
-      setPosts(prev => [data[0], ...prev]);
+      setPosts(prev => [{ ...data[0], comments: [], likes: [] }, ...prev]);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (err) {
       toast.error('Failed to post');
