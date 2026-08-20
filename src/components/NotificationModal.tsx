@@ -9,18 +9,37 @@ export function NotificationModal() {
 
   const fetchUnread = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_notifications')
       .select('*')
       .eq('user_id', user.id)
       .eq('read', false)
       .order('created_at', { ascending: false });
-    setNotifications(data || []);
+    if (error) {
+      console.error('Fetch notifications error:', error);
+    } else {
+      setNotifications(data || []);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
-    if (user) fetchUnread();
+    if (user) {
+      fetchUnread();
+      // Poll every 15 seconds for new notifications
+      const interval = setInterval(fetchUnread, 15000);
+      // Also refetch when the tab becomes visible again
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') {
+          fetchUnread();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibility);
+      };
+    }
   }, [user]);
 
   const markAsRead = async (id: string) => {
