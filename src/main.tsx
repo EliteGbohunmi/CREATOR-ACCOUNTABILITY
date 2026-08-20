@@ -1,39 +1,29 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import './styles/global.css'
-import { registerPushSubscription, getVapidKey } from './lib/backend'
-import { supabase } from './lib/supabase'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { Toaster } from 'react-hot-toast'
+import { setupGlobalErrorHandler } from './lib/errorHandler'
+import './index.css'
 
-async function setupPushNotifications() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
-
-  try {
-    const reg = await navigator.serviceWorker.register('/sw.js')
-    console.log('Service worker registered')
-
-    if (Notification.permission !== 'granted') return
-
-    const vapidKey = await getVapidKey()
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: vapidKey
-    })
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await registerPushSubscription(user.id, sub)
-      console.log('Push subscription registered')
-    }
-  } catch (err) {
-    console.error('Push setup failed:', err)
-  }
-}
-
-setupPushNotifications()
+// Setup global error interceptors
+setupGlobalErrorHandler()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: '#1C1C1C',
+            color: '#F0EDE8',
+            border: '1px solid #2A2A2A'
+          },
+          duration: 4000
+        }}
+      />
+    </ErrorBoundary>
   </React.StrictMode>
 )
