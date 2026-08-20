@@ -9,15 +9,16 @@ export function NotificationModal() {
 
   const fetchUnread = async () => {
     if (!user) return;
+    console.log('🔍 Fetching unread...');
     const { data, error } = await supabase
       .from('user_notifications')
       .select('*')
       .eq('user_id', user.id)
       .eq('read', false)
       .order('created_at', { ascending: false });
-    if (error) {
-      console.error('Fetch notifications error:', error);
-    } else {
+    if (error) console.error('❌', error);
+    else {
+      console.log('📦', data);
       setNotifications(data || []);
     }
     setLoading(false);
@@ -26,14 +27,8 @@ export function NotificationModal() {
   useEffect(() => {
     if (user) {
       fetchUnread();
-      // Poll every 15 seconds for new notifications
       const interval = setInterval(fetchUnread, 15000);
-      // Also refetch when the tab becomes visible again
-      const handleVisibility = () => {
-        if (document.visibilityState === 'visible') {
-          fetchUnread();
-        }
-      };
+      const handleVisibility = () => { if (document.visibilityState === 'visible') fetchUnread(); };
       document.addEventListener('visibilitychange', handleVisibility);
       return () => {
         clearInterval(interval);
@@ -51,22 +46,14 @@ export function NotificationModal() {
 
   return (
     <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(0,0,0,0.7)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '1rem'
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: '1rem'
     }}>
       <div style={{
-        background: '#1C1C1C',
-        maxWidth: '400px',
-        width: '100%',
-        borderRadius: '16px',
-        padding: '2rem',
-        border: '1px solid #2A2A2A',
+        background: '#1C1C1C', maxWidth: '400px', width: '100%',
+        borderRadius: '16px', padding: '2rem', border: '1px solid #2A2A2A',
         boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
       }}>
         <h2 style={{ color: '#F5A623', marginBottom: '0.5rem' }}>📬 You have a nudge!</h2>
@@ -75,20 +62,18 @@ export function NotificationModal() {
             <p style={{ color: '#F0EDE8', fontSize: '1rem' }}>{n.message}</p>
             <button
               onClick={() => markAsRead(n.id)}
-              style={{
-                background: '#F5A623',
-                color: '#000',
-                border: 'none',
-                padding: '0.4rem 1rem',
-                borderRadius: '6px',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
+              style={{ background: '#F5A623', color: '#000', border: 'none', padding: '0.4rem 1rem', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
             >
               Got it
             </button>
           </div>
         ))}
+        <button
+          onClick={fetchUnread}
+          style={{ marginTop: '1rem', background: 'transparent', border: '1px solid #555', color: '#888', padding: '0.3rem 0.8rem', borderRadius: '6px', cursor: 'pointer' }}
+        >
+          ↻ Refresh
+        </button>
       </div>
     </div>
   );
