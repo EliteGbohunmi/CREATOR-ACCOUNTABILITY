@@ -7,6 +7,7 @@ import PillarSetup from '../components/PillarSetup'
 import AIContentIdeas from '../components/AIContentIdeas'
 import GoodEnoughChecklist from '../components/GoodEnoughChecklist'
 import { Plus, X, CheckCircle2, Circle, Trash2, Repeat, ChevronLeft, ChevronRight } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 const PLATFORMS = ['Instagram', 'X (Twitter)', 'TikTok', 'YouTube', 'LinkedIn', 'Threads']
 const FORMATS = ['Reel', 'Carousel', 'Photo', 'Thread', 'Video', 'Short', 'Story', 'Article', 'Newsletter', 'Podcast', 'Tutorial', 'Opinion']
@@ -59,6 +60,8 @@ export default function Planner() {
   const [weekDays, setWeekDays] = useState<Date[]>([])
   const [weekStart, setWeekStart] = useState('monday')
 
+  const today = new Date().toISOString().split('T')[0]
+
   useEffect(() => {
     supabase.from('profiles').select('week_start, default_platform').eq('id', user!.id).single()
       .then(({ data }) => {
@@ -91,6 +94,10 @@ export default function Planner() {
 
   const addTask = async () => {
     if (!title.trim() || !date) return
+    if (date < today) {
+      toast.error("You can't schedule tasks in the past.")
+      return
+    }
     setSaving(true)
     await supabase.from('tasks').insert({
       user_id: user!.id, title, platform, date,
@@ -151,7 +158,6 @@ export default function Planner() {
   const completedThisWeek = tasks.filter(t => t.completed).length
   const totalThisWeek = tasks.length
   const weekProgress = totalThisWeek > 0 ? Math.round((completedThisWeek / totalThisWeek) * 100) : 0
-  const today = new Date().toISOString().split('T')[0]
 
   const weekLabel = () => {
     if (weekDays.length === 0) return ''
@@ -159,6 +165,8 @@ export default function Planner() {
     const to = weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     return `${from} — ${to}`
   }
+
+  const canGoPrev = weekOffset > 0 // prevent going to past weeks
 
   return (
     <Layout>
@@ -257,7 +265,7 @@ export default function Planner() {
                 {pillars.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             )}
-            <input style={styles.input} type="date" value={date} onChange={e => setDate(e.target.value)} />
+            <input style={styles.input} type="date" value={date} onChange={e => setDate(e.target.value)} min={today} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }} onClick={() => setRecurring(!recurring)}>
               <div style={{ ...styles.checkbox, background: recurring ? '#F5A623' : 'transparent', borderColor: recurring ? '#F5A623' : '#333' }}>
                 {recurring && <Repeat size={12} color="#0A0A0A" />}
@@ -273,9 +281,13 @@ export default function Planner() {
 
       {/* Week nav */}
       <div style={styles.weekNav}>
-        <button style={styles.navArrow} onClick={() => setWeekOffset(w => w - 1)}><ChevronLeft size={18} color="#888" /></button>
+        <button style={styles.navArrow} onClick={() => canGoPrev && setWeekOffset(w => w - 1)} disabled={!canGoPrev}>
+          <ChevronLeft size={18} color={canGoPrev ? '#888' : '#333'} />
+        </button>
         <span style={{ color: '#888', fontSize: '0.85rem' }}>{weekLabel()}</span>
-        <button style={styles.navArrow} onClick={() => setWeekOffset(w => w + 1)}><ChevronRight size={18} color="#888" /></button>
+        <button style={styles.navArrow} onClick={() => setWeekOffset(w => w + 1)}>
+          <ChevronRight size={18} color="#888" />
+        </button>
       </div>
 
       {/* Weekly grid */}
