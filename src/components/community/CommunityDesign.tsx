@@ -55,7 +55,6 @@ interface Props {
 const PLATFORMS = ['X', 'TikTok', 'YouTube', 'Instagram', 'LinkedIn', 'Substack']
 const ENGAGEMENT_TYPES = ['comment', 'like', 'share', 'watch']
 
-// Two-letter initials (e.g. "Tolu Adeyemi" -> "TA", "You" -> "Y")
 const getInitials = (name?: string | null) => {
   if (!name) return '?'
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -153,7 +152,6 @@ export default function CommunityDesign({
   if (loading) {
     return (
       <div style={styles.loading}>
-        <FontLoader />
         <div style={styles.spinner} />
         <span>Loading community board...</span>
       </div>
@@ -162,9 +160,6 @@ export default function CommunityDesign({
 
   return (
     <div style={styles.container}>
-      <FontLoader />
-
-      {/* Eyebrow */}
       <div style={styles.eyebrow}>
         <Users size={18} strokeWidth={2} />
         Creator Community
@@ -173,7 +168,6 @@ export default function CommunityDesign({
       <h1 style={styles.title}>Say hi. Ask for engagement. Show up for each other.</h1>
       <p style={styles.subtitle}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
 
-      {/* Stats */}
       <div style={styles.stats}>
         <div style={styles.stat}>
           <div style={styles.statNum}>{totalPosts}</div>
@@ -193,7 +187,6 @@ export default function CommunityDesign({
         </div>
       </div>
 
-      {/* Composer */}
       <div style={styles.composer}>
         <div style={styles.toggleRow}>
           <button
@@ -269,7 +262,6 @@ export default function CommunityDesign({
         </form>
       </div>
 
-      {/* Filter tabs */}
       <div style={styles.tabs}>
         <button
           type="button"
@@ -294,7 +286,6 @@ export default function CommunityDesign({
         </button>
       </div>
 
-      {/* Feed */}
       <div style={styles.feed}>
         <AnimatePresence>
           {sortedPosts.length === 0 ? (
@@ -319,7 +310,6 @@ export default function CommunityDesign({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  {/* Post head */}
                   <div style={styles.postHead}>
                     <div style={styles.avatar}>
                       {getInitials(post.profiles?.name)}
@@ -344,10 +334,8 @@ export default function CommunityDesign({
                     )}
                   </div>
 
-                  {/* Body */}
                   <div style={styles.postBody}>{post.content}</div>
 
-                  {/* Link card (boost only) */}
                   {isBoost && post.link && (
                     <a
                       href={post.link}
@@ -366,7 +354,6 @@ export default function CommunityDesign({
                     </a>
                   )}
 
-                  {/* Post footer actions */}
                   <div style={styles.postFooter}>
                     <button
                       type="button"
@@ -412,7 +399,6 @@ export default function CommunityDesign({
                     )}
                   </div>
 
-                  {/* Reply section */}
                   <AnimatePresence>
                     {isReplyOpen && (
                       <motion.div
@@ -421,6 +407,17 @@ export default function CommunityDesign({
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                       >
+                        <div style={styles.replyTop}>
+                          <div style={styles.replyStat}>
+                            <Heart size={14} fill="#f0a637" />
+                            {post.likes?.length || 0}
+                          </div>
+                          <div style={styles.replyStat}>
+                            <MessageCircle size={14} />
+                            {post.comments?.length || 0}
+                          </div>
+                        </div>
+
                         {repliesToShow.map(comment => (
                           <div key={comment.id} style={styles.replyComment}>
                             <div style={styles.whoRow}>
@@ -496,7 +493,6 @@ export default function CommunityDesign({
         </AnimatePresence>
       </div>
 
-      {/* Floating Action Button */}
       <button type="button" style={styles.fab} aria-label="New post">
         <Plus size={26} strokeWidth={2.4} />
       </button>
@@ -504,30 +500,14 @@ export default function CommunityDesign({
   )
 }
 
-// Injects the Google Fonts + keyframes this design depends on.
-// Safe to render multiple times; move this <link>/<style> into your
-// root index.html instead if you'd rather not inject it per-mount.
-function FontLoader() {
-  return (
-    <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap');
-      @keyframes spin { to { transform: rotate(360deg); } }
-    `}</style>
-  )
-}
-
-// ---- Styles (exact match to provided HTML/CSS) ----
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    maxWidth: '480px',
-    margin: 0,
-    minHeight: '100vh',
-    padding: '16px 10px 80px',
-    position: 'relative',
-    color: '#f4f2ee',
+    maxWidth: '740px',
+    margin: '0 auto',
+    padding: '20px 12px 90px',
     fontFamily: '"Nunito Sans", sans-serif',
+    color: '#f4f2ee',
   },
-  // Eyebrow
   eyebrow: {
     display: 'flex',
     alignItems: 'center',
@@ -543,30 +523,29 @@ const styles: Record<string, React.CSSProperties> = {
   title: {
     fontFamily: '"Fredoka", sans-serif',
     fontWeight: 700,
-    fontSize: '34px',
+    fontSize: 'clamp(28px, 6vw, 38px)',
     lineHeight: 1.12,
     letterSpacing: '0.01em',
     textTransform: 'uppercase',
-    margin: '0 0 14px',
+    margin: '0 0 12px',
   },
   subtitle: {
     color: '#9c9895',
     fontSize: '15px',
     lineHeight: 1.5,
-    margin: '0 0 20px',
+    margin: '0 0 18px',
     maxWidth: '46ch',
   },
-  // Stats
   stats: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, 1fr)',
     gap: '10px',
-    marginBottom: '20px',
+    marginBottom: '18px',
   },
   stat: {
     border: '1px solid #2c2c2c',
     borderRadius: '14px',
-    padding: '16px 10px 80px',
+    padding: '12px 6px 10px',
     textAlign: 'center',
     background: '#1a1a1a',
   },
@@ -584,25 +563,24 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#6f6c69',
     fontWeight: 700,
   },
-  // Composer
   composer: {
     border: '1px solid #2c2c2c',
     borderRadius: '18px',
     background: '#1a1a1a',
-    padding: '16px 10px 80px',
-    marginBottom: '22px',
+    padding: '16px',
+    marginBottom: '20px',
   },
   toggleRow: {
     display: 'flex',
     gap: '10px',
-    marginBottom: '16px',
+    marginBottom: '14px',
   },
   pill: {
     fontFamily: '"Fredoka", sans-serif',
     fontWeight: 500,
     fontSize: '14px',
     borderRadius: '999px',
-    padding: '16px 10px 80px',
+    padding: '8px 14px',
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
@@ -628,7 +606,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: '"Nunito Sans", sans-serif',
     fontSize: '15.5px',
     lineHeight: 1.5,
-    padding: '16px 10px 80px',
+    padding: '12px 14px',
     marginBottom: '12px',
     outline: 'none',
   },
@@ -649,7 +627,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#d8a05c',
     border: 'none',
     borderRadius: '999px',
-    padding: '16px 10px 80px',
+    padding: '8px 18px',
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
@@ -670,7 +648,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'transparent',
     border: '1px solid #2c2c2c',
     borderRadius: '999px',
-    padding: '16px 10px 80px',
+    padding: '6px 14px',
   },
   linkInput: {
     flex: 1,
@@ -691,17 +669,16 @@ const styles: Record<string, React.CSSProperties> = {
     outline: 'none',
     cursor: 'pointer',
   },
-  // Tabs
   tabs: {
     display: 'flex',
     gap: '10px',
-    marginBottom: '20px',
+    marginBottom: '18px',
   },
   tab: {
     fontFamily: '"Fredoka", sans-serif',
     fontWeight: 500,
     fontSize: '14px',
-    padding: '16px 10px 80px',
+    padding: '6px 16px',
     borderRadius: '999px',
     border: '1px solid #2c2c2c',
     color: '#9c9895',
@@ -714,36 +691,33 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#f0a637',
     background: 'rgba(240,166,55,0.08)',
   },
-  // Feed
   feed: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '14px',
   },
   empty: {
     textAlign: 'center',
     color: '#6f6c69',
-    padding: '16px 10px 80px',
+    padding: '2rem 0',
     fontFamily: '"Nunito Sans", sans-serif',
     fontSize: '15px',
   },
-  // Post
   post: {
     border: '1px solid #2c2c2c',
     borderRadius: '18px',
     background: '#1a1a1a',
-    padding: '16px 10px 80px',
+    padding: '16px',
   },
   postHead: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    marginBottom: '14px',
-    position: 'relative',
+    marginBottom: '12px',
   },
   avatar: {
-    width: '42px',
-    height: '42px',
+    width: '40px',
+    height: '40px',
     borderRadius: '50%',
     border: '2px solid #f0a637',
     display: 'flex',
@@ -765,7 +739,7 @@ const styles: Record<string, React.CSSProperties> = {
   nameRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
     flexWrap: 'wrap',
   },
   name: {
@@ -779,7 +753,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '10.5px',
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
-    padding: '16px 10px 80px',
+    padding: '2px 8px',
     borderRadius: '999px',
   },
   badgeYou: {
@@ -812,7 +786,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '15.5px',
     lineHeight: 1.55,
     color: '#f4f2ee',
-    marginBottom: '14px',
+    marginBottom: '12px',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
   },
@@ -823,8 +797,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '10px',
     border: '1px solid #2c2c2c',
     borderRadius: '14px',
-    padding: '16px 10px 80px',
-    marginBottom: '14px',
+    padding: '12px 14px',
+    marginBottom: '12px',
     textDecoration: 'none',
     cursor: 'pointer',
   },
@@ -868,7 +842,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '7px',
     borderRadius: '999px',
-    padding: '16px 10px 80px',
+    padding: '6px 12px',
     fontFamily: '"Fredoka", sans-serif',
     fontWeight: 600,
     fontSize: '13.5px',
@@ -897,20 +871,19 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: '"Fredoka", sans-serif',
     cursor: 'pointer',
   },
-  // Reply block
   replyBlock: {
     border: '1px solid #2c2c2c',
     borderRadius: '16px',
     background: '#1a1a1a',
-    padding: '16px 10px 80px',
-    marginTop: '16px',
+    padding: '14px',
+    marginTop: '14px',
     overflow: 'hidden',
   },
   replyTop: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    marginBottom: '12px',
+    marginBottom: '10px',
   },
   replyStat: {
     display: 'flex',
@@ -919,21 +892,21 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#4d3a1a',
     color: '#f0a637',
     borderRadius: '999px',
-    padding: '16px 10px 80px',
+    padding: '4px 12px',
     fontFamily: '"Fredoka", sans-serif',
     fontWeight: 600,
     fontSize: '13px',
   },
   replyComment: {
     borderTop: '1px solid #2c2c2c',
-    paddingTop: '12px',
+    paddingTop: '10px',
     marginTop: '4px',
   },
   whoRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    marginBottom: '6px',
+    marginBottom: '4px',
   },
   dot: {
     width: '7px',
@@ -953,7 +926,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '15px',
     lineHeight: 1.5,
     color: '#f4f2ee',
-    marginBottom: '12px',
+    marginBottom: '10px',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
   },
@@ -964,7 +937,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontFamily: '"Nunito Sans", sans-serif',
     cursor: 'pointer',
-    padding: '16px 10px 80px',
+    padding: '4px 0',
   },
   sayInputRow: {
     display: 'flex',
@@ -972,7 +945,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '10px',
     border: '1px solid #2c2c2c',
     borderRadius: '999px',
-    padding: '16px 10px 80px',
+    padding: '8px 8px 8px 14px',
   },
   sayInput: {
     flex: 1,
@@ -996,13 +969,12 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     cursor: 'pointer',
   },
-  // Floating action button
   fab: {
     position: 'fixed',
-    right: '24px',
-    bottom: '32px',
-    width: '58px',
-    height: '58px',
+    right: 'max(16px, calc((100vw - 740px) / 2 + 8px))',
+    bottom: '28px',
+    width: '56px',
+    height: '56px',
     borderRadius: '50%',
     background: '#f0a637',
     color: '#201404',
@@ -1013,13 +985,12 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 0 24px rgba(240,166,55,0.45)',
     cursor: 'pointer',
   },
-  // Loading
   loading: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '16px 10px 80px',
+    padding: '4rem 0',
     gap: '1rem',
     color: '#6f6c69',
   },
