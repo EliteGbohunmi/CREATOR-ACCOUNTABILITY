@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare,
-  Flame, Hand, Filter, SortAsc, X, ChevronDown, ExternalLink, UserPlus
+  Flame, Hand, ExternalLink, Edit3
 } from 'lucide-react'
 
 export type CommunityPost = {
@@ -37,10 +37,10 @@ interface Props {
   loading: boolean
   isPosting: boolean
   isReplying: boolean
-  filter: 'all' | 'say_hi' | 'boost'
+  filter: 'all' | 'say_hi' | 'boost' | 'mine'
   platformFilter: string
   sortBy: 'newest' | 'needs_engagement'
-  onFilterChange: (filter: 'all' | 'say_hi' | 'boost') => void
+  onFilterChange: (filter: 'all' | 'say_hi' | 'boost' | 'mine') => void
   onPlatformFilterChange: (platform: string) => void
   onSortChange: (sort: 'newest' | 'needs_engagement') => void
   onCreatePost: (content: string, link: string | null, postType: 'say_hi' | 'boost', platform: string | null, engagementType: string | null) => void
@@ -127,6 +127,7 @@ export default function CommunityDesign({
   const filteredPosts = posts.filter(p => {
     if (filter === 'say_hi' && p.post_type !== 'say_hi') return false
     if (filter === 'boost' && p.post_type !== 'boost') return false
+    if (filter === 'mine' && p.user_id !== currentUserId) return false
     if (platformFilter && p.platform !== platformFilter) return false
     return true
   })
@@ -253,8 +254,8 @@ export default function CommunityDesign({
           Boosts
         </button>
         <button
-          style={{ ...styles.filterTab, ...(filter === 'say_hi' ? styles.filterTabActive : {}) }}
-          onClick={() => onFilterChange('say_hi')}
+          style={{ ...styles.filterTab, ...(filter === 'mine' ? styles.filterTabActive : {}) }}
+          onClick={() => onFilterChange('mine')}
         >
           Mine
         </button>
@@ -346,7 +347,7 @@ export default function CommunityDesign({
                           style={{
                             ...styles.engageBtn,
                             background: engaged ? '#2A2A2A' : '#F5A623',
-                            color: engaged ? '#666' : '#0A0A0A',
+                            color: engaged ? '#888' : '#0A0A0A',
                           }}
                         >
                           {engaged ? 'Engaged ✓' : 'I engaged'}
@@ -356,7 +357,8 @@ export default function CommunityDesign({
                         </span>
                       </>
                     )}
-                    <span style={styles.engageLabel}>Engage +</span>
+                    <span style={styles.engageLabel}>Engage</span>
+                    <span style={styles.editLabel}>Edit with Lovable</span>
                   </div>
 
                   {/* Replies */}
@@ -738,7 +740,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.8rem',
     color: '#888',
     cursor: 'default',
-    marginLeft: 'auto',
+    marginRight: '0.5rem',
+  },
+  editLabel: {
+    fontSize: '0.75rem',
+    color: '#888',
+    cursor: 'default',
   },
   replySection: {
     marginTop: '0.75rem',
