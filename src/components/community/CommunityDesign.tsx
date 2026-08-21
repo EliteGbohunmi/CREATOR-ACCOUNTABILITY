@@ -364,9 +364,6 @@ export default function CommunityDesign({
                     )}
                   </div>
 
-                  {isOwner && (
-                  )}
-
                   {/* Replies */}
                   <AnimatePresence>
                     {isReplyOpen && (
@@ -766,14 +763,6 @@ const styles: Record<string, React.CSSProperties> = {
   engagedCount: {
     fontSize: '0.7rem',
     color: '#666',
-  },
-  editLabel: {
-    fontSize: '0.7rem',
-    color: '#444',
-    marginTop: '0.4rem',
-    textAlign: 'right',
-    borderTop: '1px solid #1A1A1A',
-    paddingTop: '0.4rem',
   },
   replySection: {
     marginTop: '0.75rem',
