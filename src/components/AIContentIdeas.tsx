@@ -62,23 +62,30 @@ export default function AIContentIdeas({ pillars, onIdeaAdded, selectedDate }: P
     setTimeout(() => setCopied(null), 2000)
   }
 
-  const callGroq = async (prompt: string, maxTokens = 1500) => {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: maxTokens,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    })
+  const callBackendAI = async (prompt: string, maxTokens = 1500) => {
+    const res = await fetch(
+      `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'}/api/ai/generate`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      }
+    )
     const data = await res.json()
-    const text = data.choices?.[0]?.message?.content || '{}'
-    const clean = text.replace(/```json|```/g, '').trim()
-    return JSON.parse(clean)
+    if (data.error) throw new Error(data.error)
+    let text = data.result || ''
+    const cleaned = text.replace(/```json|```/g, '').trim()
+    try {
+      return JSON.parse(cleaned)
+    } catch {
+      // If parsing fails, try to extract JSON from the text
+      const match = text.match(/\{.*\}/s)
+      if (match) return JSON.parse(match[0])
+      // If it's an array, try to extract array
+      const arrayMatch = text.match(/\[.*\]/s)
+      if (arrayMatch) return JSON.parse(arrayMatch[0])
+      throw new Error('Could not parse AI response as JSON')
+    }
   }
 
   const generateIdeas = async () => {
@@ -114,7 +121,7 @@ Return ONLY a JSON array:
 ]`
 
     try {
-      const parsed = await callGroq(prompt, 1000)
+      const parsed = await callBackendAI(prompt, 1000)
       setIdeas(Array.isArray(parsed) ? parsed : [])
     } catch {
       setIdeas([
@@ -286,7 +293,7 @@ Return ONLY this JSON:
     }
 
     try {
-      const parsed = await callGroq(prompt, 2000)
+      const parsed = await callBackendAI(prompt, 2000)
       setGeneratedContent({ ...parsed, formatType, idea })
     } catch {
       setGeneratedContent({ error: true, formatType, idea })
@@ -319,7 +326,7 @@ Rewrite this content in a "${tone}" tone. Keep all specific story details. Make 
 Return the same JSON structure as the original.`
 
     try {
-      const parsed = await callGroq(prompt, 2000)
+      const parsed = await callBackendAI(prompt, 2000)
       setGeneratedContent((prev: any) => ({ ...prev, ...parsed }))
     } catch {
       // keep existing

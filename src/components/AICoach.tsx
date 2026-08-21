@@ -13,11 +13,12 @@ export default function AICoach({ streak, name, todayDone, tasksCount }: Props) 
   const [loading, setLoading] = useState(false)
   const [input, setInput] = useState('')
   const [history, setHistory] = useState<{ role: string; content: string }[]>([])
-const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-useEffect(() => {
-  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-}, [history, loading])
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [history, loading])
+
   const systemPrompt = 'You are an accountability coach for a content creator named ' + name + '. Their current streak is ' + streak + ' days. They ' + (todayDone ? 'have' : 'have NOT') + ' posted today. They have ' + tasksCount + ' tasks planned. Be motivating, direct, and personal. Keep responses under 3 sentences.'
 
   const askCoach = async (userMessage: string) => {
@@ -29,40 +30,29 @@ useEffect(() => {
     setInput('')
 
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + import.meta.env.VITE_GROQ_API_KEY
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          max_tokens: 150,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...newHistory.map((h) => ({
-              role: h.role,
-              content: h.content
-            }))
-          ]
-        })
-      })
-
+      // Build a combined prompt with system context and user message
+      const fullPrompt = `${systemPrompt}\n\nUser says: "${userMessage}"`
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'}/api/ai/generate`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: fullPrompt })
+        }
+      )
       const data = await response.json()
 
       if (data.error) {
-        setHistory([...newHistory, { role: 'assistant', content: 'API Error: ' + data.error.message }])
+        setHistory([...newHistory, { role: 'assistant', content: 'Error: ' + data.error }])
         setLoading(false)
         return
       }
 
-      const reply = data.choices[0].message.content
+      const reply = data.result || 'Sorry, I could not generate a response.'
       setHistory([...newHistory, { role: 'assistant', content: reply }])
-
     } catch (err: any) {
       setHistory([...newHistory, { role: 'assistant', content: 'Network Error: ' + err.message }])
     }
-
     setLoading(false)
   }
 
@@ -91,29 +81,29 @@ useEffect(() => {
             <div style={styles.drawerHeader}>
               <div>
                 <div style={{ fontWeight: '700', fontFamily: 'Space Grotesk' }}>AI Coach</div>
-                <div style={{ color: '#888', fontSize: '0.8rem' }}>Powered by Groq</div>
+                <div style={{ color: '#888', fontSize: '0.8rem' }}>Powered by AI</div>
               </div>
               <button style={styles.closeBtn} onClick={() => setOpen(false)}>X</button>
             </div>
 
-<div style={styles.messages}>
-  {history.map((h, i) => (
-    <div key={i} style={{
-      ...styles.bubble,
-      alignSelf: h.role === 'user' ? 'flex-end' : 'flex-start',
-      background: h.role === 'user' ? '#F5A623' : '#2A2A2A',
-      color: h.role === 'user' ? '#0F0F0F' : '#F0EDE8'
-    }}>
-      {h.content}
-    </div>
-  ))}
-  {loading && (
-    <div style={{ ...styles.bubble, background: '#2A2A2A', alignSelf: 'flex-start', color: '#888' }}>
-      Thinking...
-    </div>
-  )}
-  <div ref={messagesEndRef} />
-</div>
+            <div style={styles.messages}>
+              {history.map((h, i) => (
+                <div key={i} style={{
+                  ...styles.bubble,
+                  alignSelf: h.role === 'user' ? 'flex-end' : 'flex-start',
+                  background: h.role === 'user' ? '#F5A623' : '#2A2A2A',
+                  color: h.role === 'user' ? '#0F0F0F' : '#F0EDE8'
+                }}>
+                  {h.content}
+                </div>
+              ))}
+              {loading && (
+                <div style={{ ...styles.bubble, background: '#2A2A2A', alignSelf: 'flex-start', color: '#888' }}>
+                  Thinking...
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
 
             <div style={styles.inputRow}>
               <input
