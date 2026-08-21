@@ -1,16 +1,29 @@
 import { Link } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef } from 'react'
-import { Flame, ArrowRight, CheckCircle2, Users, Shield, Zap } from 'lucide-react'
+import { Flame, ArrowRight, CheckCircle2, Users, Shield, Zap, Clock } from 'lucide-react'
 
-const fadeUp: import('framer-motion').Variants = {
+// -- Styles (injected via CSS-in-JS) --
+const colors = {
+  ink: '#0B1526',
+  royal: '#2654B6',
+  royalDeep: '#16357F',
+  royalLight: '#3A6FE0',
+  pearl: '#FBFCF8',
+  muted: '#5A6B85',
+  faint: '#9AA7BE',
+  accent: '#FF6B35',
+  accentGlow: 'rgba(255,107,53,0.25)',
+}
+
+const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' as const } }
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 }
 
 const stagger = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.1 } }
+  show: { transition: { staggerChildren: 0.08 } },
 }
 
 export default function Landing() {
@@ -21,6 +34,9 @@ export default function Landing() {
 
   return (
     <div style={styles.page}>
+
+      {/* Film grain overlay */}
+      <div style={styles.grain} />
 
       {/* Nav */}
       <motion.nav
@@ -35,7 +51,7 @@ export default function Landing() {
           </div>
           <span style={styles.navBrand}>Streak</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <Link to="/login" style={styles.navLink}>Sign in</Link>
           <Link to="/signup" style={styles.navCta}>
             Get started
@@ -46,9 +62,8 @@ export default function Landing() {
 
       {/* Hero */}
       <section ref={heroRef} style={styles.hero}>
-        {/* Ambient glow */}
-        <div style={styles.glow1} />
-        <div style={styles.glow2} />
+        {/* Ambient mesh background */}
+        <div style={styles.meshBg} />
 
         <motion.div style={{ y: heroY, opacity: heroOpacity, position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 1.5rem' }}>
           <motion.div
@@ -57,7 +72,7 @@ export default function Landing() {
             animate="show"
           >
             <motion.div variants={fadeUp} style={styles.eyebrow}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#F5A623', display: 'inline-block' }} />
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FF6B35', display: 'inline-block' }} />
               For creators who are serious about showing up
             </motion.div>
 
@@ -81,25 +96,25 @@ export default function Landing() {
               </Link>
             </motion.div>
 
-            <motion.p variants={fadeUp} style={{ color: '#333', fontSize: '0.75rem', marginTop: '1.25rem' }}>
+            <motion.p variants={fadeUp} style={{ color: '#5A6B85', fontSize: '0.8rem', marginTop: '1.25rem' }}>
               Free to start · No credit card needed
             </motion.p>
           </motion.div>
         </motion.div>
 
-        {/* Floating streak card preview */}
+        {/* Preview card */}
         <motion.div
           style={styles.previewCard}
           initial={{ opacity: 0, y: 40, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ delay: 0.6, duration: 0.6, ease: 'easeOut' as const }}
+          transition={{ delay: 0.6, duration: 0.6, ease: 'easeOut' }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={styles.previewAvatar}>S</div>
               <div>
                 <div style={{ fontWeight: '600', fontSize: '0.85rem' }}>Sarah K.</div>
-                <div style={{ color: '#555', fontSize: '0.72rem' }}>YouTube Creator</div>
+                <div style={{ color: '#5A6B85', fontSize: '0.72rem' }}>YouTube Creator</div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -114,11 +129,11 @@ export default function Landing() {
               </div>
               <div>
                 <div style={{ fontFamily: 'Space Grotesk', fontWeight: '800', fontSize: '2.2rem', color: '#F5A623', lineHeight: 1 }}>47</div>
-                <div style={{ color: '#555', fontSize: '0.72rem' }}>day streak</div>
+                <div style={{ color: '#5A6B85', fontSize: '0.72rem' }}>day streak</div>
               </div>
             </div>
             <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-              <div style={{ color: '#444', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best</div>
+              <div style={{ color: '#5A6B85', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best</div>
               <div style={{ fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '1.1rem' }}>47</div>
             </div>
           </div>
@@ -128,7 +143,7 @@ export default function Landing() {
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.85rem' }}>
-            <div style={{ color: '#444', fontSize: '0.7rem' }}>2 days to next milestone</div>
+            <div style={{ color: '#5A6B85', fontSize: '0.7rem' }}>2 days to next milestone</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#0D2010', border: '1px solid #4CAF5020', borderRadius: '20px', padding: '0.2rem 0.65rem' }}>
               <CheckCircle2 size={11} color="#4CAF50" />
               <span style={{ color: '#4CAF50', fontSize: '0.7rem' }}>Partner confirmed</span>
@@ -153,7 +168,7 @@ export default function Landing() {
         ].map((s, i) => (
           <div key={i} style={styles.proofItem}>
             <div style={{ fontFamily: 'Space Grotesk', fontWeight: '800', fontSize: '1.4rem', color: '#F5A623' }}>{s.num}</div>
-            <div style={{ color: '#444', fontSize: '0.72rem' }}>{s.label}</div>
+            <div style={{ color: '#5A6B85', fontSize: '0.72rem' }}>{s.label}</div>
           </div>
         ))}
       </motion.section>
@@ -192,7 +207,7 @@ export default function Landing() {
             <motion.div key={i} variants={fadeUp} style={styles.problemCard}>
               <div style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>{item.emoji}</div>
               <div style={{ color: '#E53E3E', fontSize: '0.85rem', fontWeight: '500', marginBottom: '0.5rem' }}>{item.problem}</div>
-              <div style={{ color: '#666', fontSize: '0.82rem', lineHeight: 1.5 }}>{item.fix}</div>
+              <div style={{ color: '#5A6B85', fontSize: '0.82rem', lineHeight: 1.5 }}>{item.fix}</div>
             </motion.div>
           ))}
         </motion.div>
@@ -250,7 +265,7 @@ export default function Landing() {
               tag: 'Planning'
             },
             {
-              icon: <ArrowRight size={18} color="#FF5722" />,
+              icon: <Clock size={18} color="#FF6B35" />,
               title: 'Rest Tokens',
               desc: 'Life happens. Earn rest tokens every 14 days of consistency and use them when you need a break.',
               tag: 'Wellbeing'
@@ -267,7 +282,7 @@ export default function Landing() {
                 <span style={styles.featureTag}>{f.tag}</span>
               </div>
               <div style={{ fontWeight: '600', fontSize: '0.95rem', marginBottom: '0.4rem' }}>{f.title}</div>
-              <div style={{ color: '#555', fontSize: '0.82rem', lineHeight: 1.6 }}>{f.desc}</div>
+              <div style={{ color: '#5A6B85', fontSize: '0.82rem', lineHeight: 1.6 }}>{f.desc}</div>
             </motion.div>
           ))}
         </motion.div>
@@ -298,14 +313,14 @@ export default function Landing() {
                     <span key={j} style={{ color: '#F5A623', fontSize: '0.8rem' }}>★</span>
                   ))}
                 </div>
-                <p style={{ color: '#888', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem' }}>
+                <p style={{ color: '#5A6B85', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem' }}>
                   "{t.text}"
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={styles.testimonialAvatar}>{t.name[0]}</div>
                   <div>
                     <div style={{ fontWeight: '600', fontSize: '0.85rem' }}>{t.name}</div>
-                    <div style={{ color: '#555', fontSize: '0.75rem' }}>{t.role}</div>
+                    <div style={{ color: '#5A6B85', fontSize: '0.75rem' }}>{t.role}</div>
                   </div>
                 </div>
               </motion.div>
@@ -316,7 +331,7 @@ export default function Landing() {
 
       {/* Final CTA */}
       <section style={styles.finalCta}>
-        <div style={styles.glow1} />
+        <div style={styles.meshBg} />
         <motion.div
           initial="hidden"
           whileInView="show"
@@ -346,175 +361,312 @@ export default function Landing() {
           <Flame size={15} color="#F5A623" />
           <span style={{ fontFamily: 'Space Grotesk', fontWeight: '700', color: '#F0EDE8', fontSize: '0.9rem' }}>Streak</span>
         </div>
-        <p style={{ color: '#333', fontSize: '0.75rem', marginBottom: '1rem' }}>
+        <p style={{ color: '#5A6B85', fontSize: '0.75rem', marginBottom: '1rem' }}>
           Built for creators who are serious about consistency.
         </p>
         <div style={{ display: 'flex', gap: '1.5rem' }}>
-          <Link to="/login" style={{ color: '#333', fontSize: '0.75rem', textDecoration: 'none' }}>Sign in</Link>
-          <Link to="/signup" style={{ color: '#333', fontSize: '0.75rem', textDecoration: 'none' }}>Sign up</Link>
+          <Link to="/login" style={{ color: '#5A6B85', fontSize: '0.75rem', textDecoration: 'none' }}>Sign in</Link>
+          <Link to="/signup" style={{ color: '#5A6B85', fontSize: '0.75rem', textDecoration: 'none' }}>Sign up</Link>
         </div>
       </footer>
     </div>
   )
 }
 
+// ---- Styles ----
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    background: '#0A0A0A', minHeight: '100vh',
-    color: '#F0EDE8', fontFamily: 'Inter', overflowX: 'hidden'
+    background: '#0B1526',
+    minHeight: '100vh',
+    color: '#FBFCF8',
+    fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+    overflowX: 'hidden',
+    position: 'relative',
+  },
+  grain: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 0,
+    pointerEvents: 'none',
+    opacity: 0.06,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
+    backgroundSize: '256px 256px',
   },
   nav: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '1rem 1.5rem', position: 'fixed', top: 0, left: 0, right: 0,
-    zIndex: 100, background: 'rgba(10,10,10,0.85)',
-    backdropFilter: 'blur(12px)', borderBottom: '1px solid #1A1A1A'
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '1rem 1.5rem',
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    background: 'rgba(11, 21, 38, 0.85)',
+    backdropFilter: 'blur(12px)',
+    borderBottom: '1px solid rgba(38, 84, 182, 0.2)',
   },
   navLogo: {
-    background: '#1A1400', borderRadius: '8px', padding: '0.4rem',
-    display: 'flex', alignItems: 'center', justifyContent: 'center'
+    background: '#1A1400',
+    borderRadius: '8px',
+    padding: '0.4rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  navBrand: { fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '1rem', color: '#F0EDE8' },
-  navLink: { color: '#666', fontSize: '0.85rem', textDecoration: 'none', padding: '0.5rem 0.75rem' },
+  navBrand: {
+    fontFamily: 'Space Grotesk',
+    fontWeight: '700',
+    fontSize: '1rem',
+    color: '#FBFCF8',
+  },
+  navLink: {
+    color: '#9AA7BE',
+    fontSize: '0.85rem',
+    textDecoration: 'none',
+    padding: '0.5rem 0.75rem',
+    transition: 'color 0.2s',
+  },
   navCta: {
-    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-    background: '#F5A623', color: '#0A0A0A', fontSize: '0.82rem',
-    textDecoration: 'none', padding: '0.5rem 1rem',
-    borderRadius: '8px', fontWeight: '700'
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    background: '#2654B6',
+    color: '#FBFCF8',
+    fontSize: '0.82rem',
+    textDecoration: 'none',
+    padding: '0.5rem 1rem',
+    borderRadius: '8px',
+    fontWeight: '700',
+    transition: 'background 0.2s',
   },
   hero: {
-    minHeight: '100vh', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center',
-    paddingTop: '5rem', paddingBottom: '2rem',
-    position: 'relative', overflow: 'hidden',
-    background: 'radial-gradient(ellipse 80% 60% at 50% 0%, #1A1000 0%, #0A0A0A 70%)'
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: '5rem',
+    paddingBottom: '2rem',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  glow1: {
-    position: 'absolute', top: '-20%', left: '30%',
-    width: '500px', height: '500px', borderRadius: '50%',
-    background: 'radial-gradient(circle, #F5A62308 0%, transparent 70%)',
-    pointerEvents: 'none'
-  },
-  glow2: {
-    position: 'absolute', bottom: '10%', right: '-10%',
-    width: '400px', height: '400px', borderRadius: '50%',
-    background: 'radial-gradient(circle, #F5A62305 0%, transparent 70%)',
-    pointerEvents: 'none'
+  meshBg: {
+    position: 'absolute',
+    inset: 0,
+    background: `radial-gradient(ellipse 80% 60% at 50% 20%, rgba(38,84,182,0.15) 0%, transparent 70%),
+                 radial-gradient(ellipse 60% 40% at 80% 80%, rgba(255,107,53,0.08) 0%, transparent 60%)`,
+    pointerEvents: 'none',
   },
   eyebrow: {
-    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-    color: '#F5A623', fontSize: '0.75rem', fontWeight: '500',
-    letterSpacing: '0.06em', textTransform: 'uppercase',
-    marginBottom: '1.5rem'
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    color: '#FF6B35',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    marginBottom: '1.5rem',
   },
   heroTitle: {
-    fontFamily: 'Space Grotesk', fontWeight: '800',
+    fontFamily: 'Space Grotesk',
+    fontWeight: '800',
     fontSize: 'clamp(2.5rem, 8vw, 4.5rem)',
-    lineHeight: 1.05, marginBottom: '1.5rem',
-    color: '#F0EDE8', letterSpacing: '-0.02em'
+    lineHeight: 1.05,
+    marginBottom: '1.5rem',
+    color: '#FBFCF8',
+    letterSpacing: '-0.02em',
+    textWrap: 'balance',
   },
   heroSub: {
-    color: '#555', fontSize: 'clamp(0.9rem, 2vw, 1rem)',
-    lineHeight: 1.75, marginBottom: '2.5rem',
-    maxWidth: '500px', margin: '0 0 2.5rem'
+    color: '#9AA7BE',
+    fontSize: 'clamp(0.9rem, 2vw, 1rem)',
+    lineHeight: 1.75,
+    marginBottom: '2.5rem',
+    maxWidth: '500px',
+    margin: '0 0 2.5rem',
   },
   ctaPrimary: {
-    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-    background: '#F5A623', color: '#0A0A0A', textDecoration: 'none',
-    padding: '0.9rem 1.75rem', borderRadius: '12px',
-    fontWeight: '700', fontSize: '0.95rem', letterSpacing: '-0.01em'
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    background: '#2654B6',
+    color: '#FBFCF8',
+    textDecoration: 'none',
+    padding: '0.9rem 1.75rem',
+    borderRadius: '12px',
+    fontWeight: '700',
+    fontSize: '0.95rem',
+    letterSpacing: '-0.01em',
+    transition: 'background 0.2s, transform 0.1s',
+    boxShadow: '0 4px 14px rgba(38,84,182,0.3)',
   },
   ctaGhost: {
-    display: 'inline-flex', alignItems: 'center',
-    color: '#555', textDecoration: 'none',
-    padding: '0.9rem 1.25rem', borderRadius: '12px',
-    border: '1px solid #1E1E1E', fontSize: '0.9rem'
+    display: 'inline-flex',
+    alignItems: 'center',
+    color: '#9AA7BE',
+    textDecoration: 'none',
+    padding: '0.9rem 1.25rem',
+    borderRadius: '12px',
+    border: '1px solid rgba(38,84,182,0.3)',
+    fontSize: '0.9rem',
+    transition: 'border-color 0.2s',
   },
   previewCard: {
-    background: '#111111', border: '1px solid #1E1E1E',
-    borderRadius: '20px', padding: '1.25rem',
-    width: '90%', maxWidth: '340px',
-    marginTop: '3rem', position: 'relative', zIndex: 1,
-    boxShadow: '0 24px 80px rgba(0,0,0,0.6)'
+    background: 'rgba(18, 30, 50, 0.8)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(38,84,182,0.3)',
+    borderRadius: '20px',
+    padding: '1.25rem',
+    width: '90%',
+    maxWidth: '340px',
+    marginTop: '3rem',
+    position: 'relative',
+    zIndex: 1,
+    boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
   },
-  previewAvatar: { width: "36px", height: "36px", borderRadius: "50%", background: "#1A1400", border: "1px solid #F5A62330", display: "flex", alignItems: "center", justifyContent: "center", color: "#F5A623", fontWeight: "700", fontSize: "0.85rem" },
-  
+  previewAvatar: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    background: '#1A1400',
+    border: '1px solid rgba(245,166,35,0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#F5A623',
+    fontWeight: '700',
+    fontSize: '0.85rem',
+  },
   proofBar: {
-    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
-    borderTop: '1px solid #1A1A1A', borderBottom: '1px solid #1A1A1A',
-    padding: '1.5rem'
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    borderTop: '1px solid rgba(38,84,182,0.15)',
+    borderBottom: '1px solid rgba(38,84,182,0.15)',
+    padding: '1.5rem',
   },
   proofItem: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    gap: '0.2rem', textAlign: 'center',
-    borderRight: '1px solid #1A1A1A', padding: '0 1rem'
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.2rem',
+    textAlign: 'center',
+    borderRight: '1px solid rgba(38,84,182,0.1)',
+    padding: '0 1rem',
   },
   problemSection: {
-    padding: '6rem 1.25rem', maxWidth: "100%"
+    padding: '6rem 1.25rem',
   },
   problemGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '1rem', marginTop: '3rem'
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: '1rem',
+    marginTop: '3rem',
   },
   problemCard: {
-    background: '#0F0F0F', border: '1px solid #1A1A1A',
-    borderRadius: '16px', padding: '1.5rem'
+    background: 'rgba(18, 30, 50, 0.6)',
+    backdropFilter: 'blur(4px)',
+    border: '1px solid rgba(38,84,182,0.15)',
+    borderRadius: '16px',
+    padding: '1.5rem',
   },
   featuresSection: {
-    padding: '6rem 1.25rem', maxWidth: "100%"
+    padding: '6rem 1.25rem',
   },
   featuresGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '1rem'
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: '1rem',
   },
   featureCard: {
-    background: '#0F0F0F', border: '1px solid #1A1A1A',
-    borderRadius: '16px', padding: '1.5rem',
-    transition: 'all 0.2s ease'
+    background: 'rgba(18, 30, 50, 0.6)',
+    backdropFilter: 'blur(4px)',
+    border: '1px solid rgba(38,84,182,0.15)',
+    borderRadius: '16px',
+    padding: '1.5rem',
+    transition: 'all 0.2s ease',
   },
   featureIconWrap: {
-    background: '#111111', border: '1px solid #1E1E1E',
-    borderRadius: '10px', padding: '0.6rem',
-    display: 'inline-flex'
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.06)',
+    borderRadius: '10px',
+    padding: '0.6rem',
+    display: 'inline-flex',
   },
   featureTag: {
-    background: '#1A1A1A', color: '#444', fontSize: '0.68rem',
-    padding: '0.2rem 0.6rem', borderRadius: '20px', fontWeight: '500'
+    background: 'rgba(255,255,255,0.04)',
+    color: '#9AA7BE',
+    fontSize: '0.68rem',
+    padding: '0.2rem 0.6rem',
+    borderRadius: '20px',
+    fontWeight: '500',
   },
   testimonialsSection: {
-    padding: '6rem 1.25rem', maxWidth: "100%"
+    padding: '6rem 1.25rem',
   },
   testimonialsGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '1rem'
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: '1rem',
   },
   testimonialCard: {
-    background: '#0F0F0F', border: '1px solid #1A1A1A',
-    borderRadius: '16px', padding: '1.5rem'
+    background: 'rgba(18, 30, 50, 0.6)',
+    backdropFilter: 'blur(4px)',
+    border: '1px solid rgba(38,84,182,0.15)',
+    borderRadius: '16px',
+    padding: '1.5rem',
   },
   testimonialAvatar: {
-    width: '36px', height: '36px', borderRadius: '50%',
-    background: '#1A1400', border: '1px solid #F5A62320',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#F5A623', fontWeight: '700', fontSize: '0.85rem', flexShrink: 0
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    background: '#1A1400',
+    border: '1px solid rgba(245,166,35,0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#F5A623',
+    fontWeight: '700',
+    fontSize: '0.85rem',
+    flexShrink: 0,
   },
   finalCta: {
-    padding: '8rem 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden',
-    background: 'radial-gradient(ellipse 80% 60% at 50% 100%, #1A1000 0%, #0A0A0A 70%)'
+    padding: '8rem 1.5rem',
+    textAlign: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    background: 'radial-gradient(ellipse 80% 60% at 50% 100%, rgba(38,84,182,0.15) 0%, #0B1526 70%)',
   },
   footer: {
-    padding: '2rem 1.5rem', borderTop: '1px solid #1A1A1A', textAlign: 'center'
+    padding: '2rem 1.5rem',
+    borderTop: '1px solid rgba(38,84,182,0.15)',
+    textAlign: 'center',
   },
   sectionTag: {
-    display: 'inline-flex', color: '#F5A623', fontSize: '0.72rem',
-    fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em',
-    marginBottom: '1rem'
+    display: 'inline-flex',
+    color: '#FF6B35',
+    fontSize: '0.72rem',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.1em',
+    marginBottom: '1rem',
   },
   h2: {
-    fontFamily: 'Space Grotesk', fontWeight: '700',
+    fontFamily: 'Space Grotesk',
+    fontWeight: '700',
     fontSize: 'clamp(1.6rem, 4vw, 2.2rem)',
-    color: '#F0EDE8', lineHeight: 1.2,
-    letterSpacing: '-0.02em', marginBottom: '1rem'
+    color: '#FBFCF8',
+    lineHeight: 1.2,
+    letterSpacing: '-0.02em',
+    marginBottom: '1rem',
+    textWrap: 'balance',
   },
-  bodyText: { color: '#555', fontSize: '0.92rem', lineHeight: 1.75, maxWidth: '480px', 
-    margin: '0 0 1rem' }
+  bodyText: {
+    color: '#9AA7BE',
+    fontSize: '0.92rem',
+    lineHeight: 1.75,
+    maxWidth: '480px',
+    margin: '0 0 1rem',
+  },
 }
