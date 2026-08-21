@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { motion, useScroll, useTransform } from 'framer-motion'
-import { useRef, useState } from 'react'
+import { motion, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion'
+import { useRef, useState, useEffect } from 'react'
 import {
   Flame, ArrowRight, CheckCircle2, Users, Shield, Zap, Clock,
   Sparkles, Target, BookOpen, Award, Gift, HelpCircle, ChevronDown,
@@ -22,7 +22,7 @@ const colors = {
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
 }
 
 const stagger = {
@@ -38,6 +38,24 @@ export default function Landing() {
 
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
+  // Animated mesh blobs
+  const x1 = useMotionValue(0)
+  const y1 = useMotionValue(0)
+  const x2 = useMotionValue(0)
+  const y2 = useMotionValue(0)
+
+  useEffect(() => {
+    const animate = () => {
+      const time = Date.now() / 8000
+      x1.set(Math.sin(time) * 100)
+      y1.set(Math.cos(time * 0.7) * 80)
+      x2.set(Math.sin(time * 0.5 + 2) * 120)
+      y2.set(Math.cos(time * 0.6 + 1) * 100)
+      requestAnimationFrame(animate)
+    }
+    animate()
+  }, [x1, y1, x2, y2])
+
   const faqs = [
     { q: 'How does the accountability partner work?', a: 'You get matched with another creator. Each day, you both confirm each other\'s posts. If one doesn\'t post, the other gets notified. It’s a mutual commitment.' },
     { q: 'Is it really free?', a: 'Yes, forever. No credit card required. If we ever add premium features, they’ll be optional – the core system stays free.' },
@@ -47,9 +65,30 @@ export default function Landing() {
 
   return (
     <div style={styles.page}>
-
-      {/* Film grain overlay */}
-      <div style={styles.grain} />
+      {/* Animated mesh background */}
+      <div style={styles.meshContainer}>
+        <motion.div
+          style={{
+            ...styles.meshBlob,
+            x: x1,
+            y: y1,
+            background: 'radial-gradient(circle, rgba(38,84,182,0.25) 0%, transparent 70%)',
+          }}
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          style={{
+            ...styles.meshBlob,
+            x: x2,
+            y: y2,
+            background: 'radial-gradient(circle, rgba(245,166,35,0.15) 0%, transparent 70%)',
+          }}
+          animate={{ scale: [1, 0.9, 1] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <div style={styles.grain} />
+      </div>
 
       {/* Nav */}
       <motion.nav
@@ -75,8 +114,6 @@ export default function Landing() {
 
       {/* Hero */}
       <section ref={heroRef} style={styles.hero}>
-        <div style={styles.meshBg} />
-
         <motion.div style={{ y: heroY, opacity: heroOpacity, position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 1.5rem' }}>
           <motion.div variants={stagger} initial="hidden" animate="show">
             <motion.div variants={fadeUp} style={styles.eyebrow}>
@@ -395,6 +432,7 @@ export default function Landing() {
                 variants={fadeUp}
                 style={styles.faqItem}
                 onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                whileHover={{ borderColor: 'rgba(245,166,35,0.2)' }}
               >
                 <div style={styles.faqHeader}>
                   <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>{faq.q}</span>
@@ -451,13 +489,29 @@ const styles: Record<string, React.CSSProperties> = {
     overflowX: 'hidden',
     position: 'relative',
   },
-  grain: {
+  meshContainer: {
     position: 'fixed',
     inset: 0,
     zIndex: 0,
     pointerEvents: 'none',
-    opacity: 0.06,
-    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
+    overflow: 'hidden',
+  },
+  meshBlob: {
+    position: 'absolute',
+    width: '600px',
+    height: '600px',
+    borderRadius: '50%',
+    filter: 'blur(120px)',
+    opacity: 0.6,
+    willChange: 'transform',
+  },
+  grain: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 1,
+    pointerEvents: 'none',
+    opacity: 0.05,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
     backgroundSize: '256px 256px',
   },
   nav: {
@@ -470,9 +524,10 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     zIndex: 100,
-    background: 'rgba(11, 21, 38, 0.85)',
-    backdropFilter: 'blur(12px)',
-    borderBottom: '1px solid rgba(38, 84, 182, 0.2)',
+    background: 'rgba(11, 21, 38, 0.7)',
+    backdropFilter: 'blur(16px)',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    boxShadow: '0 4px 30px rgba(0,0,0,0.3)',
   },
   navLogo: {
     background: '#1A1400',
@@ -481,6 +536,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.1), 0 4px 12px rgba(0,0,0,0.5)',
   },
   navBrand: {
     fontFamily: 'Space Grotesk',
@@ -506,7 +562,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.5rem 1rem',
     borderRadius: '8px',
     fontWeight: '700',
-    transition: 'background 0.2s',
+    transition: 'background 0.2s, transform 0.1s',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2), 0 4px 14px rgba(38,84,182,0.4)',
   },
   hero: {
     minHeight: '100vh',
@@ -568,7 +625,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.95rem',
     letterSpacing: '-0.01em',
     transition: 'background 0.2s, transform 0.1s',
-    boxShadow: '0 4px 14px rgba(38,84,182,0.3)',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2), 0 4px 14px rgba(38,84,182,0.4)',
   },
   ctaGhost: {
     display: 'inline-flex',
@@ -580,11 +637,13 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid rgba(38,84,182,0.3)',
     fontSize: '0.9rem',
     transition: 'border-color 0.2s',
+    background: 'rgba(255,255,255,0.02)',
+    backdropFilter: 'blur(4px)',
   },
   previewCard: {
-    background: 'rgba(18, 30, 50, 0.8)',
-    backdropFilter: 'blur(8px)',
-    border: '1px solid rgba(38,84,182,0.3)',
+    background: 'rgba(18, 30, 50, 0.7)',
+    backdropFilter: 'blur(16px)',
+    border: '1px solid rgba(255,255,255,0.06)',
     borderRadius: '20px',
     padding: '1.25rem',
     width: '90%',
@@ -592,7 +651,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '3rem',
     position: 'relative',
     zIndex: 1,
-    boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.05), 0 24px 80px rgba(0,0,0,0.6)',
   },
   previewAvatar: {
     width: '36px',
@@ -606,13 +665,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#F5A623',
     fontWeight: '700',
     fontSize: '0.85rem',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.1), 0 4px 12px rgba(0,0,0,0.3)',
   },
   proofBar: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, 1fr)',
-    borderTop: '1px solid rgba(38,84,182,0.15)',
-    borderBottom: '1px solid rgba(38,84,182,0.15)',
+    borderTop: '1px solid rgba(255,255,255,0.04)',
+    borderBottom: '1px solid rgba(255,255,255,0.04)',
     padding: '1.5rem',
+    background: 'rgba(11, 21, 38, 0.5)',
+    backdropFilter: 'blur(8px)',
   },
   proofItem: {
     display: 'flex',
@@ -620,11 +682,13 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '0.2rem',
     textAlign: 'center',
-    borderRight: '1px solid rgba(38,84,182,0.1)',
+    borderRight: '1px solid rgba(255,255,255,0.04)',
     padding: '0 1rem',
   },
   problemSection: {
     padding: '6rem 1.25rem',
+    position: 'relative',
+    zIndex: 2,
   },
   problemGrid: {
     display: 'grid',
@@ -633,14 +697,17 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '3rem',
   },
   problemCard: {
-    background: 'rgba(18, 30, 50, 0.6)',
-    backdropFilter: 'blur(4px)',
-    border: '1px solid rgba(38,84,182,0.15)',
+    background: 'rgba(18, 30, 50, 0.5)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.04)',
     borderRadius: '16px',
     padding: '1.5rem',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.03), 0 8px 24px rgba(0,0,0,0.3)',
   },
   section: {
     padding: '6rem 1.25rem',
+    position: 'relative',
+    zIndex: 2,
   },
   stepsGrid: {
     display: 'grid',
@@ -648,13 +715,14 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '2rem',
   },
   stepCard: {
-    background: 'rgba(18, 30, 50, 0.6)',
-    backdropFilter: 'blur(4px)',
-    border: '1px solid rgba(38,84,182,0.15)',
+    background: 'rgba(18, 30, 50, 0.5)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.04)',
     borderRadius: '16px',
     padding: '1.5rem',
     textAlign: 'center',
     position: 'relative',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.03), 0 8px 24px rgba(0,0,0,0.3)',
   },
   stepNumber: {
     position: 'absolute',
@@ -666,6 +734,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: '700',
     padding: '0.2rem 0.6rem',
     borderRadius: '20px',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2), 0 4px 8px rgba(0,0,0,0.3)',
   },
   featuresGrid: {
     display: 'grid',
@@ -673,12 +742,13 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '1rem',
   },
   featureCard: {
-    background: 'rgba(18, 30, 50, 0.6)',
-    backdropFilter: 'blur(4px)',
-    border: '1px solid rgba(38,84,182,0.15)',
+    background: 'rgba(18, 30, 50, 0.5)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.04)',
     borderRadius: '16px',
     padding: '1.5rem',
     transition: 'all 0.2s ease',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.03), 0 8px 24px rgba(0,0,0,0.3)',
   },
   featureIconWrap: {
     background: 'rgba(255,255,255,0.04)',
@@ -686,6 +756,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '10px',
     padding: '0.6rem',
     display: 'inline-flex',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.05)',
   },
   featureTag: {
     background: 'rgba(255,255,255,0.04)',
@@ -701,11 +772,12 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '1rem',
   },
   testimonialCard: {
-    background: 'rgba(18, 30, 50, 0.6)',
-    backdropFilter: 'blur(4px)',
-    border: '1px solid rgba(38,84,182,0.15)',
+    background: 'rgba(18, 30, 50, 0.5)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.04)',
     borderRadius: '16px',
     padding: '1.5rem',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.03), 0 8px 24px rgba(0,0,0,0.3)',
   },
   testimonialAvatar: {
     width: '36px',
@@ -720,6 +792,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: '700',
     fontSize: '0.85rem',
     flexShrink: 0,
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.1), 0 4px 12px rgba(0,0,0,0.3)',
   },
   pricingSection: {
     padding: '8rem 1.5rem',
@@ -729,13 +802,14 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'radial-gradient(ellipse 80% 60% at 50% 100%, rgba(38,84,182,0.15) 0%, #0B1526 70%)',
   },
   faqItem: {
-    background: 'rgba(18, 30, 50, 0.6)',
-    backdropFilter: 'blur(4px)',
-    border: '1px solid rgba(38,84,182,0.15)',
+    background: 'rgba(18, 30, 50, 0.5)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.04)',
     borderRadius: '12px',
     padding: '1rem 1.25rem',
     cursor: 'pointer',
-    transition: 'border-color 0.2s',
+    transition: 'all 0.2s ease',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.03), 0 8px 24px rgba(0,0,0,0.3)',
   },
   faqHeader: {
     display: 'flex',
@@ -751,8 +825,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   footer: {
     padding: '2rem 1.5rem',
-    borderTop: '1px solid rgba(38,84,182,0.15)',
+    borderTop: '1px solid rgba(255,255,255,0.04)',
     textAlign: 'center',
+    position: 'relative',
+    zIndex: 2,
+    background: 'rgba(11, 21, 38, 0.5)',
+    backdropFilter: 'blur(8px)',
   },
   sectionTag: {
     display: 'inline-flex',
