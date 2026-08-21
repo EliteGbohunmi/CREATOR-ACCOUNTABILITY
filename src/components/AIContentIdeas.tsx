@@ -13,6 +13,7 @@ const FORMAT_TYPES: Record<string, 'carousel' | 'video' | 'tweet' | 'linkedin' |
   'Video': 'video',
   'TikTok': 'video',
   'YouTube Short': 'video',
+  'YouTube': 'video',
   'Thread': 'thread',
   'Tweet': 'tweet',
   'LinkedIn Post': 'linkedin',
