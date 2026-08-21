@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare,
-  Flame, Hand, ExternalLink, Plus, User, Star, Share2
+  Flame, Hand, ExternalLink, Plus, Sparkles, Megaphone,
 } from 'lucide-react'
 
 export type CommunityPost = {
@@ -54,6 +54,15 @@ interface Props {
 
 const PLATFORMS = ['X', 'TikTok', 'YouTube', 'Instagram', 'LinkedIn', 'Substack']
 const ENGAGEMENT_TYPES = ['comment', 'like', 'share', 'watch']
+
+// Two-letter initials (e.g. "Tolu Adeyemi" -> "TA", "You" -> "Y")
+const getInitials = (name?: string | null) => {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
 
 export default function CommunityDesign({
   posts,
@@ -144,6 +153,7 @@ export default function CommunityDesign({
   if (loading) {
     return (
       <div style={styles.loading}>
+        <FontLoader />
         <div style={styles.spinner} />
         <span>Loading community board...</span>
       </div>
@@ -152,39 +162,54 @@ export default function CommunityDesign({
 
   return (
     <div style={styles.container}>
-      {/* Head */}
-      <div style={styles.head}>
-        <div style={styles.eyebrow}>
-          <span>CREATOR COMMUNITY</span>
-        </div>
-        <h1 style={styles.title}>SAY HI. ASK FOR ENGAGEMENT. SHOW UP FOR EACH OTHER.</h1>
-        <p style={styles.sub}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
+      <FontLoader />
+
+      {/* Eyebrow */}
+      <div style={styles.eyebrow}>
+        <Users size={18} strokeWidth={2} />
+        Creator Community
       </div>
+
+      <h1 style={styles.title}>Say hi. Ask for engagement. Show up for each other.</h1>
+      <p style={styles.subtitle}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
 
       {/* Stats */}
       <div style={styles.stats}>
-        <span style={styles.statItem}>{totalPosts} POSTS</span>
-        <span style={styles.statDot}>·</span>
-        <span style={styles.statItem}>{totalCreators} CREATORS</span>
-        <span style={styles.statDot}>·</span>
-        <span style={styles.statItem}>{totalBoosts} BOOSTS</span>
-        <span style={styles.statDot}>·</span>
-        <span style={styles.statItem}>{totalReplies} REPLIES</span>
+        <div style={styles.stat}>
+          <div style={styles.statNum}>{totalPosts}</div>
+          <div style={styles.statLabel}>Posts</div>
+        </div>
+        <div style={styles.stat}>
+          <div style={styles.statNum}>{totalCreators}</div>
+          <div style={styles.statLabel}>Creators</div>
+        </div>
+        <div style={styles.stat}>
+          <div style={styles.statNum}>{totalBoosts}</div>
+          <div style={styles.statLabel}>Boosts</div>
+        </div>
+        <div style={styles.stat}>
+          <div style={styles.statNum}>{totalReplies}</div>
+          <div style={styles.statLabel}>Replies</div>
+        </div>
       </div>
 
       {/* Composer */}
       <div style={styles.composer}>
-        <div style={styles.tabs}>
+        <div style={styles.toggleRow}>
           <button
+            type="button"
             style={{ ...styles.pill, ...(postType === 'say_hi' ? styles.pillActive : {}) }}
             onClick={() => setPostType('say_hi')}
           >
+            <Sparkles size={15} strokeWidth={2} />
             Say hi
           </button>
           <button
+            type="button"
             style={{ ...styles.pill, ...(postType === 'boost' ? styles.pillActive : {}) }}
             onClick={() => setPostType('boost')}
           >
+            <Megaphone size={15} strokeWidth={2} />
             Boost my post
           </button>
         </div>
@@ -199,12 +224,14 @@ export default function CommunityDesign({
             }
             value={newContent}
             onChange={e => setNewContent(e.target.value)}
+            maxLength={2000}
             rows={3}
           />
           <div style={styles.composerFooter}>
-            <span style={styles.count}>{newContent.length}/2000</span>
-            <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.send}>
-              {isPosting ? '...' : 'Say hi'}
+            <span style={styles.charCount}>{newContent.length}/2000</span>
+            <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.sendBtn}>
+              <Send size={15} strokeWidth={2} />
+              {isPosting ? '...' : postType === 'say_hi' ? 'Say hi' : 'Post boost'}
             </button>
           </div>
 
@@ -242,22 +269,25 @@ export default function CommunityDesign({
         </form>
       </div>
 
-      {/* Feed filters */}
-      <div style={styles.filterRow}>
+      {/* Filter tabs */}
+      <div style={styles.tabs}>
         <button
-          style={{ ...styles.filterTab, ...(filter === 'all' ? styles.filterTabActive : {}) }}
+          type="button"
+          style={{ ...styles.tab, ...(filter === 'all' ? styles.tabActive : {}) }}
           onClick={() => onFilterChange('all')}
         >
           Everything
         </button>
         <button
-          style={{ ...styles.filterTab, ...(filter === 'boost' ? styles.filterTabActive : {}) }}
+          type="button"
+          style={{ ...styles.tab, ...(filter === 'boost' ? styles.tabActive : {}) }}
           onClick={() => onFilterChange('boost')}
         >
           Boosts
         </button>
         <button
-          style={{ ...styles.filterTab, ...(filter === 'mine' ? styles.filterTabActive : {}) }}
+          type="button"
+          style={{ ...styles.tab, ...(filter === 'mine' ? styles.tabActive : {}) }}
           onClick={() => onFilterChange('mine')}
         >
           Mine
@@ -272,7 +302,6 @@ export default function CommunityDesign({
           ) : (
             sortedPosts.map((post, index) => {
               const liked = likedPostIds.has(post.id)
-              const boosted = boostedPostIds.has(post.id)
               const engaged = engagedPostIds.has(post.id)
               const isOwner = post.user_id === currentUserId
               const replyKey = post.id
@@ -280,31 +309,35 @@ export default function CommunityDesign({
               const isBoost = post.post_type === 'boost'
               const engagementCount = post.engagements?.length || 0
               const repliesToShow = showAllReplies[replyKey] ? post.comments : post.comments.slice(0, 2)
+              const displayName = isOwner ? 'You' : (post.profiles?.name || 'Unknown')
 
               return (
                 <motion.div
                   key={post.id}
-                  style={styles.card}
+                  style={styles.post}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  {/* Header */}
-                  <div style={styles.cardHead}>
+                  {/* Post head */}
+                  <div style={styles.postHead}>
                     <div style={styles.avatar}>
-                      {post.profiles?.name?.[0]?.toUpperCase() || '?'}
+                      {getInitials(post.profiles?.name)}
                     </div>
-                    <div style={styles.meta}>
+                    <div style={styles.who}>
                       <div style={styles.nameRow}>
-                        <span style={styles.name}>{post.profiles?.name || 'Unknown'}</span>
-                        {isBoost && <span style={styles.boostBadge}>BOOST</span>}
+                        <span style={styles.name}>{displayName}</span>
+                        {isOwner && <span style={{ ...styles.badge, ...styles.badgeYou }}>You</span>}
+                        {isBoost && <span style={{ ...styles.badge, ...styles.badgeBoost }}>Boost</span>}
                       </div>
-                      <span style={styles.time}>{formatTime(post.created_at)}</span>
+                      <span style={styles.timestamp}>{formatTime(post.created_at)}</span>
                     </div>
                     {isOwner && (
                       <button
+                        type="button"
                         onClick={() => onDeletePost(post.id)}
                         style={styles.deleteBtn}
+                        aria-label="Delete post"
                       >
                         <Trash2 size={16} strokeWidth={2} />
                       </button>
@@ -312,9 +345,9 @@ export default function CommunityDesign({
                   </div>
 
                   {/* Body */}
-                  <p style={styles.body}>{post.content}</p>
+                  <div style={styles.postBody}>{post.content}</div>
 
-                  {/* Link preview (boost only) */}
+                  {/* Link card (boost only) */}
                   {isBoost && post.link && (
                     <a
                       href={post.link}
@@ -323,97 +356,123 @@ export default function CommunityDesign({
                       style={styles.linkCard}
                     >
                       <div style={styles.linkText}>
-                        <span style={styles.linkDomain}>{post.platform || 'Link'}</span>
-                        <span style={styles.linkUrl}>{post.link}</span>
+                        <div style={styles.linkDomain}>{post.platform || 'Link'}</div>
+                        <div style={styles.linkUrl}>{post.link}</div>
                       </div>
-                      <div style={styles.engageLabel}>
-                        Engage <Plus size={14} strokeWidth={2} />
+                      <div style={styles.engage}>
+                        Engage
+                        <ExternalLink size={13} strokeWidth={2.2} />
                       </div>
                     </a>
                   )}
 
-                  {/* Actions */}
-                  <div style={styles.actions}>
+                  {/* Post footer actions */}
+                  <div style={styles.postFooter}>
                     <button
+                      type="button"
                       onClick={() => onToggleLike(post.id)}
-                      style={{ ...styles.actionBtn, color: liked ? '#F5A623' : '#666' }}
+                      style={{ ...styles.statPill, ...(liked ? styles.statPillFilled : styles.statPillOutline) }}
                     >
-                      <Heart size={16} fill={liked ? '#F5A623' : 'none'} />
-                      <span>{post.likes?.length || 0}</span>
+                      <Heart size={15} fill={liked ? '#f0a637' : 'none'} />
+                      {post.likes?.length || 0}
                     </button>
                     <button
+                      type="button"
                       onClick={() => setReplyOpen(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
-                      style={styles.actionBtn}
+                      style={{ ...styles.statPill, ...styles.statPillOutline }}
                     >
-                      <MessageCircle size={16} />
-                      <span>{post.comments?.length || 0}</span>
+                      <MessageCircle size={15} />
+                      {post.comments?.length || 0}
                     </button>
                     {isBoost && (
                       <>
                         <button
+                          type="button"
                           onClick={() => onToggleEngagement(post.id)}
                           style={{
-                            ...styles.engageBtn,
-                            background: engaged ? '#2A2A2A' : '#F5A623',
-                            color: engaged ? '#888' : '#0A0A0A',
+                            ...styles.statPill,
+                            ...(engaged ? styles.statPillFilled : styles.statPillOutline),
                           }}
                         >
-                          {engaged ? 'Engaged ✓' : 'I engaged'}
+                          <Zap size={15} />
+                          {engaged ? 'Engaged' : 'I engaged'}
                         </button>
                         <span style={styles.engagedCount}>
                           {engagementCount} {engagementCount === 1 ? 'creator' : 'creators'} engaged
                         </span>
                       </>
                     )}
+                    {post.comments.length > 0 && (
+                      <span
+                        style={styles.viewThread}
+                        onClick={() => setReplyOpen(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
+                      >
+                        View thread
+                      </span>
+                    )}
                   </div>
 
-                  {/* Edit with Lovable */}
-                  <div style={styles.editLabel}>Edit with Lovable</div>
-
-                  {/* Replies */}
+                  {/* Reply section */}
                   <AnimatePresence>
                     {isReplyOpen && (
                       <motion.div
-                        style={styles.replySection}
+                        style={styles.replyBlock}
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                       >
                         {repliesToShow.map(comment => (
-                          <div key={comment.id} style={styles.replyItem}>
-                            <span style={styles.replyName}>
-                              {comment.user_id === currentUserId ? 'You' : comment.profiles?.name || 'Anonymous'}
-                            </span>
-                            <span style={styles.replyText}>{comment.content}</span>
-                            <span style={styles.replyTime}>{formatTime(comment.created_at)}</span>
-                            {comment.user_id === currentUserId && (
-                              <button
-                                onClick={() => onDeleteReply(post.id, comment.id)}
-                                style={styles.replyDelete}
-                              >
-                                <Trash2 size={12} color="#E53E3E" />
-                              </button>
-                            )}
+                          <div key={comment.id} style={styles.replyComment}>
+                            <div style={styles.whoRow}>
+                              <span style={styles.name}>
+                                {comment.user_id === currentUserId ? 'You' : comment.profiles?.name || 'Anonymous'}
+                              </span>
+                              <span style={styles.dot} />
+                              <span style={styles.timestamp}>{formatTime(comment.created_at)}</span>
+                              {comment.user_id === currentUserId && (
+                                <button
+                                  type="button"
+                                  onClick={() => onDeleteReply(post.id, comment.id)}
+                                  style={styles.closeX}
+                                  aria-label="Delete reply"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                            <div style={styles.replyText}>{comment.content}</div>
                           </div>
                         ))}
+
                         {post.comments.length > 2 && (
                           <button
+                            type="button"
                             onClick={() => setShowAllReplies(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
-                            style={styles.showMoreBtn}
+                            style={styles.showMore}
                           >
                             {showAllReplies[replyKey] ? 'Show less' : `Show ${post.comments.length - 2} more`}
                           </button>
                         )}
-                        <div style={styles.replyInputRow}>
+
+                        <div style={styles.sayInputRow}>
                           <input
+                            style={styles.sayInput}
                             placeholder="Say something useful..."
                             value={replyContent[replyKey] || ''}
                             onChange={e =>
                               setReplyContent(prev => ({ ...prev, [replyKey]: e.target.value }))
                             }
-                            style={styles.replyInput}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                const content = (replyContent[replyKey] || '').trim()
+                                if (!content) return
+                                onReply(post.id, content)
+                                setReplyContent(prev => ({ ...prev, [replyKey]: '' }))
+                              }
+                            }}
                           />
                           <button
+                            type="button"
                             onClick={() => {
                               const content = (replyContent[replyKey] || '').trim()
                               if (!content) return
@@ -421,9 +480,10 @@ export default function CommunityDesign({
                               setReplyContent(prev => ({ ...prev, [replyKey]: '' }))
                             }}
                             disabled={isReplying}
-                            style={styles.replySend}
+                            style={styles.sendRound}
+                            aria-label="Send reply"
                           >
-                            <Send size={14} />
+                            <Send size={14} strokeWidth={2} />
                           </button>
                         </div>
                       </motion.div>
@@ -435,421 +495,526 @@ export default function CommunityDesign({
           )}
         </AnimatePresence>
       </div>
+
+      {/* Floating Action Button */}
+      <button type="button" style={styles.fab} aria-label="New post">
+        <Plus size={26} strokeWidth={2.4} />
+      </button>
     </div>
   )
 }
 
-// ---- Styles ----
+// Injects the Google Fonts + keyframes this design depends on.
+// Safe to render multiple times; move this <link>/<style> into your
+// root index.html instead if you'd rather not inject it per-mount.
+function FontLoader() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap');
+      @keyframes spin { to { transform: rotate(360deg); } }
+    `}</style>
+  )
+}
+
+// ---- Styles (exact match to provided HTML/CSS) ----
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    maxWidth: '740px',
+    maxWidth: '480px',
     margin: '0 auto',
-    padding: '1.5rem 1rem 3rem',
-    fontFamily: 'Inter, system-ui, sans-serif',
-    backgroundColor: '#0A0A0A',
-    color: '#F0EDE8',
+    minHeight: '100vh',
+    padding: '28px 20px 100px',
+    position: 'relative',
+    backgroundColor: '#121212',
+    color: '#f4f2ee',
+    fontFamily: '"Nunito Sans", sans-serif',
   },
-  head: {
-    marginBottom: '2rem',
-  },
+  // Eyebrow
   eyebrow: {
-    color: '#F5A623',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    letterSpacing: '0.1em',
-    textTransform: 'uppercase',
-    marginBottom: '0.3rem',
-  },
-  title: {
-    fontSize: 'clamp(1.5rem, 4vw, 2.2rem)',
-    fontWeight: '700',
-    fontFamily: 'Space Grotesk, sans-serif',
-    margin: '0 0 0.5rem',
-    color: '#F0EDE8',
-    letterSpacing: '-0.02em',
-    textTransform: 'uppercase',
-  },
-  sub: {
-    color: '#666',
-    fontSize: '0.9rem',
-    margin: 0,
-    lineHeight: 1.6,
-  },
-  stats: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-    marginBottom: '1.5rem',
-    fontSize: '0.8rem',
-    fontWeight: '500',
-    color: '#666',
+    gap: '8px',
+    color: '#f0a637',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '13px',
+    letterSpacing: '0.12em',
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    marginBottom: '14px',
   },
-  statItem: {
-    color: '#888',
+  title: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 700,
+    fontSize: '34px',
+    lineHeight: 1.12,
+    letterSpacing: '0.01em',
+    textTransform: 'uppercase',
+    margin: '0 0 14px',
   },
-  statDot: {
-    color: '#444',
+  subtitle: {
+    color: '#9c9895',
+    fontSize: '15px',
+    lineHeight: 1.5,
+    margin: '0 0 20px',
+    maxWidth: '46ch',
   },
+  // Stats
+  stats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '10px',
+    marginBottom: '20px',
+  },
+  stat: {
+    border: '1px solid #2c2c2c',
+    borderRadius: '14px',
+    padding: '14px 6px 12px',
+    textAlign: 'center',
+    background: '#1a1a1a',
+  },
+  statNum: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '22px',
+    lineHeight: 1,
+    marginBottom: '6px',
+  },
+  statLabel: {
+    fontSize: '10.5px',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#6f6c69',
+    fontWeight: 700,
+  },
+  // Composer
   composer: {
-    background: '#1C1C1C',
-    border: '1px solid #2A2A2A',
-    borderRadius: '16px',
-    padding: '1rem 1.25rem',
-    marginBottom: '1.5rem',
+    border: '1px solid #2c2c2c',
+    borderRadius: '18px',
+    background: '#1a1a1a',
+    padding: '18px',
+    marginBottom: '22px',
   },
-  tabs: {
+  toggleRow: {
     display: 'flex',
-    gap: '0.5rem',
-    marginBottom: '1rem',
+    gap: '10px',
+    marginBottom: '16px',
   },
   pill: {
-    background: 'transparent',
-    border: '1px solid #2A2A2A',
-    borderRadius: '8px',
-    padding: '0.5rem 1.25rem',
-    color: '#666',
-    fontSize: '0.85rem',
-    fontWeight: '500',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 500,
+    fontSize: '14px',
+    borderRadius: '999px',
+    padding: '9px 16px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    border: '1px solid #2c2c2c',
     cursor: 'pointer',
+    background: 'transparent',
+    color: '#f4f2ee',
     transition: 'all 0.2s',
   },
   pillActive: {
-    background: '#F5A623',
-    color: '#0A0A0A',
-    borderColor: '#F5A623',
+    background: '#f0a637',
+    color: '#201404',
+    borderColor: '#f0a637',
   },
   textarea: {
     width: '100%',
+    minHeight: '84px',
+    resize: 'none',
     background: 'transparent',
-    border: '1px solid #2A2A2A',
-    borderRadius: '8px',
-    padding: '0.75rem 1rem',
-    color: '#F0EDE8',
-    fontSize: '0.95rem',
-    fontFamily: 'inherit',
-    resize: 'vertical',
-    minHeight: '80px',
+    border: '1px solid #2c2c2c',
+    borderRadius: '14px',
+    color: '#f4f2ee',
+    fontFamily: '"Nunito Sans", sans-serif',
+    fontSize: '15.5px',
+    lineHeight: 1.5,
+    padding: '14px',
+    marginBottom: '12px',
     outline: 'none',
   },
   composerFooter: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: '0.5rem',
-    paddingTop: '0.5rem',
-    borderTop: '1px solid #2A2A2A',
+    justifyContent: 'space-between',
   },
-  count: {
-    color: '#555',
-    fontSize: '0.8rem',
+  charCount: {
+    color: '#6f6c69',
+    fontSize: '13px',
   },
-  send: {
-    background: '#F5A623',
-    color: '#0A0A0A',
+  sendBtn: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '14px',
+    background: '#4d3a1a',
+    color: '#d8a05c',
     border: 'none',
-    borderRadius: '8px',
-    padding: '0.4rem 1.25rem',
-    fontWeight: '600',
-    fontSize: '0.85rem',
+    borderRadius: '999px',
+    padding: '10px 20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
     cursor: 'pointer',
-    transition: 'background 0.2s',
+    opacity: 0.85,
+    transition: 'opacity 0.2s',
   },
   boostFields: {
-    marginTop: '0.75rem',
+    marginTop: '12px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem',
+    gap: '10px',
   },
   fieldRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    background: '#0F0F0F',
-    borderRadius: '8px',
-    padding: '0 0.75rem',
-    border: '1px solid #2A2A2A',
+    gap: '10px',
+    background: 'transparent',
+    border: '1px solid #2c2c2c',
+    borderRadius: '999px',
+    padding: '8px 16px',
   },
   linkInput: {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    padding: '0.5rem 0',
-    color: '#F0EDE8',
-    fontSize: '0.9rem',
+    color: '#f4f2ee',
+    fontSize: '14.5px',
+    fontFamily: '"Nunito Sans", sans-serif',
     outline: 'none',
-    fontFamily: 'inherit',
   },
   select: {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    padding: '0.5rem 0',
-    color: '#F0EDE8',
-    fontSize: '0.9rem',
+    color: '#f4f2ee',
+    fontSize: '14.5px',
+    fontFamily: '"Nunito Sans", sans-serif',
     outline: 'none',
-    fontFamily: 'inherit',
     cursor: 'pointer',
-    appearance: 'auto',
   },
-  filterRow: {
+  // Tabs
+  tabs: {
     display: 'flex',
-    gap: '1.5rem',
-    marginBottom: '1.5rem',
-    borderBottom: '1px solid #2A2A2A',
-    paddingBottom: '0.5rem',
+    gap: '10px',
+    marginBottom: '20px',
   },
-  filterTab: {
-    background: 'none',
-    border: 'none',
-    color: '#666',
-    fontSize: '0.9rem',
+  tab: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 500,
+    fontSize: '14px',
+    padding: '8px 18px',
+    borderRadius: '999px',
+    border: '1px solid #2c2c2c',
+    color: '#9c9895',
+    background: 'transparent',
     cursor: 'pointer',
-    padding: '0.25rem 0',
-    transition: 'color 0.2s',
+    transition: 'all 0.2s',
   },
-  filterTabActive: {
-    color: '#F5A623',
-    borderBottom: '2px solid #F5A623',
-    marginBottom: '-0.5rem',
+  tabActive: {
+    borderColor: '#f0a637',
+    color: '#f0a637',
+    background: 'rgba(240,166,55,0.08)',
   },
+  // Feed
   feed: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem',
+    gap: '16px',
   },
   empty: {
     textAlign: 'center',
-    color: '#555',
+    color: '#6f6c69',
     padding: '2rem 0',
+    fontFamily: '"Nunito Sans", sans-serif',
+    fontSize: '15px',
   },
-  card: {
-    background: '#1C1C1C',
-    border: '1px solid #2A2A2A',
-    borderRadius: '16px',
-    padding: '1.25rem',
+  // Post
+  post: {
+    border: '1px solid #2c2c2c',
+    borderRadius: '18px',
+    background: '#1a1a1a',
+    padding: '18px',
   },
-  cardHead: {
+  postHead: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.75rem',
-    marginBottom: '0.5rem',
+    gap: '12px',
+    marginBottom: '14px',
+    position: 'relative',
   },
   avatar: {
-    width: '40px',
-    height: '40px',
+    width: '42px',
+    height: '42px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #F5A623, #E88A1E)',
+    border: '2px solid #f0a637',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontWeight: '700',
-    fontSize: '0.9rem',
-    color: '#0A0A0A',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '14px',
+    color: '#f0a637',
     flexShrink: 0,
   },
-  meta: {
-    flex: 1,
+  who: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.05rem',
+    gap: '2px',
+    flex: 1,
+    minWidth: 0,
   },
   nameRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
+    gap: '8px',
+    flexWrap: 'wrap',
   },
   name: {
-    fontWeight: '600',
-    fontSize: '0.9rem',
-    color: '#F0EDE8',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '15.5px',
   },
-  boostBadge: {
-    fontSize: '0.6rem',
-    fontWeight: '700',
+  badge: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '10.5px',
+    letterSpacing: '0.05em',
     textTransform: 'uppercase',
-    color: '#0A0A0A',
-    background: '#F5A623',
-    padding: '0.1rem 0.5rem',
-    borderRadius: '4px',
+    padding: '3px 9px',
+    borderRadius: '999px',
   },
-  time: {
-    fontSize: '0.7rem',
-    color: '#666',
+  badgeYou: {
+    border: '1px solid #2c2c2c',
+    color: '#9c9895',
+  },
+  badgeBoost: {
+    background: '#f0a637',
+    color: '#201404',
+  },
+  timestamp: {
+    fontSize: '12.5px',
+    color: '#6f6c69',
   },
   deleteBtn: {
-    background: 'none',
+    marginLeft: 'auto',
+    width: '34px',
+    height: '34px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#6f6c69',
+    background: 'transparent',
     border: 'none',
     cursor: 'pointer',
-    padding: '0.2rem',
-    borderRadius: '4px',
-    opacity: 0.5,
-    transition: 'opacity 0.2s',
+    flexShrink: 0,
   },
-  body: {
-    margin: '0.2rem 0 0.6rem',
-    fontSize: '0.95rem',
-    lineHeight: 1.6,
-    color: '#DDD',
+  postBody: {
+    fontSize: '15.5px',
+    lineHeight: 1.55,
+    color: '#f4f2ee',
+    marginBottom: '14px',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
   },
   linkCard: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    background: '#0F0F0F',
-    borderRadius: '8px',
-    padding: '0.4rem 0.75rem',
-    marginBottom: '0.6rem',
+    gap: '10px',
+    border: '1px solid #2c2c2c',
+    borderRadius: '14px',
+    padding: '14px 16px',
+    marginBottom: '14px',
     textDecoration: 'none',
     cursor: 'pointer',
-    border: '1px solid #2A2A2A',
   },
   linkText: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.1rem',
-    overflow: 'hidden',
+    minWidth: 0,
     flex: 1,
   },
   linkDomain: {
-    fontSize: '0.7rem',
-    color: '#F5A623',
-    fontWeight: '600',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 500,
+    fontSize: '14.5px',
+    color: '#f4f2ee',
+    marginBottom: '3px',
   },
   linkUrl: {
-    fontSize: '0.8rem',
-    color: '#888',
+    fontSize: '12.5px',
+    color: '#6f6c69',
+    whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
   },
-  engageLabel: {
+  engage: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '14px',
+    color: '#f0a637',
     display: 'flex',
     alignItems: 'center',
-    gap: '0.3rem',
-    color: '#F5A623',
-    fontSize: '0.8rem',
-    fontWeight: '500',
+    gap: '6px',
+    whiteSpace: 'nowrap',
     flexShrink: 0,
   },
-  actions: {
+  postFooter: {
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem',
+    gap: '10px',
     flexWrap: 'wrap',
-    marginTop: '0.3rem',
-    paddingTop: '0.5rem',
-    borderTop: '1px solid #2A2A2A',
   },
-  actionBtn: {
-    background: 'none',
-    border: 'none',
+  statPill: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.3rem',
-    fontSize: '0.85rem',
+    gap: '7px',
+    borderRadius: '999px',
+    padding: '7px 14px',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '13.5px',
     cursor: 'pointer',
-    transition: 'color 0.2s',
-    color: '#666',
-  },
-  engageBtn: {
     border: 'none',
-    borderRadius: '6px',
-    padding: '0.2rem 0.75rem',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
+    background: 'transparent',
+  },
+  statPillFilled: {
+    background: '#4d3a1a',
+    color: '#f0a637',
+  },
+  statPillOutline: {
+    border: '1px solid #2c2c2c',
+    color: '#9c9895',
   },
   engagedCount: {
-    fontSize: '0.7rem',
-    color: '#666',
+    fontSize: '13.5px',
+    color: '#6f6c69',
+    marginLeft: '4px',
   },
-  editLabel: {
-    fontSize: '0.7rem',
-    color: '#444',
-    marginTop: '0.4rem',
-    textAlign: 'right',
-    borderTop: '1px solid #1A1A1A',
-    paddingTop: '0.4rem',
+  viewThread: {
+    marginLeft: 'auto',
+    fontSize: '13.5px',
+    color: '#6f6c69',
+    fontWeight: 600,
+    fontFamily: '"Fredoka", sans-serif',
+    cursor: 'pointer',
   },
-  replySection: {
-    marginTop: '0.75rem',
-    paddingLeft: '1rem',
-    borderLeft: '2px solid #F5A623',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.3rem',
+  // Reply block
+  replyBlock: {
+    border: '1px solid #2c2c2c',
+    borderRadius: '16px',
+    background: '#1a1a1a',
+    padding: '16px',
+    marginTop: '16px',
+    overflow: 'hidden',
   },
-  replyItem: {
+  replyTop: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.85rem',
-    color: '#888',
-    padding: '0.2rem 0',
-    borderBottom: '1px solid #2A2A2A',
+    gap: '10px',
+    marginBottom: '12px',
   },
-  replyName: {
-    fontWeight: '600',
-    color: '#F0EDE8',
-    flexShrink: 0,
+  replyStat: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    background: '#4d3a1a',
+    color: '#f0a637',
+    borderRadius: '999px',
+    padding: '6px 13px',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '13px',
+  },
+  replyComment: {
+    borderTop: '1px solid #2c2c2c',
+    paddingTop: '12px',
+    marginTop: '4px',
+  },
+  whoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '6px',
+  },
+  dot: {
+    width: '7px',
+    height: '7px',
+    borderRadius: '50%',
+    background: '#6f6c69',
+  },
+  closeX: {
+    marginLeft: 'auto',
+    color: '#6f6c69',
+    fontSize: '16px',
+    cursor: 'pointer',
+    background: 'none',
+    border: 'none',
   },
   replyText: {
-    flex: 1,
+    fontSize: '15px',
+    lineHeight: 1.5,
+    color: '#f4f2ee',
+    marginBottom: '12px',
+    whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
   },
-  replyTime: {
-    fontSize: '0.65rem',
-    color: '#555',
-    flexShrink: 0,
-  },
-  replyDelete: {
+  showMore: {
     background: 'none',
     border: 'none',
+    color: '#6f6c69',
+    fontSize: '14px',
+    fontFamily: '"Nunito Sans", sans-serif',
     cursor: 'pointer',
-    opacity: 0.4,
+    padding: '4px 0',
   },
-  showMoreBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#888',
-    fontSize: '0.75rem',
-    cursor: 'pointer',
-    padding: '0.2rem 0',
-    textAlign: 'left',
-  },
-  replyInputRow: {
+  sayInputRow: {
     display: 'flex',
-    gap: '0.5rem',
-    marginTop: '0.3rem',
     alignItems: 'center',
+    gap: '10px',
+    border: '1px solid #2c2c2c',
+    borderRadius: '999px',
+    padding: '10px 8px 10px 16px',
   },
-  replyInput: {
+  sayInput: {
     flex: 1,
-    background: '#0F0F0F',
-    border: '1px solid #2A2A2A',
-    borderRadius: '8px',
-    padding: '0.4rem 0.75rem',
-    color: '#F0EDE8',
-    fontSize: '0.85rem',
-    outline: 'none',
-    fontFamily: 'inherit',
-  },
-  replySend: {
-    background: '#F5A623',
+    background: 'transparent',
     border: 'none',
-    borderRadius: '8px',
-    padding: '0.3rem 0.7rem',
+    color: '#f4f2ee',
+    fontSize: '14.5px',
+    fontFamily: '"Nunito Sans", sans-serif',
+    outline: 'none',
+  },
+  sendRound: {
+    width: '34px',
     height: '34px',
+    borderRadius: '50%',
+    background: '#4d3a1a',
+    color: '#f0a637',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
+    border: 'none',
     cursor: 'pointer',
-    color: '#0A0A0A',
   },
+  // Floating action button
+  fab: {
+    position: 'fixed',
+    right: '24px',
+    bottom: '32px',
+    width: '58px',
+    height: '58px',
+    borderRadius: '50%',
+    background: '#f0a637',
+    color: '#201404',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    boxShadow: '0 0 24px rgba(240,166,55,0.45)',
+    cursor: 'pointer',
+  },
+  // Loading
   loading: {
     display: 'flex',
     flexDirection: 'column',
@@ -857,13 +1022,13 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     padding: '4rem 0',
     gap: '1rem',
-    color: '#666',
+    color: '#6f6c69',
   },
   spinner: {
     width: '28px',
     height: '28px',
-    border: '3px solid #2A2A2A',
-    borderTop: '3px solid #F5A623',
+    border: '3px solid #2c2c2c',
+    borderTop: '3px solid #f0a637',
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
   },
