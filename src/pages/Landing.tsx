@@ -1,9 +1,13 @@
 import { Link } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
-import { useRef } from 'react'
-import { Flame, ArrowRight, CheckCircle2, Users, Shield, Zap, Clock } from 'lucide-react'
+import { useRef, useState } from 'react'
+import {
+  Flame, ArrowRight, CheckCircle2, Users, Shield, Zap, Clock,
+  Sparkles, Target, BookOpen, Award, Gift, HelpCircle, ChevronDown,
+  BarChart, Calendar, HeartHandshake
+} from 'lucide-react'
 
-// -- Styles (injected via CSS-in-JS) --
+// ----- Styles -----
 const colors = {
   ink: '#0B1526',
   royal: '#2654B6',
@@ -12,8 +16,8 @@ const colors = {
   pearl: '#FBFCF8',
   muted: '#5A6B85',
   faint: '#9AA7BE',
-  accent: '#FF6B35',
-  accentGlow: 'rgba(255,107,53,0.25)',
+  accent: '#F5A623',
+  accentGlow: 'rgba(245,166,35,0.25)',
 }
 
 const fadeUp = {
@@ -32,6 +36,15 @@ export default function Landing() {
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
 
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
+
+  const faqs = [
+    { q: 'How does the accountability partner work?', a: 'You get matched with another creator. Each day, you both confirm each other\'s posts. If one doesn\'t post, the other gets notified. It’s a mutual commitment.' },
+    { q: 'Is it really free?', a: 'Yes, forever. No credit card required. If we ever add premium features, they’ll be optional – the core system stays free.' },
+    { q: 'What if I miss a day?', a: 'You earn rest tokens every 14 days of consistency. Use them to protect your streak when life happens. Your streak stays intact.' },
+    { q: 'Can I use it for any platform?', a: 'Absolutely. Streak works with any content platform – YouTube, Instagram, TikTok, LinkedIn, X, blogs, newsletters, you name it.' },
+  ]
+
   return (
     <div style={styles.page}>
 
@@ -47,7 +60,7 @@ export default function Landing() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={styles.navLogo}>
-            <Flame size={16} color="#F5A623" />
+            <Flame size={16} color={colors.accent} />
           </div>
           <span style={styles.navBrand}>Streak</span>
         </div>
@@ -62,17 +75,12 @@ export default function Landing() {
 
       {/* Hero */}
       <section ref={heroRef} style={styles.hero}>
-        {/* Ambient mesh background */}
         <div style={styles.meshBg} />
 
         <motion.div style={{ y: heroY, opacity: heroOpacity, position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 1.5rem' }}>
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-          >
+          <motion.div variants={stagger} initial="hidden" animate="show">
             <motion.div variants={fadeUp} style={styles.eyebrow}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FF6B35', display: 'inline-block' }} />
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: colors.accent, display: 'inline-block' }} />
               For creators who are serious about showing up
             </motion.div>
 
@@ -82,7 +90,8 @@ export default function Landing() {
             </motion.h1>
 
             <motion.p variants={fadeUp} style={styles.heroSub}>
-              Most creators know what to post. The hard part is doing it consistently.<br />
+              Most creators know what to post. The hard part is doing it consistently.
+              <br />
               Streak gives you the system, the accountability, and the tools to actually show up.
             </motion.p>
 
@@ -96,13 +105,13 @@ export default function Landing() {
               </Link>
             </motion.div>
 
-            <motion.p variants={fadeUp} style={{ color: '#5A6B85', fontSize: '0.8rem', marginTop: '1.25rem' }}>
-              Free to start · No credit card needed
+            <motion.p variants={fadeUp} style={{ color: colors.muted, fontSize: '0.8rem', marginTop: '1.25rem' }}>
+              Free to start · No credit card needed · No ads, ever
             </motion.p>
           </motion.div>
         </motion.div>
 
-        {/* Preview card */}
+        {/* Preview Card */}
         <motion.div
           style={styles.previewCard}
           initial={{ opacity: 0, y: 40, scale: 0.95 }}
@@ -114,7 +123,7 @@ export default function Landing() {
               <div style={styles.previewAvatar}>S</div>
               <div>
                 <div style={{ fontWeight: '600', fontSize: '0.85rem' }}>Sarah K.</div>
-                <div style={{ color: '#5A6B85', fontSize: '0.72rem' }}>YouTube Creator</div>
+                <div style={{ color: colors.muted, fontSize: '0.72rem' }}>YouTube Creator</div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -125,25 +134,25 @@ export default function Landing() {
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', marginBottom: '0.85rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{ background: '#1A1400', borderRadius: '10px', padding: '0.6rem' }}>
-                <Flame size={20} color="#F5A623" />
+                <Flame size={20} color={colors.accent} />
               </div>
               <div>
-                <div style={{ fontFamily: 'Space Grotesk', fontWeight: '800', fontSize: '2.2rem', color: '#F5A623', lineHeight: 1 }}>47</div>
-                <div style={{ color: '#5A6B85', fontSize: '0.72rem' }}>day streak</div>
+                <div style={{ fontFamily: 'Space Grotesk', fontWeight: '800', fontSize: '2.2rem', color: colors.accent, lineHeight: 1 }}>47</div>
+                <div style={{ color: colors.muted, fontSize: '0.72rem' }}>day streak</div>
               </div>
             </div>
             <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-              <div style={{ color: '#5A6B85', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best</div>
+              <div style={{ color: colors.muted, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best</div>
               <div style={{ fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '1.1rem' }}>47</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.25rem' }}>
             {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} style={{ flex: 1, height: '3px', borderRadius: '999px', background: i < 5 ? '#F5A623' : '#2A2A2A' }} />
+              <div key={i} style={{ flex: 1, height: '3px', borderRadius: '999px', background: i < 5 ? colors.accent : '#2A2A2A' }} />
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.85rem' }}>
-            <div style={{ color: '#5A6B85', fontSize: '0.7rem' }}>2 days to next milestone</div>
+            <div style={{ color: colors.muted, fontSize: '0.7rem' }}>2 days to next milestone</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#0D2010', border: '1px solid #4CAF5020', borderRadius: '20px', padding: '0.2rem 0.65rem' }}>
               <CheckCircle2 size={11} color="#4CAF50" />
               <span style={{ color: '#4CAF50', fontSize: '0.7rem' }}>Partner confirmed</span>
@@ -152,7 +161,7 @@ export default function Landing() {
         </motion.div>
       </section>
 
-      {/* Social proof bar */}
+      {/* Social Proof Bar */}
       <motion.section
         style={styles.proofBar}
         initial={{ opacity: 0 }}
@@ -167,13 +176,13 @@ export default function Landing() {
           { num: '94%', label: 'Weekly retention' },
         ].map((s, i) => (
           <div key={i} style={styles.proofItem}>
-            <div style={{ fontFamily: 'Space Grotesk', fontWeight: '800', fontSize: '1.4rem', color: '#F5A623' }}>{s.num}</div>
-            <div style={{ color: '#5A6B85', fontSize: '0.72rem' }}>{s.label}</div>
+            <div style={{ fontFamily: 'Space Grotesk', fontWeight: '800', fontSize: '1.4rem', color: colors.accent }}>{s.num}</div>
+            <div style={{ color: colors.muted, fontSize: '0.72rem' }}>{s.label}</div>
           </div>
         ))}
       </motion.section>
 
-      {/* Problem section */}
+      {/* Problem Section */}
       <section style={styles.problemSection}>
         <motion.div
           variants={stagger}
@@ -199,22 +208,22 @@ export default function Landing() {
           style={styles.problemGrid}
         >
           {[
-            { emoji: '😮‍💨', problem: '"I\'ll post tomorrow"', fix: 'Daily check-in with proof keeps you honest today.' },
-            { emoji: '😶', problem: '"I don\'t know what to post"', fix: 'AI generates tailored ideas in seconds.' },
-            { emoji: '😔', problem: '"Nobody holds me accountable"', fix: 'Your partner confirms every post. No slipping through.' },
-            { emoji: '🔁', problem: '"I keep losing my streak"', fix: 'Rest tokens protect your streak on hard days.' },
+            { icon: <Clock size={20} color="#E53E3E" />, problem: '"I\'ll post tomorrow"', fix: 'Daily check‑in with proof keeps you honest today.' },
+            { icon: <Sparkles size={20} color="#E53E3E" />, problem: '"I don\'t know what to post"', fix: 'AI generates tailored ideas in seconds.' },
+            { icon: <Users size={20} color="#E53E3E" />, problem: '"Nobody holds me accountable"', fix: 'Your partner confirms every post. No slipping through.' },
+            { icon: <Shield size={20} color="#E53E3E" />, problem: '"I keep losing my streak"', fix: 'Rest tokens protect your streak on hard days.' },
           ].map((item, i) => (
             <motion.div key={i} variants={fadeUp} style={styles.problemCard}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>{item.emoji}</div>
+              <div style={{ marginBottom: '0.75rem' }}>{item.icon}</div>
               <div style={{ color: '#E53E3E', fontSize: '0.85rem', fontWeight: '500', marginBottom: '0.5rem' }}>{item.problem}</div>
-              <div style={{ color: '#5A6B85', fontSize: '0.82rem', lineHeight: 1.5 }}>{item.fix}</div>
+              <div style={{ color: colors.muted, fontSize: '0.82rem', lineHeight: 1.5 }}>{item.fix}</div>
             </motion.div>
           ))}
         </motion.div>
       </section>
 
-      {/* Features */}
-      <section style={styles.featuresSection}>
+      {/* How It Works */}
+      <section style={styles.section}>
         <motion.div
           initial="hidden"
           whileInView="show"
@@ -222,8 +231,43 @@ export default function Landing() {
           variants={stagger}
           style={{ textAlign: 'center', marginBottom: '3rem' }}
         >
-          <motion.div variants={fadeUp} style={styles.sectionTag}>Features</motion.div>
-          <motion.h2 variants={fadeUp} style={styles.h2}>Built around how creators actually work</motion.h2>
+          <motion.div variants={fadeUp} style={styles.sectionTag}>Simple system</motion.div>
+          <motion.h2 variants={fadeUp} style={styles.h2}>How it works</motion.h2>
+        </motion.div>
+
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-80px' }}
+          style={styles.stepsGrid}
+        >
+          {[
+            { step: '01', icon: <Target size={24} color={colors.accent} />, title: 'Set your commitment', desc: 'Choose your frequency – daily, 3x week, or custom. Define what a "post" means for you.' },
+            { step: '02', icon: <Users size={24} color={colors.accent} />, title: 'Get a partner', desc: 'We pair you with another creator. You confirm each other\'s posts. No faking it.' },
+            { step: '03', icon: <BarChart size={24} color={colors.accent} />, title: 'Track & improve', desc: 'Watch your streak grow. Get weekly summaries, celebrate milestones, and stay consistent.' },
+          ].map((s, i) => (
+            <motion.div key={i} variants={fadeUp} style={styles.stepCard}>
+              <div style={styles.stepNumber}>{s.step}</div>
+              <div style={{ marginBottom: '0.75rem' }}>{s.icon}</div>
+              <div style={{ fontWeight: '700', fontSize: '1rem', marginBottom: '0.4rem' }}>{s.title}</div>
+              <div style={{ color: colors.muted, fontSize: '0.85rem', lineHeight: 1.6 }}>{s.desc}</div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* Features */}
+      <section style={styles.section}>
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={stagger}
+          style={{ textAlign: 'center', marginBottom: '3rem' }}
+        >
+          <motion.div variants={fadeUp} style={styles.sectionTag}>Everything you need</motion.div>
+          <motion.h2 variants={fadeUp} style={styles.h2}>Built for consistency</motion.h2>
         </motion.div>
 
         <motion.div
@@ -234,62 +278,32 @@ export default function Landing() {
           style={styles.featuresGrid}
         >
           {[
-            {
-              icon: <Flame size={18} color="#F5A623" />,
-              title: 'Streak Tracking',
-              desc: 'Track consistency your way. Post 3x a week or daily — the system adapts to your schedule.',
-              tag: 'Core'
-            },
-            {
-              icon: <Users size={18} color="#4CAF50" />,
-              title: 'Accountability Partners',
-              desc: 'Get matched with another creator. You both confirm each other\'s posts. No faking it.',
-              tag: 'Popular'
-            },
-            {
-              icon: <Zap size={18} color="#2196F3" />,
-              title: 'AI Content Ideas',
-              desc: 'Describe your niche, pick a platform. Get 5 ready-to-use ideas with hooks in seconds.',
-              tag: 'AI'
-            },
-            {
-              icon: <Shield size={18} color="#9C27B0" />,
-              title: 'Proof of Post',
-              desc: 'Submit a link or screenshot when you check in. Eliminates fake streaks entirely.',
-              tag: 'Accountability'
-            },
-            {
-              icon: <CheckCircle2 size={18} color="#F5A623" />,
-              title: 'Content Vault',
-              desc: 'Capture ideas the moment they hit. Never lose a hook, concept, or title again.',
-              tag: 'Planning'
-            },
-            {
-              icon: <Clock size={18} color="#FF6B35" />,
-              title: 'Rest Tokens',
-              desc: 'Life happens. Earn rest tokens every 14 days of consistency and use them when you need a break.',
-              tag: 'Wellbeing'
-            },
+            { icon: <Flame size={18} color={colors.accent} />, title: 'Streak Tracking', desc: 'Track consistency your way. Post 3x a week or daily — the system adapts to your schedule.', tag: 'Core' },
+            { icon: <Users size={18} color="#4CAF50" />, title: 'Accountability Partners', desc: 'Get matched with another creator. You both confirm each other\'s posts. No faking it.', tag: 'Popular' },
+            { icon: <Zap size={18} color="#2196F3" />, title: 'AI Content Ideas', desc: 'Describe your niche, pick a platform. Get 5 ready-to-use ideas with hooks in seconds.', tag: 'AI' },
+            { icon: <Shield size={18} color="#9C27B0" />, title: 'Proof of Post', desc: 'Submit a link or screenshot when you check in. Eliminates fake streaks entirely.', tag: 'Accountability' },
+            { icon: <BookOpen size={18} color={colors.accent} />, title: 'Content Vault', desc: 'Capture ideas the moment they hit. Never lose a hook, concept, or title again.', tag: 'Planning' },
+            { icon: <Gift size={18} color="#FF6B35" />, title: 'Rest Tokens', desc: 'Life happens. Earn rest tokens every 14 days of consistency and use them when you need a break.', tag: 'Wellbeing' },
           ].map((f, i) => (
             <motion.div
               key={i}
               variants={fadeUp}
               style={styles.featureCard}
-              whileHover={{ borderColor: '#2A2A2A', transform: 'translateY(-2px)' }}
+              whileHover={{ borderColor: 'rgba(245,166,35,0.3)', transform: 'translateY(-2px)' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                 <div style={styles.featureIconWrap}>{f.icon}</div>
                 <span style={styles.featureTag}>{f.tag}</span>
               </div>
               <div style={{ fontWeight: '600', fontSize: '0.95rem', marginBottom: '0.4rem' }}>{f.title}</div>
-              <div style={{ color: '#5A6B85', fontSize: '0.82rem', lineHeight: 1.6 }}>{f.desc}</div>
+              <div style={{ color: colors.muted, fontSize: '0.82rem', lineHeight: 1.6 }}>{f.desc}</div>
             </motion.div>
           ))}
         </motion.div>
       </section>
 
       {/* Testimonials */}
-      <section style={styles.testimonialsSection}>
+      <section style={styles.section}>
         <motion.div
           initial="hidden"
           whileInView="show"
@@ -310,17 +324,17 @@ export default function Landing() {
               <motion.div key={i} variants={fadeUp} style={styles.testimonialCard}>
                 <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem' }}>
                   {Array.from({ length: 5 }).map((_, j) => (
-                    <span key={j} style={{ color: '#F5A623', fontSize: '0.8rem' }}>★</span>
+                    <span key={j} style={{ color: colors.accent, fontSize: '0.8rem' }}>★</span>
                   ))}
                 </div>
-                <p style={{ color: '#5A6B85', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem' }}>
+                <p style={{ color: colors.muted, fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem' }}>
                   "{t.text}"
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={styles.testimonialAvatar}>{t.name[0]}</div>
                   <div>
                     <div style={{ fontWeight: '600', fontSize: '0.85rem' }}>{t.name}</div>
-                    <div style={{ color: '#5A6B85', fontSize: '0.75rem' }}>{t.role}</div>
+                    <div style={{ color: colors.muted, fontSize: '0.75rem' }}>{t.role}</div>
                   </div>
                 </div>
               </motion.div>
@@ -329,8 +343,8 @@ export default function Landing() {
         </motion.div>
       </section>
 
-      {/* Final CTA */}
-      <section style={styles.finalCta}>
+      {/* Pricing / CTA */}
+      <section style={styles.pricingSection}>
         <div style={styles.meshBg} />
         <motion.div
           initial="hidden"
@@ -339,34 +353,88 @@ export default function Landing() {
           variants={stagger}
           style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 1.5rem' }}
         >
-          <motion.div variants={fadeUp} style={styles.sectionTag}>Get started today</motion.div>
-          <motion.h2 variants={fadeUp} style={{ ...styles.h2, fontSize: 'clamp(1.8rem, 5vw, 2.5rem)' }}>
-            Your next streak<br />starts right now.
+          <motion.div variants={fadeUp} style={styles.sectionTag}>Start now – it's free</motion.div>
+          <motion.h2 variants={fadeUp} style={{ ...styles.h2, fontSize: 'clamp(1.8rem, 5vw, 2.8rem)' }}>
+            No credit card. No catch.
           </motion.h2>
-          <motion.p variants={fadeUp} style={{ ...styles.bodyText, marginBottom: '2rem' }}>
-            Join creators who stopped making excuses and started showing up.
+          <motion.p variants={fadeUp} style={{ ...styles.bodyText, marginBottom: '2rem', maxWidth: '480px', margin: '0 auto 2rem' }}>
+            Join thousands of creators who are already building unstoppable momentum.
           </motion.p>
-          <motion.div variants={fadeUp}>
+          <motion.div variants={fadeUp} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
             <Link to="/signup" style={styles.ctaPrimary}>
               Create free account
               <ArrowRight size={16} color="#0A0A0A" />
             </Link>
+            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: colors.muted }}>
+              <span>✓ Free forever</span>
+              <span>✓ No ads</span>
+              <span>✓ Premium upgrades later (optional)</span>
+            </div>
           </motion.div>
+        </motion.div>
+      </section>
+
+      {/* FAQ */}
+      <section style={styles.section}>
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          variants={stagger}
+          style={{ maxWidth: '680px', margin: '0 auto' }}
+        >
+          <motion.div variants={fadeUp} style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+            <div style={styles.sectionTag}>Questions?</div>
+            <h2 style={styles.h2}>Frequently asked</h2>
+          </motion.div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {faqs.map((faq, idx) => (
+              <motion.div
+                key={idx}
+                variants={fadeUp}
+                style={styles.faqItem}
+                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+              >
+                <div style={styles.faqHeader}>
+                  <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>{faq.q}</span>
+                  <ChevronDown
+                    size={18}
+                    color={colors.muted}
+                    style={{
+                      transform: openFaq === idx ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    ...styles.faqAnswer,
+                    maxHeight: openFaq === idx ? '200px' : '0',
+                    opacity: openFaq === idx ? 1 : 0,
+                    marginTop: openFaq === idx ? '0.5rem' : '0',
+                  }}
+                >
+                  {faq.a}
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
       </section>
 
       {/* Footer */}
       <footer style={styles.footer}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-          <Flame size={15} color="#F5A623" />
-          <span style={{ fontFamily: 'Space Grotesk', fontWeight: '700', color: '#F0EDE8', fontSize: '0.9rem' }}>Streak</span>
+          <Flame size={15} color={colors.accent} />
+          <span style={{ fontFamily: 'Space Grotesk', fontWeight: '700', color: colors.pearl, fontSize: '0.9rem' }}>Streak</span>
         </div>
-        <p style={{ color: '#5A6B85', fontSize: '0.75rem', marginBottom: '1rem' }}>
+        <p style={{ color: colors.muted, fontSize: '0.75rem', marginBottom: '1rem' }}>
           Built for creators who are serious about consistency.
         </p>
         <div style={{ display: 'flex', gap: '1.5rem' }}>
-          <Link to="/login" style={{ color: '#5A6B85', fontSize: '0.75rem', textDecoration: 'none' }}>Sign in</Link>
-          <Link to="/signup" style={{ color: '#5A6B85', fontSize: '0.75rem', textDecoration: 'none' }}>Sign up</Link>
+          <Link to="/login" style={{ color: colors.muted, fontSize: '0.75rem', textDecoration: 'none' }}>Sign in</Link>
+          <Link to="/signup" style={{ color: colors.muted, fontSize: '0.75rem', textDecoration: 'none' }}>Sign up</Link>
         </div>
       </footer>
     </div>
@@ -455,14 +523,14 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'absolute',
     inset: 0,
     background: `radial-gradient(ellipse 80% 60% at 50% 20%, rgba(38,84,182,0.15) 0%, transparent 70%),
-                 radial-gradient(ellipse 60% 40% at 80% 80%, rgba(255,107,53,0.08) 0%, transparent 60%)`,
+                 radial-gradient(ellipse 60% 40% at 80% 80%, rgba(245,166,35,0.08) 0%, transparent 60%)`,
     pointerEvents: 'none',
   },
   eyebrow: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '0.5rem',
-    color: '#FF6B35',
+    color: '#F5A623',
     fontSize: '0.75rem',
     fontWeight: '500',
     letterSpacing: '0.06em',
@@ -571,8 +639,33 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '16px',
     padding: '1.5rem',
   },
-  featuresSection: {
+  section: {
     padding: '6rem 1.25rem',
+  },
+  stepsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '2rem',
+  },
+  stepCard: {
+    background: 'rgba(18, 30, 50, 0.6)',
+    backdropFilter: 'blur(4px)',
+    border: '1px solid rgba(38,84,182,0.15)',
+    borderRadius: '16px',
+    padding: '1.5rem',
+    textAlign: 'center',
+    position: 'relative',
+  },
+  stepNumber: {
+    position: 'absolute',
+    top: '-0.75rem',
+    right: '1rem',
+    background: '#2654B6',
+    color: '#FBFCF8',
+    fontSize: '0.7rem',
+    fontWeight: '700',
+    padding: '0.2rem 0.6rem',
+    borderRadius: '20px',
   },
   featuresGrid: {
     display: 'grid',
@@ -602,9 +695,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '20px',
     fontWeight: '500',
   },
-  testimonialsSection: {
-    padding: '6rem 1.25rem',
-  },
   testimonialsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
@@ -631,12 +721,33 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.85rem',
     flexShrink: 0,
   },
-  finalCta: {
+  pricingSection: {
     padding: '8rem 1.5rem',
     textAlign: 'center',
     position: 'relative',
     overflow: 'hidden',
     background: 'radial-gradient(ellipse 80% 60% at 50% 100%, rgba(38,84,182,0.15) 0%, #0B1526 70%)',
+  },
+  faqItem: {
+    background: 'rgba(18, 30, 50, 0.6)',
+    backdropFilter: 'blur(4px)',
+    border: '1px solid rgba(38,84,182,0.15)',
+    borderRadius: '12px',
+    padding: '1rem 1.25rem',
+    cursor: 'pointer',
+    transition: 'border-color 0.2s',
+  },
+  faqHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  faqAnswer: {
+    overflow: 'hidden',
+    transition: 'max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease',
+    color: '#9AA7BE',
+    fontSize: '0.9rem',
+    lineHeight: 1.6,
   },
   footer: {
     padding: '2rem 1.5rem',
@@ -645,7 +756,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sectionTag: {
     display: 'inline-flex',
-    color: '#FF6B35',
+    color: '#F5A623',
     fontSize: '0.72rem',
     fontWeight: '600',
     textTransform: 'uppercase',
