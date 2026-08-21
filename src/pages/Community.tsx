@@ -22,6 +22,7 @@ export default function Community() {
 
   const fetchPosts = useCallback(async () => {
     try {
+      // Fetch posts with profiles (no streak_days)
       const { data: postsData, error: postsError } = await supabase
         .from('community_posts')
         .select(`
@@ -34,7 +35,7 @@ export default function Community() {
           platform,
           engagement_type,
           engaged_by,
-          profiles ( name, email, streak_days )
+          profiles ( name, email )
         `)
         .order('created_at', { ascending: false })
 
@@ -42,6 +43,7 @@ export default function Community() {
 
       const postIds = postsData?.map(p => p.id) || []
 
+      // Fetch comments
       const { data: commentsData, error: commentsError } = await supabase
         .from('community_comments')
         .select(`
@@ -56,6 +58,7 @@ export default function Community() {
 
       if (commentsError) throw commentsError
 
+      // Fetch likes
       const { data: likesData, error: likesError } = await supabase
         .from('community_likes')
         .select('id, user_id, post_id')
@@ -63,6 +66,7 @@ export default function Community() {
 
       if (likesError) throw likesError
 
+      // Fetch boosts
       const { data: boostsData, error: boostsError } = await supabase
         .from('community_boosts')
         .select('id, user_id, post_id')
@@ -70,6 +74,7 @@ export default function Community() {
 
       if (boostsError) throw boostsError
 
+      // Fetch engagements
       const { data: engagementsData, error: engagementsError } = await supabase
         .from('community_engagements')
         .select('id, user_id, post_id')
@@ -77,6 +82,7 @@ export default function Community() {
 
       if (engagementsError) throw engagementsError
 
+      // Group data
       const commentsByPost: Record<string, any[]> = {}
       commentsData?.forEach((c: any) => {
         if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
@@ -154,6 +160,7 @@ export default function Community() {
     fetchPosts()
   }, [fetchPosts])
 
+  // Realtime
   useEffect(() => {
     const channel = supabase
       .channel('community-board')
@@ -217,9 +224,8 @@ export default function Community() {
       return
     }
     setIsPosting(true)
-    const { error } = await supabase
-      .from('community_posts')
-      .insert({
+    try {
+      const payload = {
         content,
         link,
         user_id: currentUserId,
@@ -227,15 +233,30 @@ export default function Community() {
         platform: platform || null,
         engagement_type: engagementType || null,
         engaged_by: [],
-      })
-    setIsPosting(false)
-    if (error) {
-      console.error(error)
-      toast.error("Couldn't post that")
-      return
+      }
+      console.log('📤 Creating post with payload:', payload)
+
+      const { data, error } = await supabase
+        .from('community_posts')
+        .insert(payload)
+        .select()
+
+      if (error) {
+        console.error('❌ Supabase insert error:', error)
+        toast.error('Failed to post: ' + error.message)
+        setIsPosting(false)
+        return
+      }
+
+      console.log('✅ Post created:', data)
+      toast.success('Posted to the community board')
+      fetchPosts()
+    } catch (err: any) {
+      console.error('💥 Unexpected error:', err)
+      toast.error('Unexpected error: ' + err.message)
+    } finally {
+      setIsPosting(false)
     }
-    toast.success('Posted to the community board')
-    fetchPosts()
   }
 
   const onDeletePost = async (postId: string) => {
@@ -245,7 +266,7 @@ export default function Community() {
       .eq('id', postId)
     if (error) {
       console.error(error)
-      toast.error("Couldn't delete that post")
+      toast.error("Couldn't delete that post: " + error.message)
       return
     }
     setPosts((prev) => prev.filter((p) => p.id !== postId))
@@ -289,7 +310,7 @@ export default function Community() {
 
     if (error) {
       console.error(error)
-      toast.error("Couldn't update your reaction")
+      toast.error("Couldn't update your reaction: " + error.message)
       fetchPosts()
     }
   }
@@ -331,7 +352,7 @@ export default function Community() {
 
     if (error) {
       console.error(error)
-      toast.error("Couldn't update your boost")
+      toast.error("Couldn't update your boost: " + error.message)
       fetchPosts()
     }
   }
@@ -373,7 +394,7 @@ export default function Community() {
 
     if (error) {
       console.error(error)
-      toast.error("Couldn't update your engagement")
+      toast.error("Couldn't update your engagement: " + error.message)
       fetchPosts()
     }
   }
@@ -390,7 +411,7 @@ export default function Community() {
     setIsReplying(false)
     if (error) {
       console.error(error)
-      toast.error("Couldn't send that reply")
+      toast.error("Couldn't send that reply: " + error.message)
       return
     }
     fetchPosts()
@@ -403,7 +424,7 @@ export default function Community() {
       .eq('id', commentId)
     if (error) {
       console.error(error)
-      toast.error("Couldn't delete that reply")
+      toast.error("Couldn't delete that reply: " + error.message)
       return
     }
     fetchPosts()
