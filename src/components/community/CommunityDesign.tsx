@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare,
-  Flame, Hand, ExternalLink, Plus
+  Flame, Hand, ExternalLink, Plus, User, Star, Share2
 } from 'lucide-react'
 
 export type CommunityPost = {
@@ -151,61 +151,58 @@ export default function CommunityDesign({
   }
 
   return (
-    <div style={styles.app}>
-      {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.label}>
-          <Flame size={18} color="#F4A719" />
-          Community
-        </div>
-        <h1 style={styles.title}>Creator Community</h1>
-        <p style={styles.description}>
-          Say hi. Ask for engagement. Show up for each other.
-        </p>
-        <p style={styles.subDescription}>
-          Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.
-        </p>
+    <div style={styles.container}>
+      {/* Eyebrow */}
+      <div style={styles.eyebrow}>
+        <User size={18} strokeWidth={2} />
+        Creator Community
       </div>
+
+      <h1 style={styles.title}>Say hi. Ask for engagement. Show up for each other.</h1>
+      <p style={styles.subtitle}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
 
       {/* Stats */}
       <div style={styles.stats}>
         <div style={styles.stat}>
-          <span style={styles.statNumber}>{totalPosts}</span>
-          <span style={styles.statLabel}>Posts</span>
+          <div style={styles.statNum}>{totalPosts}</div>
+          <div style={styles.statLabel}>Posts</div>
         </div>
         <div style={styles.stat}>
-          <span style={styles.statNumber}>{totalCreators}</span>
-          <span style={styles.statLabel}>Creators</span>
+          <div style={styles.statNum}>{totalCreators}</div>
+          <div style={styles.statLabel}>Creators</div>
         </div>
         <div style={styles.stat}>
-          <span style={styles.statNumber}>{totalBoosts}</span>
-          <span style={styles.statLabel}>Boosts</span>
+          <div style={styles.statNum}>{totalBoosts}</div>
+          <div style={styles.statLabel}>Boosts</div>
         </div>
         <div style={styles.stat}>
-          <span style={styles.statNumber}>{totalReplies}</span>
-          <span style={styles.statLabel}>Replies</span>
+          <div style={styles.statNum}>{totalReplies}</div>
+          <div style={styles.statLabel}>Replies</div>
         </div>
       </div>
 
       {/* Composer */}
       <div style={styles.composer}>
-        <div style={styles.composerTabs}>
+        <div style={styles.toggleRow}>
           <button
-            style={{ ...styles.composerTab, ...(postType === 'say_hi' ? styles.composerTabActive : {}) }}
+            style={{ ...styles.pill, ...(postType === 'say_hi' ? styles.pillActive : {}) }}
             onClick={() => setPostType('say_hi')}
           >
+            <Star size={15} strokeWidth={2} />
             Say hi
           </button>
           <button
-            style={{ ...styles.composerTab, ...(postType === 'boost' ? styles.composerTabActive : {}) }}
+            style={{ ...styles.pill, ...(postType === 'boost' ? styles.pillActive : {}) }}
             onClick={() => setPostType('boost')}
           >
+            <Share2 size={15} strokeWidth={2} />
             Boost my post
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <textarea
+            style={styles.textarea}
             placeholder={
               postType === 'say_hi'
                 ? "Say hi – who are you, what are you building, what's your niche?"
@@ -213,12 +210,12 @@ export default function CommunityDesign({
             }
             value={newContent}
             onChange={e => setNewContent(e.target.value)}
-            style={styles.textarea}
-            rows={4}
+            rows={3}
           />
           <div style={styles.composerFooter}>
-            <span style={styles.charCounter}>{newContent.length}/2000</span>
-            <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.publishBtn}>
+            <span style={styles.charCount}>{newContent.length}/2000</span>
+            <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.sendBtn}>
+              <Send size={15} strokeWidth={2} />
               {isPosting ? '...' : 'Say hi'}
             </button>
           </div>
@@ -226,27 +223,27 @@ export default function CommunityDesign({
           {postType === 'boost' && (
             <div style={styles.boostFields}>
               <div style={styles.fieldRow}>
-                <Link2 size={16} color="#666" />
+                <Link2 size={15} color="#6f6c69" />
                 <input
+                  style={styles.linkInput}
                   placeholder="Paste your post link"
                   value={newLink}
                   onChange={e => setNewLink(e.target.value)}
-                  style={styles.linkInput}
                 />
               </div>
               <div style={styles.fieldRow}>
                 <select
+                  style={styles.select}
                   value={newPlatform}
                   onChange={e => setNewPlatform(e.target.value)}
-                  style={styles.select}
                 >
                   <option value="">Platform</option>
                   {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
                 <select
+                  style={styles.select}
                   value={newEngagementType}
                   onChange={e => setNewEngagementType(e.target.value)}
-                  style={styles.select}
                 >
                   <option value="">Ask for</option>
                   {ENGAGEMENT_TYPES.map(e => <option key={e} value={e}>{e}</option>)}
@@ -258,21 +255,21 @@ export default function CommunityDesign({
       </div>
 
       {/* Filter tabs */}
-      <div style={styles.feedTabs}>
+      <div style={styles.tabs}>
         <button
-          style={{ ...styles.feedTab, ...(filter === 'all' ? styles.feedTabActive : {}) }}
+          style={{ ...styles.tab, ...(filter === 'all' ? styles.tabActive : {}) }}
           onClick={() => onFilterChange('all')}
         >
           Everything
         </button>
         <button
-          style={{ ...styles.feedTab, ...(filter === 'boost' ? styles.feedTabActive : {}) }}
+          style={{ ...styles.tab, ...(filter === 'boost' ? styles.tabActive : {}) }}
           onClick={() => onFilterChange('boost')}
         >
           Boosts
         </button>
         <button
-          style={{ ...styles.feedTab, ...(filter === 'mine' ? styles.feedTabActive : {}) }}
+          style={{ ...styles.tab, ...(filter === 'mine' ? styles.tabActive : {}) }}
           onClick={() => onFilterChange('mine')}
         >
           Mine
@@ -299,68 +296,70 @@ export default function CommunityDesign({
               return (
                 <motion.div
                   key={post.id}
-                  style={{ ...styles.postCard, ...(isBoost ? styles.boostedPost : {}) }}
+                  style={styles.post}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  {/* Header */}
-                  <div style={styles.postHeader}>
-                    <div style={styles.postAuthor}>
-                      <div style={styles.avatar}>
-                        {post.profiles?.name?.[0]?.toUpperCase() || '?'}
+                  {/* Post head */}
+                  <div style={styles.postHead}>
+                    <div style={styles.avatar}>
+                      {post.profiles?.name?.[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div style={styles.who}>
+                      <div style={styles.nameRow}>
+                        <span style={styles.name}>{post.profiles?.name || 'Unknown'}</span>
+                        {isBoost && <span style={{ ...styles.badge, ...styles.badgeBoost }}>Boost</span>}
+                        {isOwner && <span style={{ ...styles.badge, ...styles.badgeYou }}>You</span>}
                       </div>
-                      <div style={styles.authorInfo}>
-                        <div style={styles.authorName}>
-                          {post.profiles?.name || 'Unknown'}
-                          {isBoost && <span style={styles.boostBadge}>BOOST</span>}
-                        </div>
-                        <span style={styles.postTime}>{formatTime(post.created_at)}</span>
-                      </div>
+                      <span style={styles.timestamp}>{formatTime(post.created_at)}</span>
                     </div>
                     {isOwner && (
-                      <button onClick={() => onDeletePost(post.id)} style={styles.deleteBtn}>
-                        <Trash2 size={18} color="#8b8986" />
+                      <button
+                        onClick={() => onDeletePost(post.id)}
+                        style={styles.deleteBtn}
+                      >
+                        <Trash2 size={16} strokeWidth={2} />
                       </button>
                     )}
                   </div>
 
-                  {/* Content */}
-                  <p style={styles.postContent}>{post.content}</p>
+                  {/* Body */}
+                  <div style={styles.postBody}>{post.content}</div>
 
-                  {/* Link preview */}
+                  {/* Link card (boost only) */}
                   {isBoost && post.link && (
                     <a
                       href={post.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={styles.linkPreview}
+                      style={styles.linkCard}
                     >
-                      <div style={styles.linkInfo}>
+                      <div style={styles.linkText}>
                         <div style={styles.linkDomain}>{post.platform || 'Link'}</div>
                         <div style={styles.linkUrl}>{post.link}</div>
                       </div>
-                      <div style={styles.linkAction}>
-                        <ExternalLink size={16} />
-                        Visit
+                      <div style={styles.engage}>
+                        Engage
+                        <ExternalLink size={13} strokeWidth={2.2} />
                       </div>
                     </a>
                   )}
 
-                  {/* Footer actions */}
+                  {/* Post footer actions */}
                   <div style={styles.postFooter}>
                     <button
                       onClick={() => onToggleLike(post.id)}
-                      style={{ ...styles.postAction, ...(liked ? styles.postActionLiked : {}) }}
+                      style={{ ...styles.statPill, ...(liked ? styles.statPillFilled : styles.statPillOutline) }}
                     >
-                      <Heart size={20} fill={liked ? '#F4A719' : 'none'} />
+                      <Heart size={15} fill={liked ? '#f0a637' : 'none'} />
                       {post.likes?.length || 0}
                     </button>
                     <button
                       onClick={() => setReplyOpen(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
-                      style={styles.postAction}
+                      style={styles.statPillOutline}
                     >
-                      <MessageCircle size={20} />
+                      <MessageCircle size={15} />
                       {post.comments?.length || 0}
                     </button>
                     {isBoost && (
@@ -368,66 +367,86 @@ export default function CommunityDesign({
                         <button
                           onClick={() => onToggleEngagement(post.id)}
                           style={{
-                            ...styles.postAction,
-                            background: engaged ? 'rgba(244,167,25,0.15)' : 'transparent',
-                            color: engaged ? '#F4A719' : '#85827f',
-                            padding: '4px 12px',
-                            borderRadius: '20px',
+                            ...styles.statPill,
+                            ...(engaged ? styles.statPillFilled : styles.statPillOutline),
                           }}
                         >
-                          {engaged ? '✓ Engaged' : 'I engaged'}
+                          <Zap size={15} />
+                          {engaged ? 'Engaged' : 'I engaged'}
                         </button>
                         <span style={styles.engagedCount}>
                           {engagementCount} {engagementCount === 1 ? 'creator' : 'creators'} engaged
                         </span>
                       </>
                     )}
+                    {post.comments.length > 0 && (
+                      <span
+                        style={styles.viewThread}
+                        onClick={() => setReplyOpen(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
+                      >
+                        View thread
+                      </span>
+                    )}
                   </div>
 
-                  {/* Replies */}
+                  {/* Reply section */}
                   <AnimatePresence>
                     {isReplyOpen && (
                       <motion.div
-                        style={styles.commentSection}
+                        style={styles.replyBlock}
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                       >
+                        <div style={styles.replyTop}>
+                          <div style={styles.replyStat}>
+                            <Heart size={14} fill="#f0a637" />
+                            {post.likes?.length || 0}
+                          </div>
+                          <div style={styles.replyStat}>
+                            <MessageCircle size={14} />
+                            {post.comments?.length || 0}
+                          </div>
+                        </div>
+
                         {repliesToShow.map(comment => (
-                          <div key={comment.id} style={styles.comment}>
-                            <div style={styles.commentHeader}>
-                              <span style={styles.commentName}>
+                          <div key={comment.id} style={styles.replyComment}>
+                            <div style={styles.whoRow}>
+                              <span style={styles.name}>
                                 {comment.user_id === currentUserId ? 'You' : comment.profiles?.name || 'Anonymous'}
                               </span>
-                              <span>{formatTime(comment.created_at)}</span>
+                              <span style={styles.dot} />
+                              <span style={styles.timestamp}>{formatTime(comment.created_at)}</span>
                               {comment.user_id === currentUserId && (
                                 <button
                                   onClick={() => onDeleteReply(post.id, comment.id)}
-                                  style={styles.replyDelete}
+                                  style={styles.closeX}
                                 >
-                                  <Trash2 size={14} color="#8b8986" />
+                                  ×
                                 </button>
                               )}
                             </div>
-                            <p style={styles.commentText}>{comment.content}</p>
+                            <div style={styles.replyText}>{comment.content}</div>
                           </div>
                         ))}
+
                         {post.comments.length > 2 && (
                           <button
                             onClick={() => setShowAllReplies(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
-                            style={styles.showMoreBtn}
+                            style={styles.showMore}
                           >
                             {showAllReplies[replyKey] ? 'Show less' : `Show ${post.comments.length - 2} more`}
                           </button>
                         )}
-                        <div style={styles.commentInputWrapper}>
+
+                        <div style={styles.sayInputRow}>
                           <input
+                            style={styles.sayInput}
                             placeholder="Say something useful..."
                             value={replyContent[replyKey] || ''}
                             onChange={e =>
                               setReplyContent(prev => ({ ...prev, [replyKey]: e.target.value }))
                             }
-                            style={styles.commentInput}
                           />
                           <button
                             onClick={() => {
@@ -437,9 +456,9 @@ export default function CommunityDesign({
                               setReplyContent(prev => ({ ...prev, [replyKey]: '' }))
                             }}
                             disabled={isReplying}
-                            style={styles.commentSend}
+                            style={styles.sendRound}
                           >
-                            <Send size={18} color="#171717" />
+                            <Send size={14} strokeWidth={2} />
                           </button>
                         </div>
                       </motion.div>
@@ -452,181 +471,158 @@ export default function CommunityDesign({
         </AnimatePresence>
       </div>
 
-      {/* Floating action button */}
-      <button style={styles.floatingAdd}>
-        <Plus size={32} strokeWidth={2.5} />
+      {/* Floating Action Button */}
+      <button style={styles.fab}>
+        <Plus size={26} strokeWidth={2.4} />
       </button>
     </div>
   )
 }
 
-// ---- Styles (exact match to your CSS) ----
+// ---- Styles (exact match to provided HTML/CSS) ----
 const styles: Record<string, React.CSSProperties> = {
-  app: {
-    width: '100%',
-    maxWidth: '620px',
-    minHeight: '100vh',
+  container: {
+    maxWidth: '480px',
     margin: '0 auto',
-    padding: '34px 26px 110px',
-    fontFamily: '"DM Sans", sans-serif',
+    minHeight: '100vh',
+    padding: '28px 20px 100px',
+    position: 'relative',
+    backgroundColor: '#121212',
     color: '#f4f2ee',
+    fontFamily: '"Nunito Sans", sans-serif',
   },
-  header: {
-    marginBottom: '30px',
-  },
-  label: {
+  // Eyebrow
+  eyebrow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    marginBottom: '20px',
-    color: '#F4A719',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '14px',
-    fontWeight: '600',
-    letterSpacing: '1.4px',
+    gap: '8px',
+    color: '#f0a637',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '13px',
+    letterSpacing: '0.12em',
     textTransform: 'uppercase',
+    marginBottom: '14px',
   },
   title: {
-    maxWidth: '570px',
-    color: '#f4f2ee',
-    fontFamily: 'Impact, "Arial Narrow", sans-serif',
-    fontSize: 'clamp(35px, 7vw, 48px)',
-    fontWeight: 900,
-    lineHeight: 0.98,
-    letterSpacing: '-1.2px',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 700,
+    fontSize: '34px',
+    lineHeight: 1.12,
+    letterSpacing: '0.01em',
     textTransform: 'uppercase',
+    margin: '0 0 14px',
   },
-  description: {
-    maxWidth: '570px',
-    marginTop: '25px',
-    color: '#9d9b98',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '17px',
-    fontWeight: 500,
-    lineHeight: 1.7,
+  subtitle: {
+    color: '#9c9895',
+    fontSize: '15px',
+    lineHeight: 1.5,
+    margin: '0 0 20px',
+    maxWidth: '46ch',
   },
-  subDescription: {
-    maxWidth: '570px',
-    marginTop: '5px',
-    color: '#888',
-    fontSize: '14px',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontWeight: 400,
-  },
+  // Stats
   stats: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '12px',
-    marginTop: '30px',
+    gap: '10px',
+    marginBottom: '20px',
   },
   stat: {
-    minHeight: '92px',
-    padding: '18px 14px',
-    border: '1px solid #303030',
-    borderRadius: '22px',
-    background: 'rgba(18,18,18,0.7)',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
+    border: '1px solid #2c2c2c',
+    borderRadius: '14px',
+    padding: '14px 6px 12px',
+    textAlign: 'center',
+    background: '#1a1a1a',
   },
-  statNumber: {
-    display: 'block',
-    color: '#f2f0ed',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '27px',
+  statNum: {
+    fontFamily: '"Fredoka", sans-serif',
     fontWeight: 600,
+    fontSize: '22px',
     lineHeight: 1,
+    marginBottom: '6px',
   },
   statLabel: {
-    display: 'block',
-    marginTop: '13px',
-    color: '#9c9a97',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '13px',
-    fontWeight: 500,
-    letterSpacing: '1px',
+    fontSize: '10.5px',
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
+    color: '#6f6c69',
+    fontWeight: 700,
   },
+  // Composer
   composer: {
-    marginTop: '42px',
-    padding: '26px',
-    border: '1px solid #343434',
-    borderRadius: '30px',
-    background: '#121212',
+    border: '1px solid #2c2c2c',
+    borderRadius: '18px',
+    background: '#1a1a1a',
+    padding: '18px',
+    marginBottom: '22px',
   },
-  composerTabs: {
+  toggleRow: {
+    display: 'flex',
+    gap: '10px',
+    marginBottom: '16px',
+  },
+  pill: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 500,
+    fontSize: '14px',
+    borderRadius: '999px',
+    padding: '9px 16px',
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    marginBottom: '24px',
-  },
-  composerTab: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '9px',
-    minHeight: '54px',
-    padding: '0 22px',
-    border: '1px solid #323232',
-    borderRadius: '30px',
-    background: 'transparent',
-    color: '#9d9a96',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '15px',
-    fontWeight: 600,
+    gap: '6px',
+    border: '1px solid #2c2c2c',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    background: 'transparent',
+    color: '#f4f2ee',
+    transition: 'all 0.2s',
   },
-  composerTabActive: {
-    borderColor: '#F4A719',
-    background: '#F4A719',
-    color: '#171717',
+  pillActive: {
+    background: '#f0a637',
+    color: '#201404',
+    borderColor: '#f0a637',
   },
   textarea: {
     width: '100%',
-    minHeight: '168px',
-    padding: '26px 25px',
+    minHeight: '84px',
     resize: 'none',
+    background: 'transparent',
+    border: '1px solid #2c2c2c',
+    borderRadius: '14px',
+    color: '#9c9895',
+    fontFamily: '"Nunito Sans", sans-serif',
+    fontSize: '15.5px',
+    lineHeight: 1.5,
+    padding: '14px',
+    marginBottom: '12px',
     outline: 'none',
-    border: '1px solid #333',
-    borderRadius: '22px',
-    background: '#111',
-    color: '#eee',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '17px',
-    fontWeight: 500,
-    lineHeight: 1.65,
-    transition: 'border-color 0.2s ease',
   },
   composerFooter: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: '24px',
   },
-  charCounter: {
-    color: '#aaa7a3',
-    fontSize: '14px',
+  charCount: {
+    color: '#6f6c69',
+    fontSize: '13px',
   },
-  publishBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    minWidth: '145px',
-    minHeight: '58px',
-    padding: '0 24px',
-    borderRadius: '17px',
-    background: '#F4A719',
-    color: '#171717',
-    fontFamily: '"Space Grotesk", sans-serif',
+  sendBtn: {
+    fontFamily: '"Fredoka", sans-serif',
     fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'background 0.2s ease',
+    fontSize: '14px',
+    background: '#4d3a1a',
+    color: '#d8a05c',
     border: 'none',
+    borderRadius: '999px',
+    padding: '10px 20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    cursor: 'pointer',
+    opacity: 0.85,
+    transition: 'opacity 0.2s',
   },
   boostFields: {
-    marginTop: '16px',
+    marginTop: '12px',
     display: 'flex',
     flexDirection: 'column',
     gap: '10px',
@@ -635,307 +631,346 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    background: '#111',
-    borderRadius: '16px',
-    padding: '0 16px',
-    border: '1px solid #333',
+    background: 'transparent',
+    border: '1px solid #2c2c2c',
+    borderRadius: '999px',
+    padding: '8px 16px',
   },
   linkInput: {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    padding: '14px 0',
-    color: '#eee',
-    fontSize: '15px',
+    color: '#f4f2ee',
+    fontSize: '14.5px',
+    fontFamily: '"Nunito Sans", sans-serif',
     outline: 'none',
-    fontFamily: '"DM Sans", sans-serif',
   },
   select: {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    padding: '14px 0',
-    color: '#eee',
-    fontSize: '15px',
+    color: '#f4f2ee',
+    fontSize: '14.5px',
+    fontFamily: '"Nunito Sans", sans-serif',
     outline: 'none',
-    fontFamily: '"DM Sans", sans-serif',
     cursor: 'pointer',
   },
-  feedTabs: {
+  // Tabs
+  tabs: {
     display: 'flex',
-    alignItems: 'center',
     gap: '10px',
-    margin: '38px 0 28px',
+    marginBottom: '20px',
   },
-  feedTab: {
-    height: '55px',
-    padding: '0 23px',
-    border: '1px solid #333',
-    borderRadius: '30px',
+  tab: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 500,
+    fontSize: '14px',
+    padding: '8px 18px',
+    borderRadius: '999px',
+    border: '1px solid #2c2c2c',
+    color: '#9c9895',
     background: 'transparent',
-    color: '#85827e',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '15px',
-    fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.2s',
   },
-  feedTabActive: {
-    borderColor: '#F4A719',
-    color: '#F4A719',
-    background: 'rgba(244,167,25,0.03)',
+  tabActive: {
+    borderColor: '#f0a637',
+    color: '#f0a637',
+    background: 'rgba(240,166,55,0.08)',
   },
+  // Feed
   feed: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0',
+    gap: '16px',
   },
   empty: {
     textAlign: 'center',
-    color: '#888',
-    padding: '3rem 0',
-    fontFamily: '"DM Sans", sans-serif',
+    color: '#6f6c69',
+    padding: '2rem 0',
+    fontFamily: '"Nunito Sans", sans-serif',
+    fontSize: '15px',
   },
-  postCard: {
+  // Post
+  post: {
+    border: '1px solid #2c2c2c',
+    borderRadius: '18px',
+    background: '#1a1a1a',
+    padding: '18px',
+  },
+  postHead: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '14px',
     position: 'relative',
-    marginBottom: '22px',
-    padding: '29px',
-    border: '1px solid #303030',
-    borderRadius: '30px',
-    background: '#121212',
-    overflow: 'hidden',
-  },
-  boostedPost: {
-    borderColor: '#3b3428',
-  },
-  postHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  postAuthor: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '17px',
   },
   avatar: {
+    width: '42px',
+    height: '42px',
+    borderRadius: '50%',
+    border: '2px solid #f0a637',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
-    width: '64px',
-    height: '64px',
-    border: '2px solid #d68c14',
-    borderRadius: '50%',
-    background: '#171717',
-    color: '#F4A719',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '20px',
+    fontFamily: '"Fredoka", sans-serif',
     fontWeight: 600,
+    fontSize: '14px',
+    color: '#f0a637',
+    flexShrink: 0,
   },
-  authorInfo: {
+  who: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '7px',
+    gap: '2px',
+    flex: 1,
   },
-  authorName: {
-    color: '#eee',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '18px',
-    fontWeight: 600,
-  },
-  boostBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    marginLeft: '7px',
-    padding: '6px 10px',
-    borderRadius: '8px',
-    background: 'rgba(244,167,25,0.15)',
-    color: '#F4A719',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.6px',
-  },
-  postTime: {
-    color: '#888581',
-    fontSize: '13px',
-  },
-  deleteBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '47px',
-    height: '47px',
-    border: '1px solid #343434',
-    borderRadius: '16px',
-    background: 'transparent',
-    color: '#8b8986',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  },
-  postContent: {
-    marginTop: '28px',
-    color: '#e9e6e2',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '19px',
-    fontWeight: 500,
-    lineHeight: 1.8,
-  },
-  linkPreview: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: '25px',
-    padding: '22px',
-    border: '1px solid #333',
-    borderRadius: '22px',
-    background: '#101010',
-    textDecoration: 'none',
-    cursor: 'pointer',
-  },
-  linkInfo: {
-    minWidth: 0,
-  },
-  linkDomain: {
-    marginBottom: '8px',
-    color: '#e5e2de',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '15px',
-    fontWeight: 600,
-  },
-  linkUrl: {
-    maxWidth: '370px',
-    overflow: 'hidden',
-    whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis',
-    color: '#878480',
-    fontSize: '13px',
-  },
-  linkAction: {
+  nameRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    color: '#F4A719',
-    fontFamily: '"Space Grotesk", sans-serif',
-    fontSize: '14px',
+    flexWrap: 'wrap',
+  },
+  name: {
+    fontFamily: '"Fredoka", sans-serif',
     fontWeight: 600,
+    fontSize: '15.5px',
+  },
+  badge: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '10.5px',
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+    padding: '3px 9px',
+    borderRadius: '999px',
+  },
+  badgeYou: {
+    border: '1px solid #2c2c2c',
+    color: '#9c9895',
+  },
+  badgeBoost: {
+    background: '#f0a637',
+    color: '#201404',
+  },
+  timestamp: {
+    fontSize: '12.5px',
+    color: '#6f6c69',
+  },
+  deleteBtn: {
+    marginLeft: 'auto',
+    width: '34px',
+    height: '34px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#6f6c69',
+    background: 'transparent',
+    border: '1px solid #2c2c2c',
+    cursor: 'pointer',
+  },
+  postBody: {
+    fontSize: '15.5px',
+    lineHeight: 1.55,
+    color: '#f4f2ee',
+    marginBottom: '14px',
+  },
+  linkCard: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+    border: '1px solid #2c2c2c',
+    borderRadius: '14px',
+    padding: '14px 16px',
+    marginBottom: '14px',
+    textDecoration: 'none',
+    cursor: 'pointer',
+  },
+  linkText: {
+    minWidth: 0,
+    flex: 1,
+  },
+  linkDomain: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 500,
+    fontSize: '14.5px',
+    color: '#f4f2ee',
+    marginBottom: '3px',
+  },
+  linkUrl: {
+    fontSize: '12.5px',
+    color: '#6f6c69',
     whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  engage: {
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '14px',
+    color: '#f0a637',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   postFooter: {
     display: 'flex',
     alignItems: 'center',
-    gap: '30px',
-    marginTop: '27px',
+    gap: '10px',
+    flexWrap: 'wrap',
   },
-  postAction: {
+  statPill: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '7px',
+    borderRadius: '999px',
+    padding: '7px 14px',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '13.5px',
+    cursor: 'pointer',
+    border: 'none',
+    background: 'transparent',
+  },
+  statPillFilled: {
+    background: '#4d3a1a',
+    color: '#f0a637',
+  },
+  statPillOutline: {
+    border: '1px solid #2c2c2c',
+    color: '#9c9895',
+  },
+  engagedCount: {
+    fontSize: '13.5px',
+    color: '#6f6c69',
+    marginLeft: '4px',
+  },
+  viewThread: {
+    marginLeft: 'auto',
+    fontSize: '13.5px',
+    color: '#6f6c69',
+    fontWeight: 600,
+    fontFamily: '"Fredoka", sans-serif',
+    cursor: 'pointer',
+  },
+  // Reply block
+  replyBlock: {
+    border: '1px solid #2c2c2c',
+    borderRadius: '16px',
+    background: '#1a1a1a',
+    padding: '16px',
+    marginTop: '16px',
+  },
+  replyTop: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '12px',
+  },
+  replyStat: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    background: '#4d3a1a',
+    color: '#f0a637',
+    borderRadius: '999px',
+    padding: '6px 13px',
+    fontFamily: '"Fredoka", sans-serif',
+    fontWeight: 600,
+    fontSize: '13px',
+  },
+  replyComment: {
+    borderTop: '1px solid #2c2c2c',
+    paddingTop: '12px',
+    marginTop: '4px',
+  },
+  whoRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    background: 'transparent',
-    color: '#85827f',
-    fontSize: '14px',
-    cursor: 'pointer',
-    transition: 'color 0.2s ease',
-    border: 'none',
+    marginBottom: '6px',
   },
-  postActionLiked: {
-    color: '#F4A719',
-  },
-  engagedCount: {
-    fontSize: '13px',
-    color: '#85827f',
-  },
-  commentSection: {
-    marginTop: '22px',
-    paddingTop: '22px',
-    borderTop: '1px solid #2b2b2b',
-  },
-  comment: {
-    marginBottom: '16px',
-  },
-  commentHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    color: '#a5a29e',
-    fontSize: '14px',
-  },
-  commentName: {
-    color: '#eee',
-    fontWeight: 600,
-  },
-  commentText: {
-    marginTop: '6px',
-    color: '#ddd',
-    fontSize: '15px',
-    lineHeight: 1.6,
-  },
-  replyDelete: {
-    background: 'none',
-    border: 'none',
-    color: '#8b8986',
-    cursor: 'pointer',
-  },
-  showMoreBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#888',
-    fontSize: '14px',
-    cursor: 'pointer',
-    padding: '8px 0',
-    fontFamily: '"DM Sans", sans-serif',
-  },
-  commentInputWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    marginTop: '18px',
-  },
-  commentInput: {
-    flex: 1,
-    minHeight: '58px',
-    padding: '0 20px',
-    border: '1px solid #333',
-    borderRadius: '19px',
-    outline: 'none',
-    background: '#101010',
-    color: '#eee',
-    fontSize: '14px',
-    fontFamily: '"DM Sans", sans-serif',
-  },
-  commentSend: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '56px',
-    height: '56px',
-    borderRadius: '18px',
-    background: '#F4A719',
-    color: '#171717',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  floatingAdd: {
-    position: 'fixed',
-    right: 'max(25px, calc((100vw - 620px) / 2 - 5px))',
-    bottom: '30px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '74px',
-    height: '74px',
+  dot: {
+    width: '7px',
+    height: '7px',
     borderRadius: '50%',
-    background: '#F4A719',
-    color: '#191919',
-    border: 'none',
-    boxShadow: '0 0 0 8px rgba(244,167,25,0.04), 0 10px 35px rgba(244,167,25,0.25)',
-    fontSize: '40px',
-    fontWeight: 300,
-    zIndex: 100,
-    cursor: 'pointer',
-    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+    background: '#6f6c69',
   },
+  closeX: {
+    marginLeft: 'auto',
+    color: '#6f6c69',
+    fontSize: '16px',
+    cursor: 'pointer',
+    background: 'none',
+    border: 'none',
+  },
+  replyText: {
+    fontSize: '15px',
+    lineHeight: 1.5,
+    color: '#f4f2ee',
+    marginBottom: '12px',
+  },
+  showMore: {
+    background: 'none',
+    border: 'none',
+    color: '#6f6c69',
+    fontSize: '14px',
+    fontFamily: '"Nunito Sans", sans-serif',
+    cursor: 'pointer',
+    padding: '4px 0',
+  },
+  sayInputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    border: '1px solid #2c2c2c',
+    borderRadius: '999px',
+    padding: '10px 8px 10px 16px',
+  },
+  sayInput: {
+    flex: 1,
+    background: 'transparent',
+    border: 'none',
+    color: '#9c9895',
+    fontSize: '14.5px',
+    fontFamily: '"Nunito Sans", sans-serif',
+    outline: 'none',
+  },
+  sendRound: {
+    width: '34px',
+    height: '34px',
+    borderRadius: '50%',
+    background: '#4d3a1a',
+    color: '#f0a637',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    border: 'none',
+    cursor: 'pointer',
+  },
+  // Floating action button
+  fab: {
+    position: 'fixed',
+    right: '24px',
+    bottom: '32px',
+    width: '58px',
+    height: '58px',
+    borderRadius: '50%',
+    background: '#f0a637',
+    color: '#201404',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    boxShadow: '0 0 24px rgba(240,166,55,0.45)',
+    cursor: 'pointer',
+  },
+  // Loading
   loading: {
     display: 'flex',
     flexDirection: 'column',
@@ -943,13 +978,13 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     padding: '4rem 0',
     gap: '1rem',
-    color: '#888',
+    color: '#6f6c69',
   },
   spinner: {
     width: '28px',
     height: '28px',
-    border: '3px solid #2A2A2A',
-    borderTop: '3px solid #F4A719',
+    border: '3px solid #2c2c2c',
+    borderTop: '3px solid #f0a637',
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
   },
