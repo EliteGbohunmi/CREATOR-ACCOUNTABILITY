@@ -6,7 +6,7 @@ import Layout from '../components/Layout'
 import PillarSetup from '../components/PillarSetup'
 import AIContentIdeas from '../components/AIContentIdeas'
 import GoodEnoughChecklist from '../components/GoodEnoughChecklist'
-import { Plus, X, CheckCircle2, Circle, Trash2, Repeat, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, X, CheckCircle2, Circle, Trash2, Repeat, ChevronLeft, ChevronRight, Flame } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const PLATFORMS = ['Instagram', 'X (Twitter)', 'TikTok', 'YouTube', 'LinkedIn', 'Threads']
@@ -59,6 +59,7 @@ export default function Planner() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [weekDays, setWeekDays] = useState<Date[]>([])
   const [weekStart, setWeekStart] = useState('monday')
+  const [lastCheckedIn, setLastCheckedIn] = useState<string | null>(null) // 👈 streak check-in date
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -71,6 +72,7 @@ export default function Planner() {
         }
       })
     fetchPillars()
+    fetchStreak() // 👈 fetch streak
   }, [])
 
   useEffect(() => { setWeekDays(getWeekDays(weekOffset, weekStart)) }, [weekOffset, weekStart])
@@ -79,6 +81,15 @@ export default function Planner() {
   const fetchPillars = async () => {
     const { data } = await supabase.from('pillars').select('*').eq('user_id', user!.id)
     setPillars(data || [])
+  }
+
+  const fetchStreak = async () => {
+    const { data } = await supabase
+      .from('streaks')
+      .select('last_checked_in')
+      .eq('user_id', user!.id)
+      .single()
+    if (data) setLastCheckedIn(data.last_checked_in)
   }
 
   const fetchTasks = async () => {
@@ -166,7 +177,7 @@ export default function Planner() {
     return `${from} — ${to}`
   }
 
-  const canGoPrev = weekOffset > 0 // prevent going to past weeks
+  const canGoPrev = weekOffset > 0
 
   return (
     <Layout>
@@ -296,6 +307,8 @@ export default function Planner() {
           const dateStr = day.toISOString().split('T')[0]
           const dayTasks = tasks.filter(t => t.date === dateStr)
           const isToday = dateStr === today
+          const posted = lastCheckedIn === dateStr // 👈 check if user posted that day
+
           return (
             <div key={dateStr} style={{ ...styles.dayBlock, borderColor: isToday ? '#F5A62340' : '#1E1E1E' }}>
               <div style={styles.dayHeader}>
@@ -305,12 +318,22 @@ export default function Planner() {
                 <span style={{ color: isToday ? '#F5A623' : '#333', fontSize: '0.78rem' }}>
                   {day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </span>
+                {/* Post status badge */}
+                {posted ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#4CAF50', fontSize: '0.7rem', marginLeft: '0.5rem' }}>
+                    <CheckCircle2 size={12} color="#4CAF50" /> Posted
+                  </span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#E53E3E', fontSize: '0.7rem', marginLeft: '0.5rem' }}>
+                    <X size={12} color="#E53E3E" /> No post
+                  </span>
+                )}
                 <button style={styles.addDayBtn} onClick={() => { setDate(dateStr); setSelectedDate(dateStr); setShowForm(true) }}>
                   <Plus size={13} color="#555" />
                 </button>
               </div>
               {dayTasks.length === 0 ? (
-                <p style={{ color: '#333', fontSize: '0.8rem', margin: '0.4rem 0 0' }}>No tasks</p>
+                <p style={{ color: '#333', fontSize: '0.8rem', margin: '0.4rem 0 0' }}>No tasks planned</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
                   {dayTasks.map(task => (
