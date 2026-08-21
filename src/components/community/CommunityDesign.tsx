@@ -152,18 +152,17 @@ export default function CommunityDesign({
 
   return (
     <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
+      {/* Head */}
+      <div style={styles.head}>
         <div style={styles.eyebrow}>
-          <Flame size={18} color="#F5A623" />
           <span>CREATOR COMMUNITY</span>
         </div>
         <h1 style={styles.title}>SAY HI. ASK FOR ENGAGEMENT. SHOW UP FOR EACH OTHER.</h1>
-        <p style={styles.subtitle}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
+        <p style={styles.sub}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
       </div>
 
       {/* Stats */}
-      <div style={styles.statsBar}>
+      <div style={styles.stats}>
         <span style={styles.statItem}>{totalPosts} POSTS</span>
         <span style={styles.statDot}>·</span>
         <span style={styles.statItem}>{totalCreators} CREATORS</span>
@@ -173,77 +172,78 @@ export default function CommunityDesign({
         <span style={styles.statItem}>{totalReplies} REPLIES</span>
       </div>
 
-      {/* Composer tabs */}
-      <div style={styles.composerTabs}>
-        <button
-          style={{ ...styles.composerTab, ...(postType === 'say_hi' ? styles.composerTabActive : {}) }}
-          onClick={() => setPostType('say_hi')}
-        >
-          Say hi
-        </button>
-        <button
-          style={{ ...styles.composerTab, ...(postType === 'boost' ? styles.composerTabActive : {}) }}
-          onClick={() => setPostType('boost')}
-        >
-          Boost my post
-        </button>
-      </div>
-
       {/* Composer */}
-      <form onSubmit={handleSubmit} style={styles.composer}>
-        <textarea
-          placeholder={
-            postType === 'say_hi'
-              ? "Say hi – who are you, what are you building, what's your niche?"
-              : "What's your post about? Why should people engage?"
-          }
-          value={newContent}
-          onChange={e => setNewContent(e.target.value)}
-          style={styles.textarea}
-          rows={3}
-        />
-        <div style={styles.composerFooter}>
-          <span style={styles.charCounter}>{newContent.length}/2000</span>
-          <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.postBtn}>
-            {isPosting ? '...' : 'Say hi'}
+      <div style={styles.composer}>
+        <div style={styles.tabs}>
+          <button
+            style={{ ...styles.pill, ...(postType === 'say_hi' ? styles.pillActive : {}) }}
+            onClick={() => setPostType('say_hi')}
+          >
+            Say hi
+          </button>
+          <button
+            style={{ ...styles.pill, ...(postType === 'boost' ? styles.pillActive : {}) }}
+            onClick={() => setPostType('boost')}
+          >
+            Boost my post
           </button>
         </div>
 
-        {postType === 'boost' && (
-          <div style={styles.boostFields}>
-            <div style={styles.fieldRow}>
-              <Link2 size={14} color="#666" />
-              <input
-                placeholder="Paste your post link"
-                value={newLink}
-                onChange={e => setNewLink(e.target.value)}
-                style={styles.linkInput}
-              />
-            </div>
-            <div style={styles.fieldRow}>
-              <select
-                value={newPlatform}
-                onChange={e => setNewPlatform(e.target.value)}
-                style={styles.select}
-              >
-                <option value="">Platform</option>
-                {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select
-                value={newEngagementType}
-                onChange={e => setNewEngagementType(e.target.value)}
-                style={styles.select}
-              >
-                <option value="">Ask for</option>
-                {ENGAGEMENT_TYPES.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
+        <form onSubmit={handleSubmit}>
+          <textarea
+            style={styles.textarea}
+            placeholder={
+              postType === 'say_hi'
+                ? "Say hi – who are you, what are you building, what's your niche?"
+                : "What's your post about? Why should people engage?"
+            }
+            value={newContent}
+            onChange={e => setNewContent(e.target.value)}
+            rows={3}
+          />
+          <div style={styles.composerFooter}>
+            <span style={styles.count}>{newContent.length}/2000</span>
+            <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.send}>
+              {isPosting ? '...' : 'Say hi'}
+            </button>
           </div>
-        )}
-      </form>
 
-      {/* Filter tabs */}
-      <div style={styles.filterTabs}>
+          {postType === 'boost' && (
+            <div style={styles.boostFields}>
+              <div style={styles.fieldRow}>
+                <Link2 size={15} color="#6f6c69" />
+                <input
+                  style={styles.linkInput}
+                  placeholder="Paste your post link"
+                  value={newLink}
+                  onChange={e => setNewLink(e.target.value)}
+                />
+              </div>
+              <div style={styles.fieldRow}>
+                <select
+                  style={styles.select}
+                  value={newPlatform}
+                  onChange={e => setNewPlatform(e.target.value)}
+                >
+                  <option value="">Platform</option>
+                  {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select
+                  style={styles.select}
+                  value={newEngagementType}
+                  onChange={e => setNewEngagementType(e.target.value)}
+                >
+                  <option value="">Ask for</option>
+                  {ENGAGEMENT_TYPES.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
+
+      {/* Feed filters */}
+      <div style={styles.filterRow}>
         <button
           style={{ ...styles.filterTab, ...(filter === 'all' ? styles.filterTabActive : {}) }}
           onClick={() => onFilterChange('all')}
@@ -289,27 +289,30 @@ export default function CommunityDesign({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  {/* Card header */}
-                  <div style={styles.cardHeader}>
+                  {/* Header */}
+                  <div style={styles.cardHead}>
                     <div style={styles.avatar}>
                       {post.profiles?.name?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div style={styles.meta}>
                       <div style={styles.nameRow}>
                         <span style={styles.name}>{post.profiles?.name || 'Unknown'}</span>
-                        {isBoost && <span style={styles.boostChip}>BOOST</span>}
+                        {isBoost && <span style={styles.boostBadge}>BOOST</span>}
                       </div>
                       <span style={styles.time}>{formatTime(post.created_at)}</span>
                     </div>
                     {isOwner && (
-                      <button onClick={() => onDeletePost(post.id)} style={styles.deleteBtn}>
-                        <Trash2 size={14} color="#E53E3E" />
+                      <button
+                        onClick={() => onDeletePost(post.id)}
+                        style={styles.deleteBtn}
+                      >
+                        <Trash2 size={16} strokeWidth={2} />
                       </button>
                     )}
                   </div>
 
-                  {/* Content */}
-                  <p style={styles.content}>{post.content}</p>
+                  {/* Body */}
+                  <p style={styles.body}>{post.content}</p>
 
                   {/* Link preview (boost only) */}
                   {isBoost && post.link && (
@@ -317,10 +320,10 @@ export default function CommunityDesign({
                       href={post.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={styles.linkPreview}
+                      style={styles.linkCard}
                     >
-                      <div style={styles.linkPreviewContent}>
-                        <span style={styles.linkPlatform}>{post.platform || 'Link'}</span>
+                      <div style={styles.linkText}>
+                        <span style={styles.linkDomain}>{post.platform || 'Link'}</span>
                         <span style={styles.linkUrl}>{post.link}</span>
                       </div>
                       <div style={styles.engageLabel}>
@@ -363,6 +366,9 @@ export default function CommunityDesign({
                       </>
                     )}
                   </div>
+
+                  {/* Edit with Lovable */}
+                  <div style={styles.editLabel}>Edit with Lovable</div>
 
                   {/* Replies */}
                   <AnimatePresence>
@@ -443,19 +449,16 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#0A0A0A',
     color: '#F0EDE8',
   },
-  header: {
+  head: {
     marginBottom: '2rem',
   },
   eyebrow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
     color: '#F5A623',
     fontSize: '0.75rem',
     fontWeight: '600',
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
-    marginBottom: '0.5rem',
+    marginBottom: '0.3rem',
   },
   title: {
     fontSize: 'clamp(1.5rem, 4vw, 2.2rem)',
@@ -466,13 +469,13 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '-0.02em',
     textTransform: 'uppercase',
   },
-  subtitle: {
+  sub: {
     color: '#666',
     fontSize: '0.9rem',
     margin: 0,
     lineHeight: 1.6,
   },
-  statsBar: {
+  stats: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
@@ -490,12 +493,19 @@ const styles: Record<string, React.CSSProperties> = {
   statDot: {
     color: '#444',
   },
-  composerTabs: {
+  composer: {
+    background: '#1C1C1C',
+    border: '1px solid #2A2A2A',
+    borderRadius: '16px',
+    padding: '1rem 1.25rem',
+    marginBottom: '1.5rem',
+  },
+  tabs: {
     display: 'flex',
     gap: '0.5rem',
     marginBottom: '1rem',
   },
-  composerTab: {
+  pill: {
     background: 'transparent',
     border: '1px solid #2A2A2A',
     borderRadius: '8px',
@@ -506,17 +516,10 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     transition: 'all 0.2s',
   },
-  composerTabActive: {
+  pillActive: {
     background: '#F5A623',
     color: '#0A0A0A',
     borderColor: '#F5A623',
-  },
-  composer: {
-    background: '#1C1C1C',
-    border: '1px solid #2A2A2A',
-    borderRadius: '16px',
-    padding: '1rem 1.25rem',
-    marginBottom: '1.5rem',
   },
   textarea: {
     width: '100%',
@@ -539,11 +542,11 @@ const styles: Record<string, React.CSSProperties> = {
     paddingTop: '0.5rem',
     borderTop: '1px solid #2A2A2A',
   },
-  charCounter: {
+  count: {
     color: '#555',
     fontSize: '0.8rem',
   },
-  postBtn: {
+  send: {
     background: '#F5A623',
     color: '#0A0A0A',
     border: 'none',
@@ -591,7 +594,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     appearance: 'auto',
   },
-  filterTabs: {
+  filterRow: {
     display: 'flex',
     gap: '1.5rem',
     marginBottom: '1.5rem',
@@ -628,7 +631,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '16px',
     padding: '1.25rem',
   },
-  cardHeader: {
+  cardHead: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
@@ -663,7 +666,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
     color: '#F0EDE8',
   },
-  boostChip: {
+  boostBadge: {
     fontSize: '0.6rem',
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -685,13 +688,13 @@ const styles: Record<string, React.CSSProperties> = {
     opacity: 0.5,
     transition: 'opacity 0.2s',
   },
-  content: {
+  body: {
     margin: '0.2rem 0 0.6rem',
     fontSize: '0.95rem',
     lineHeight: 1.6,
     color: '#DDD',
   },
-  linkPreview: {
+  linkCard: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -703,14 +706,14 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     border: '1px solid #2A2A2A',
   },
-  linkPreviewContent: {
+  linkText: {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.1rem',
     overflow: 'hidden',
     flex: 1,
   },
-  linkPlatform: {
+  linkDomain: {
     fontSize: '0.7rem',
     color: '#F5A623',
     fontWeight: '600',
@@ -763,6 +766,14 @@ const styles: Record<string, React.CSSProperties> = {
   engagedCount: {
     fontSize: '0.7rem',
     color: '#666',
+  },
+  editLabel: {
+    fontSize: '0.7rem',
+    color: '#444',
+    marginTop: '0.4rem',
+    textAlign: 'right',
+    borderTop: '1px solid #1A1A1A',
+    paddingTop: '0.4rem',
   },
   replySection: {
     marginTop: '0.75rem',

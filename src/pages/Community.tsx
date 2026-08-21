@@ -22,7 +22,6 @@ export default function Community() {
 
   const fetchPosts = useCallback(async () => {
     try {
-      // Fetch posts with profiles (no streak_days)
       const { data: postsData, error: postsError } = await supabase
         .from('community_posts')
         .select(`
@@ -43,7 +42,6 @@ export default function Community() {
 
       const postIds = postsData?.map(p => p.id) || []
 
-      // Fetch comments
       const { data: commentsData, error: commentsError } = await supabase
         .from('community_comments')
         .select(`
@@ -58,7 +56,6 @@ export default function Community() {
 
       if (commentsError) throw commentsError
 
-      // Fetch likes
       const { data: likesData, error: likesError } = await supabase
         .from('community_likes')
         .select('id, user_id, post_id')
@@ -66,7 +63,6 @@ export default function Community() {
 
       if (likesError) throw likesError
 
-      // Fetch boosts
       const { data: boostsData, error: boostsError } = await supabase
         .from('community_boosts')
         .select('id, user_id, post_id')
@@ -74,7 +70,6 @@ export default function Community() {
 
       if (boostsError) throw boostsError
 
-      // Fetch engagements
       const { data: engagementsData, error: engagementsError } = await supabase
         .from('community_engagements')
         .select('id, user_id, post_id')
@@ -82,7 +77,6 @@ export default function Community() {
 
       if (engagementsError) throw engagementsError
 
-      // Group data
       const commentsByPost: Record<string, any[]> = {}
       commentsData?.forEach((c: any) => {
         if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
@@ -160,7 +154,6 @@ export default function Community() {
     fetchPosts()
   }, [fetchPosts])
 
-  // Realtime
   useEffect(() => {
     const channel = supabase
       .channel('community-board')
@@ -224,8 +217,9 @@ export default function Community() {
       return
     }
     setIsPosting(true)
-    try {
-      const payload = {
+    const { error } = await supabase
+      .from('community_posts')
+      .insert({
         content,
         link,
         user_id: currentUserId,
@@ -233,30 +227,15 @@ export default function Community() {
         platform: platform || null,
         engagement_type: engagementType || null,
         engaged_by: [],
-      }
-      console.log('📤 Creating post with payload:', payload)
-
-      const { data, error } = await supabase
-        .from('community_posts')
-        .insert(payload)
-        .select()
-
-      if (error) {
-        console.error('❌ Supabase insert error:', error)
-        toast.error('Failed to post: ' + error.message)
-        setIsPosting(false)
-        return
-      }
-
-      console.log('✅ Post created:', data)
-      toast.success('Posted to the community board')
-      fetchPosts()
-    } catch (err: any) {
-      console.error('💥 Unexpected error:', err)
-      toast.error('Unexpected error: ' + err.message)
-    } finally {
-      setIsPosting(false)
+      })
+    setIsPosting(false)
+    if (error) {
+      console.error(error)
+      toast.error("Couldn't post that: " + error.message)
+      return
     }
+    toast.success('Posted to the community board')
+    fetchPosts()
   }
 
   const onDeletePost = async (postId: string) => {
