@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare,
-  Flame, Hand, ExternalLink
+  Flame, Hand, ExternalLink, Plus
 } from 'lucide-react'
 
 export type CommunityPost = {
@@ -151,110 +151,128 @@ export default function CommunityDesign({
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.app}>
       {/* Header */}
       <div style={styles.header}>
+        <div style={styles.label}>
+          <Flame size={18} color="#F4A719" />
+          Community
+        </div>
         <h1 style={styles.title}>Creator Community</h1>
-        <h2 style={styles.subtitle}>Say hi. Ask for engagement. Show up for each other.</h2>
-        <p style={styles.description}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
+        <p style={styles.description}>
+          Say hi. Ask for engagement. Show up for each other.
+        </p>
+        <p style={styles.subDescription}>
+          Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.
+        </p>
       </div>
 
       {/* Stats */}
-      <div style={styles.statsBar}>
-        <span style={styles.statItem}>{totalPosts} Posts</span>
-        <span style={styles.statDot}>·</span>
-        <span style={styles.statItem}>{totalCreators} Creators</span>
-        <span style={styles.statDot}>·</span>
-        <span style={styles.statItem}>{totalBoosts} Boosts</span>
-        <span style={styles.statDot}>·</span>
-        <span style={styles.statItem}>{totalReplies} Replies</span>
-      </div>
-
-      {/* Composer tabs */}
-      <div style={styles.composerTabs}>
-        <button
-          style={{ ...styles.composerTab, ...(postType === 'say_hi' ? styles.composerTabActive : {}) }}
-          onClick={() => setPostType('say_hi')}
-        >
-          Say hi
-        </button>
-        <button
-          style={{ ...styles.composerTab, ...(postType === 'boost' ? styles.composerTabActive : {}) }}
-          onClick={() => setPostType('boost')}
-        >
-          Boost my post
-        </button>
+      <div style={styles.stats}>
+        <div style={styles.stat}>
+          <span style={styles.statNumber}>{totalPosts}</span>
+          <span style={styles.statLabel}>Posts</span>
+        </div>
+        <div style={styles.stat}>
+          <span style={styles.statNumber}>{totalCreators}</span>
+          <span style={styles.statLabel}>Creators</span>
+        </div>
+        <div style={styles.stat}>
+          <span style={styles.statNumber}>{totalBoosts}</span>
+          <span style={styles.statLabel}>Boosts</span>
+        </div>
+        <div style={styles.stat}>
+          <span style={styles.statNumber}>{totalReplies}</span>
+          <span style={styles.statLabel}>Replies</span>
+        </div>
       </div>
 
       {/* Composer */}
-      <form onSubmit={handleSubmit} style={styles.composer}>
-        <textarea
-          placeholder={
-            postType === 'say_hi'
-              ? "Say hi – who are you, what are you building, what's your niche?"
-              : "What's your post about? Why should people engage?"
-          }
-          value={newContent}
-          onChange={e => setNewContent(e.target.value)}
-          style={styles.textarea}
-          rows={3}
-        />
-        <div style={styles.composerFooter}>
-          <span style={styles.charCounter}>{newContent.length}/2000</span>
-          <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.postBtn}>
-            {isPosting ? '...' : 'Say hi'}
+      <div style={styles.composer}>
+        <div style={styles.composerTabs}>
+          <button
+            style={{ ...styles.composerTab, ...(postType === 'say_hi' ? styles.composerTabActive : {}) }}
+            onClick={() => setPostType('say_hi')}
+          >
+            Say hi
+          </button>
+          <button
+            style={{ ...styles.composerTab, ...(postType === 'boost' ? styles.composerTabActive : {}) }}
+            onClick={() => setPostType('boost')}
+          >
+            Boost my post
           </button>
         </div>
 
-        {postType === 'boost' && (
-          <div style={styles.boostFields}>
-            <div style={styles.fieldRow}>
-              <Link2 size={14} color="#666" />
-              <input
-                placeholder="Paste your post link"
-                value={newLink}
-                onChange={e => setNewLink(e.target.value)}
-                style={styles.linkInput}
-              />
-            </div>
-            <div style={styles.fieldRow}>
-              <select
-                value={newPlatform}
-                onChange={e => setNewPlatform(e.target.value)}
-                style={styles.select}
-              >
-                <option value="">Platform</option>
-                {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select
-                value={newEngagementType}
-                onChange={e => setNewEngagementType(e.target.value)}
-                style={styles.select}
-              >
-                <option value="">Ask for</option>
-                {ENGAGEMENT_TYPES.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
+        <form onSubmit={handleSubmit}>
+          <textarea
+            placeholder={
+              postType === 'say_hi'
+                ? "Say hi – who are you, what are you building, what's your niche?"
+                : "What's your post about? Why should people engage?"
+            }
+            value={newContent}
+            onChange={e => setNewContent(e.target.value)}
+            style={styles.textarea}
+            rows={4}
+          />
+          <div style={styles.composerFooter}>
+            <span style={styles.charCounter}>{newContent.length}/2000</span>
+            <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.publishBtn}>
+              {isPosting ? '...' : 'Say hi'}
+            </button>
           </div>
-        )}
-      </form>
+
+          {postType === 'boost' && (
+            <div style={styles.boostFields}>
+              <div style={styles.fieldRow}>
+                <Link2 size={16} color="#666" />
+                <input
+                  placeholder="Paste your post link"
+                  value={newLink}
+                  onChange={e => setNewLink(e.target.value)}
+                  style={styles.linkInput}
+                />
+              </div>
+              <div style={styles.fieldRow}>
+                <select
+                  value={newPlatform}
+                  onChange={e => setNewPlatform(e.target.value)}
+                  style={styles.select}
+                >
+                  <option value="">Platform</option>
+                  {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select
+                  value={newEngagementType}
+                  onChange={e => setNewEngagementType(e.target.value)}
+                  style={styles.select}
+                >
+                  <option value="">Ask for</option>
+                  {ENGAGEMENT_TYPES.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
 
       {/* Filter tabs */}
-      <div style={styles.filterTabs}>
+      <div style={styles.feedTabs}>
         <button
-          style={{ ...styles.filterTab, ...(filter === 'all' ? styles.filterTabActive : {}) }}
+          style={{ ...styles.feedTab, ...(filter === 'all' ? styles.feedTabActive : {}) }}
           onClick={() => onFilterChange('all')}
         >
           Everything
         </button>
         <button
-          style={{ ...styles.filterTab, ...(filter === 'boost' ? styles.filterTabActive : {}) }}
+          style={{ ...styles.feedTab, ...(filter === 'boost' ? styles.feedTabActive : {}) }}
           onClick={() => onFilterChange('boost')}
         >
           Boosts
         </button>
         <button
-          style={{ ...styles.filterTab, ...(filter === 'mine' ? styles.filterTabActive : {}) }}
+          style={{ ...styles.feedTab, ...(filter === 'mine' ? styles.feedTabActive : {}) }}
           onClick={() => onFilterChange('mine')}
         >
           Mine
@@ -281,34 +299,36 @@ export default function CommunityDesign({
               return (
                 <motion.div
                   key={post.id}
-                  style={styles.card}
+                  style={{ ...styles.postCard, ...(isBoost ? styles.boostedPost : {}) }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  {/* Card header */}
-                  <div style={styles.cardHeader}>
-                    <div style={styles.avatar}>
-                      {post.profiles?.name?.[0]?.toUpperCase() || '?'}
-                    </div>
-                    <div style={styles.meta}>
-                      <div style={styles.nameRow}>
-                        <span style={styles.name}>{post.profiles?.name || 'Unknown'}</span>
-                        {isBoost && <span style={styles.boostChip}>BOOST</span>}
+                  {/* Header */}
+                  <div style={styles.postHeader}>
+                    <div style={styles.postAuthor}>
+                      <div style={styles.avatar}>
+                        {post.profiles?.name?.[0]?.toUpperCase() || '?'}
                       </div>
-                      <span style={styles.time}>{formatTime(post.created_at)}</span>
+                      <div style={styles.authorInfo}>
+                        <div style={styles.authorName}>
+                          {post.profiles?.name || 'Unknown'}
+                          {isBoost && <span style={styles.boostBadge}>BOOST</span>}
+                        </div>
+                        <span style={styles.postTime}>{formatTime(post.created_at)}</span>
+                      </div>
                     </div>
                     {isOwner && (
                       <button onClick={() => onDeletePost(post.id)} style={styles.deleteBtn}>
-                        <Trash2 size={14} color="#E53E3E" />
+                        <Trash2 size={18} color="#8b8986" />
                       </button>
                     )}
                   </div>
 
                   {/* Content */}
-                  <p style={styles.content}>{post.content}</p>
+                  <p style={styles.postContent}>{post.content}</p>
 
-                  {/* Link preview (boost only) */}
+                  {/* Link preview */}
                   {isBoost && post.link && (
                     <a
                       href={post.link}
@@ -316,74 +336,80 @@ export default function CommunityDesign({
                       rel="noopener noreferrer"
                       style={styles.linkPreview}
                     >
-                      <div style={styles.linkPreviewContent}>
-                        <span style={styles.linkPlatform}>{post.platform || 'Link'}</span>
-                        <span style={styles.linkUrl}>{post.link}</span>
+                      <div style={styles.linkInfo}>
+                        <div style={styles.linkDomain}>{post.platform || 'Link'}</div>
+                        <div style={styles.linkUrl}>{post.link}</div>
                       </div>
-                      <ExternalLink size={14} color="#666" />
+                      <div style={styles.linkAction}>
+                        <ExternalLink size={16} />
+                        Visit
+                      </div>
                     </a>
                   )}
 
-                  {/* Engagement actions */}
-                  <div style={styles.actions}>
+                  {/* Footer actions */}
+                  <div style={styles.postFooter}>
                     <button
                       onClick={() => onToggleLike(post.id)}
-                      style={{ ...styles.actionBtn, color: liked ? '#F5A623' : '#666' }}
+                      style={{ ...styles.postAction, ...(liked ? styles.postActionLiked : {}) }}
                     >
-                      <Heart size={16} fill={liked ? '#F5A623' : 'none'} />
-                      <span>{post.likes?.length || 0}</span>
+                      <Heart size={20} fill={liked ? '#F4A719' : 'none'} />
+                      {post.likes?.length || 0}
                     </button>
                     <button
                       onClick={() => setReplyOpen(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
-                      style={styles.actionBtn}
+                      style={styles.postAction}
                     >
-                      <MessageCircle size={16} />
-                      <span>{post.comments?.length || 0}</span>
+                      <MessageCircle size={20} />
+                      {post.comments?.length || 0}
                     </button>
                     {isBoost && (
                       <>
                         <button
                           onClick={() => onToggleEngagement(post.id)}
                           style={{
-                            ...styles.engageBtn,
-                            background: engaged ? '#2A2A2A' : '#F5A623',
-                            color: engaged ? '#888' : '#0A0A0A',
+                            ...styles.postAction,
+                            background: engaged ? 'rgba(244,167,25,0.15)' : 'transparent',
+                            color: engaged ? '#F4A719' : '#85827f',
+                            padding: '4px 12px',
+                            borderRadius: '20px',
                           }}
                         >
-                          {engaged ? 'Engaged ✓' : 'I engaged'}
+                          {engaged ? '✓ Engaged' : 'I engaged'}
                         </button>
                         <span style={styles.engagedCount}>
                           {engagementCount} {engagementCount === 1 ? 'creator' : 'creators'} engaged
                         </span>
                       </>
                     )}
-                    <span style={styles.engageLabel}>Engage</span>
                   </div>
 
                   {/* Replies */}
                   <AnimatePresence>
                     {isReplyOpen && (
                       <motion.div
-                        style={styles.replySection}
+                        style={styles.commentSection}
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                       >
                         {repliesToShow.map(comment => (
-                          <div key={comment.id} style={styles.replyItem}>
-                            <span style={styles.replyName}>
-                              {comment.user_id === currentUserId ? 'You' : comment.profiles?.name || 'Anonymous'}
-                            </span>
-                            <span style={styles.replyText}>{comment.content}</span>
-                            <span style={styles.replyTime}>{formatTime(comment.created_at)}</span>
-                            {comment.user_id === currentUserId && (
-                              <button
-                                onClick={() => onDeleteReply(post.id, comment.id)}
-                                style={styles.replyDelete}
-                              >
-                                <Trash2 size={12} color="#E53E3E" />
-                              </button>
-                            )}
+                          <div key={comment.id} style={styles.comment}>
+                            <div style={styles.commentHeader}>
+                              <span style={styles.commentName}>
+                                {comment.user_id === currentUserId ? 'You' : comment.profiles?.name || 'Anonymous'}
+                              </span>
+                              <span>{formatTime(comment.created_at)}</span>
+                              {comment.user_id === currentUserId && (
+                                <button
+                                  onClick={() => onDeleteReply(post.id, comment.id)}
+                                  style={styles.replyDelete}
+                                >
+                                  <Trash2 size={14} color="#8b8986" />
+                                </button>
+                              )}
+                            </div>
+                            <p style={styles.commentText}>{comment.content}</p>
                           </div>
                         ))}
                         {post.comments.length > 2 && (
@@ -394,14 +420,14 @@ export default function CommunityDesign({
                             {showAllReplies[replyKey] ? 'Show less' : `Show ${post.comments.length - 2} more`}
                           </button>
                         )}
-                        <div style={styles.replyInputRow}>
+                        <div style={styles.commentInputWrapper}>
                           <input
                             placeholder="Say something useful..."
                             value={replyContent[replyKey] || ''}
                             onChange={e =>
                               setReplyContent(prev => ({ ...prev, [replyKey]: e.target.value }))
                             }
-                            style={styles.replyInput}
+                            style={styles.commentInput}
                           />
                           <button
                             onClick={() => {
@@ -411,9 +437,9 @@ export default function CommunityDesign({
                               setReplyContent(prev => ({ ...prev, [replyKey]: '' }))
                             }}
                             disabled={isReplying}
-                            style={styles.replySend}
+                            style={styles.commentSend}
                           >
-                            <Send size={14} />
+                            <Send size={18} color="#171717" />
                           </button>
                         </div>
                       </motion.div>
@@ -425,395 +451,490 @@ export default function CommunityDesign({
           )}
         </AnimatePresence>
       </div>
+
+      {/* Floating action button */}
+      <button style={styles.floatingAdd}>
+        <Plus size={32} strokeWidth={2.5} />
+      </button>
     </div>
   )
 }
 
-// ---- Styles ----
+// ---- Styles (exact match to your CSS) ----
 const styles: Record<string, React.CSSProperties> = {
-  container: {
-    
+  app: {
+    width: '100%',
+    maxWidth: '620px',
+    minHeight: '100vh',
     margin: '0 auto',
-    padding: '1rem 0.25rem 3rem',
-    fontFamily: 'Inter, system-ui, sans-serif',
-    color: '#F0EDE8',
+    padding: '34px 26px 110px',
+    fontFamily: '"DM Sans", sans-serif',
+    color: '#f4f2ee',
   },
   header: {
-    marginBottom: '1.5rem',
+    marginBottom: '30px',
+  },
+  label: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '20px',
+    color: '#F4A719',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '14px',
+    fontWeight: '600',
+    letterSpacing: '1.4px',
+    textTransform: 'uppercase',
   },
   title: {
-    fontSize: '2rem',
-    fontWeight: '700',
-    fontFamily: 'Space Grotesk, sans-serif',
-    margin: '0 0 0.2rem',
-    color: '#F0EDE8',
-    letterSpacing: '-0.02em',
-  },
-  subtitle: {
-    fontSize: '1rem',
-    fontWeight: '500',
-    color: '#F0EDE8',
-    margin: '0 0 0.2rem',
+    maxWidth: '570px',
+    color: '#f4f2ee',
+    fontFamily: 'Impact, "Arial Narrow", sans-serif',
+    fontSize: 'clamp(35px, 7vw, 48px)',
+    fontWeight: 900,
+    lineHeight: 0.98,
+    letterSpacing: '-1.2px',
+    textTransform: 'uppercase',
   },
   description: {
-    fontSize: '0.9rem',
-    color: '#888',
-    margin: 0,
+    maxWidth: '570px',
+    marginTop: '25px',
+    color: '#9d9b98',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '17px',
+    fontWeight: 500,
+    lineHeight: 1.7,
   },
-  statsBar: {
+  subDescription: {
+    maxWidth: '570px',
+    marginTop: '5px',
+    color: '#888',
+    fontSize: '14px',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontWeight: 400,
+  },
+  stats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '12px',
+    marginTop: '30px',
+  },
+  stat: {
+    minHeight: '92px',
+    padding: '18px 14px',
+    border: '1px solid #303030',
+    borderRadius: '22px',
+    background: 'rgba(18,18,18,0.7)',
     display: 'flex',
-    gap: '0.75rem',
-    flexWrap: 'wrap',
-    marginBottom: '1.5rem',
-    fontSize: '0.9rem',
-    color: '#888',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
   },
-  statItem: {
-    fontWeight: '500',
+  statNumber: {
+    display: 'block',
+    color: '#f2f0ed',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '27px',
+    fontWeight: 600,
+    lineHeight: 1,
   },
-  statDot: {
-    color: '#555',
+  statLabel: {
+    display: 'block',
+    marginTop: '13px',
+    color: '#9c9a97',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '13px',
+    fontWeight: 500,
+    letterSpacing: '1px',
+    textTransform: 'uppercase',
+  },
+  composer: {
+    marginTop: '42px',
+    padding: '26px',
+    border: '1px solid #343434',
+    borderRadius: '30px',
+    background: '#121212',
   },
   composerTabs: {
     display: 'flex',
-    gap: '0.5rem',
-    marginBottom: '0.75rem',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '24px',
   },
   composerTab: {
-    background: 'none',
-    border: 'none',
-    padding: '0.4rem 1rem',
-    borderRadius: '6px',
-    color: '#888',
-    fontSize: '0.85rem',
-    fontWeight: '500',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '9px',
+    minHeight: '54px',
+    padding: '0 22px',
+    border: '1px solid #323232',
+    borderRadius: '30px',
+    background: 'transparent',
+    color: '#9d9a96',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '15px',
+    fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 0.2s',
+    transition: 'all 0.2s ease',
   },
   composerTabActive: {
-    background: '#F5A623',
-    color: '#0A0A0A',
-  },
-  composer: {
-    background: '#1C1C1C',
-    border: '1px solid #2A2A2A',
-    borderRadius: '12px',
-    padding: '1rem 1.25rem',
-    marginBottom: '1.5rem',
+    borderColor: '#F4A719',
+    background: '#F4A719',
+    color: '#171717',
   },
   textarea: {
     width: '100%',
-    background: 'transparent',
-    border: 'none',
-    padding: '0.5rem 0',
-    color: '#F0EDE8',
-    fontSize: '0.95rem',
-    fontFamily: 'inherit',
-    resize: 'vertical',
-    minHeight: '80px',
+    minHeight: '168px',
+    padding: '26px 25px',
+    resize: 'none',
     outline: 'none',
+    border: '1px solid #333',
+    borderRadius: '22px',
+    background: '#111',
+    color: '#eee',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '17px',
+    fontWeight: 500,
+    lineHeight: 1.65,
+    transition: 'border-color 0.2s ease',
   },
   composerFooter: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: '0.5rem',
-    paddingTop: '0.5rem',
-    borderTop: '1px solid #2A2A2A',
+    justifyContent: 'space-between',
+    marginTop: '24px',
   },
   charCounter: {
-    color: '#555',
-    fontSize: '0.8rem',
+    color: '#aaa7a3',
+    fontSize: '14px',
   },
-  postBtn: {
-    background: '#F5A623',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '0.4rem 1.25rem',
-    color: '#0A0A0A',
-    fontWeight: '600',
-    fontSize: '0.85rem',
+  publishBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    minWidth: '145px',
+    minHeight: '58px',
+    padding: '0 24px',
+    borderRadius: '17px',
+    background: '#F4A719',
+    color: '#171717',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontWeight: 600,
     cursor: 'pointer',
-    transition: 'background 0.2s',
+    transition: 'background 0.2s ease',
+    border: 'none',
   },
   boostFields: {
-    marginTop: '0.75rem',
+    marginTop: '16px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem',
+    gap: '10px',
   },
   fieldRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    background: '#0F0F0F',
-    borderRadius: '6px',
-    padding: '0 0.75rem',
-    border: '1px solid #2A2A2A',
+    gap: '10px',
+    background: '#111',
+    borderRadius: '16px',
+    padding: '0 16px',
+    border: '1px solid #333',
   },
   linkInput: {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    padding: '0.5rem 0',
-    color: '#F0EDE8',
-    fontSize: '0.9rem',
+    padding: '14px 0',
+    color: '#eee',
+    fontSize: '15px',
     outline: 'none',
-    fontFamily: 'inherit',
+    fontFamily: '"DM Sans", sans-serif',
   },
   select: {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    padding: '0.5rem 0',
-    color: '#F0EDE8',
-    fontSize: '0.9rem',
+    padding: '14px 0',
+    color: '#eee',
+    fontSize: '15px',
     outline: 'none',
-    fontFamily: 'inherit',
+    fontFamily: '"DM Sans", sans-serif',
     cursor: 'pointer',
-    appearance: 'auto',
   },
-  filterTabs: {
+  feedTabs: {
     display: 'flex',
-    gap: '1.5rem',
-    marginBottom: '1.25rem',
-    borderBottom: '1px solid #2A2A2A',
-    paddingBottom: '0.5rem',
+    alignItems: 'center',
+    gap: '10px',
+    margin: '38px 0 28px',
   },
-  filterTab: {
-    background: 'none',
-    border: 'none',
-    color: '#888',
-    fontSize: '0.9rem',
+  feedTab: {
+    height: '55px',
+    padding: '0 23px',
+    border: '1px solid #333',
+    borderRadius: '30px',
+    background: 'transparent',
+    color: '#85827e',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '15px',
+    fontWeight: 600,
     cursor: 'pointer',
-    padding: '0.25rem 0',
-    transition: 'color 0.2s',
+    transition: 'all 0.2s ease',
   },
-  filterTabActive: {
-    color: '#F5A623',
-    borderBottom: '2px solid #F5A623',
-    marginBottom: '-0.5rem',
+  feedTabActive: {
+    borderColor: '#F4A719',
+    color: '#F4A719',
+    background: 'rgba(244,167,25,0.03)',
   },
   feed: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem',
+    gap: '0',
   },
   empty: {
     textAlign: 'center',
-    color: '#555',
-    padding: '2rem 0',
+    color: '#888',
+    padding: '3rem 0',
+    fontFamily: '"DM Sans", sans-serif',
   },
-  card: {
-    background: '#1C1C1C',
-    border: '1px solid #2A2A2A',
-    borderRadius: '12px',
-    padding: '1rem 1.25rem',
+  postCard: {
+    position: 'relative',
+    marginBottom: '22px',
+    padding: '29px',
+    border: '1px solid #303030',
+    borderRadius: '30px',
+    background: '#121212',
+    overflow: 'hidden',
   },
-  cardHeader: {
+  boostedPost: {
+    borderColor: '#3b3428',
+  },
+  postHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.75rem',
-    marginBottom: '0.5rem',
+    justifyContent: 'space-between',
+  },
+  postAuthor: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '17px',
   },
   avatar: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #F5A623, #E88A1E)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontWeight: '700',
-    fontSize: '0.9rem',
-    color: '#0A0A0A',
     flexShrink: 0,
+    width: '64px',
+    height: '64px',
+    border: '2px solid '#d68c14',
+    borderRadius: '50%',
+    background: '#171717',
+    color: '#F4A719',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '20px',
+    fontWeight: 600,
   },
-  meta: {
-    flex: 1,
+  authorInfo: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.1rem',
+    gap: '7px',
   },
-  nameRow: {
-    display: 'flex',
+  authorName: {
+    color: '#eee',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '18px',
+    fontWeight: 600,
+  },
+  boostBadge: {
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: '0.5rem',
+    marginLeft: '7px',
+    padding: '6px 10px',
+    borderRadius: '8px',
+    background: 'rgba(244,167,25,0.15)',
+    color: '#F4A719',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '10px',
+    fontWeight: 700,
+    letterSpacing: '0.6px',
   },
-  name: {
-    fontWeight: '600',
-    fontSize: '0.9rem',
-    color: '#F0EDE8',
-  },
-  boostChip: {
-    fontSize: '0.6rem',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    color: '#F5A623',
-    background: 'rgba(245,166,35,0.15)',
-    padding: '0.1rem 0.4rem',
-    borderRadius: '4px',
-  },
-  time: {
-    fontSize: '0.7rem',
-    color: '#888',
+  postTime: {
+    color: '#888581',
+    fontSize: '13px',
   },
   deleteBtn: {
-    background: 'none',
-    border: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '47px',
+    height: '47px',
+    border: '1px solid #343434',
+    borderRadius: '16px',
+    background: 'transparent',
+    color: '#8b8986',
     cursor: 'pointer',
-    padding: '0.2rem',
-    opacity: 0.5,
+    transition: 'all 0.2s ease',
   },
-  content: {
-    margin: '0.2rem 0 0.6rem',
-    fontSize: '0.95rem',
-    lineHeight: 1.6,
-    color: '#F0EDE8',
+  postContent: {
+    marginTop: '28px',
+    color: '#e9e6e2',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '19px',
+    fontWeight: 500,
+    lineHeight: 1.8,
   },
   linkPreview: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    background: '#0F0F0F',
-    borderRadius: '6px',
-    padding: '0.4rem 0.75rem',
-    marginBottom: '0.6rem',
+    marginTop: '25px',
+    padding: '22px',
+    border: '1px solid #333',
+    borderRadius: '22px',
+    background: '#101010',
     textDecoration: 'none',
     cursor: 'pointer',
-    border: '1px solid #2A2A2A',
   },
-  linkPreviewContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.1rem',
-    overflow: 'hidden',
+  linkInfo: {
+    minWidth: 0,
   },
-  linkPlatform: {
-    fontSize: '0.7rem',
-    color: '#F5A623',
-    fontWeight: '600',
+  linkDomain: {
+    marginBottom: '8px',
+    color: '#e5e2de',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '15px',
+    fontWeight: 600,
   },
   linkUrl: {
-    fontSize: '0.8rem',
-    color: '#888',
+    maxWidth: '370px',
     overflow: 'hidden',
+    whiteSpace: 'nowrap',
     textOverflow: 'ellipsis',
+    color: '#878480',
+    fontSize: '13px',
+  },
+  linkAction: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    color: '#F4A719',
+    fontFamily: '"Space Grotesk", sans-serif',
+    fontSize: '14px',
+    fontWeight: 600,
     whiteSpace: 'nowrap',
   },
-  actions: {
+  postFooter: {
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem',
-    flexWrap: 'wrap',
-    marginTop: '0.5rem',
-    paddingTop: '0.5rem',
-    borderTop: '1px solid #2A2A2A',
+    gap: '30px',
+    marginTop: '27px',
   },
-  actionBtn: {
-    background: 'none',
-    border: 'none',
+  postAction: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.3rem',
-    fontSize: '0.85rem',
+    gap: '8px',
+    background: 'transparent',
+    color: '#85827f',
+    fontSize: '14px',
     cursor: 'pointer',
-    transition: 'color 0.2s',
-    color: '#888',
-  },
-  engageBtn: {
+    transition: 'color 0.2s ease',
     border: 'none',
-    borderRadius: '6px',
-    padding: '0.2rem 0.75rem',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
+  },
+  postActionLiked: {
+    color: '#F4A719',
   },
   engagedCount: {
-    fontSize: '0.7rem',
-    color: '#888',
+    fontSize: '13px',
+    color: '#85827f',
   },
-  engageLabel: {
-    fontSize: '0.8rem',
-    color: '#888',
-    cursor: 'default',
-    marginRight: '0.5rem',
+  commentSection: {
+    marginTop: '22px',
+    paddingTop: '22px',
+    borderTop: '1px solid #2b2b2b',
   },
-  replySection: {
-    marginTop: '0.75rem',
-    paddingLeft: '1rem',
-    borderLeft: '2px solid #F5A623',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.3rem',
+  comment: {
+    marginBottom: '16px',
   },
-  replyItem: {
+  commentHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.85rem',
-    color: '#888',
-    padding: '0.2rem 0',
-    borderBottom: '1px solid #2A2A2A',
+    gap: '10px',
+    color: '#a5a29e',
+    fontSize: '14px',
   },
-  replyName: {
-    fontWeight: '600',
-    color: '#F0EDE8',
-    flexShrink: 0,
+  commentName: {
+    color: '#eee',
+    fontWeight: 600,
   },
-  replyText: {
-    flex: 1,
-    wordBreak: 'break-word',
-  },
-  replyTime: {
-    fontSize: '0.65rem',
-    color: '#555',
-    flexShrink: 0,
+  commentText: {
+    marginTop: '6px',
+    color: '#ddd',
+    fontSize: '15px',
+    lineHeight: 1.6,
   },
   replyDelete: {
     background: 'none',
     border: 'none',
+    color: '#8b8986',
     cursor: 'pointer',
-    opacity: 0.4,
   },
   showMoreBtn: {
     background: 'none',
     border: 'none',
     color: '#888',
-    fontSize: '0.75rem',
+    fontSize: '14px',
     cursor: 'pointer',
-    padding: '0.2rem 0',
-    textAlign: 'left',
+    padding: '8px 0',
+    fontFamily: '"DM Sans", sans-serif',
   },
-  replyInputRow: {
+  commentInputWrapper: {
     display: 'flex',
-    gap: '0.5rem',
-    marginTop: '0.3rem',
     alignItems: 'center',
+    gap: '10px',
+    marginTop: '18px',
   },
-  replyInput: {
+  commentInput: {
     flex: 1,
-    background: '#0F0F0F',
-    border: '1px solid #2A2A2A',
-    borderRadius: '6px',
-    padding: '0.4rem 0.75rem',
-    color: '#F0EDE8',
-    fontSize: '0.85rem',
+    minHeight: '58px',
+    padding: '0 20px',
+    border: '1px solid #333',
+    borderRadius: '19px',
     outline: 'none',
-    fontFamily: 'inherit',
+    background: '#101010',
+    color: '#eee',
+    fontSize: '14px',
+    fontFamily: '"DM Sans", sans-serif',
   },
-  replySend: {
-    background: '#F5A623',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '0.3rem 0.7rem',
-    height: '32px',
+  commentSend: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    width: '56px',
+    height: '56px',
+    borderRadius: '18px',
+    background: '#F4A719',
+    color: '#171717',
+    border: 'none',
     cursor: 'pointer',
-    color: '#0A0A0A',
+  },
+  floatingAdd: {
+    position: 'fixed',
+    right: 'max(25px, calc((100vw - 620px) / 2 - 5px))',
+    bottom: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '74px',
+    height: '74px',
+    borderRadius: '50%',
+    background: '#F4A719',
+    color: '#191919',
+    border: 'none',
+    boxShadow: '0 0 0 8px rgba(244,167,25,0.04), 0 10px 35px rgba(244,167,25,0.25)',
+    fontSize: '40px',
+    fontWeight: 300,
+    zIndex: 100,
+    cursor: 'pointer',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
   },
   loading: {
     display: 'flex',
@@ -828,7 +949,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: '28px',
     height: '28px',
     border: '3px solid #2A2A2A',
-    borderTop: '3px solid #F5A623',
+    borderTop: '3px solid #F4A719',
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
   },
