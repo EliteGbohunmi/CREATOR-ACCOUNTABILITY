@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare,
-  Flame, Hand, ExternalLink, Edit3
+  Flame, Hand, ExternalLink
 } from 'lucide-react'
 
 export type CommunityPost = {
@@ -358,7 +358,6 @@ export default function CommunityDesign({
                       </>
                     )}
                     <span style={styles.engageLabel}>Engage</span>
-                    <span style={styles.editLabel}>Edit with Lovable</span>
                   </div>
 
                   {/* Replies */}
@@ -435,19 +434,18 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     maxWidth: '860px',
     margin: '0 auto',
-    padding: '2rem 1.25rem 3rem',
+    padding: '1.5rem 1rem 3rem',
     fontFamily: 'Inter, system-ui, sans-serif',
-    backgroundColor: '#0F0F0F',
     color: '#F0EDE8',
   },
   header: {
-    marginBottom: '2rem',
+    marginBottom: '1.5rem',
   },
   title: {
     fontSize: '2rem',
     fontWeight: '700',
     fontFamily: 'Space Grotesk, sans-serif',
-    margin: '0 0 0.3rem',
+    margin: '0 0 0.2rem',
     color: '#F0EDE8',
     letterSpacing: '-0.02em',
   },
@@ -466,7 +464,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: '0.75rem',
     flexWrap: 'wrap',
-    marginBottom: '1.75rem',
+    marginBottom: '1.5rem',
     fontSize: '0.9rem',
     color: '#888',
   },
@@ -479,7 +477,7 @@ const styles: Record<string, React.CSSProperties> = {
   composerTabs: {
     display: 'flex',
     gap: '0.5rem',
-    marginBottom: '1rem',
+    marginBottom: '0.75rem',
   },
   composerTab: {
     background: 'none',
@@ -501,7 +499,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #2A2A2A',
     borderRadius: '12px',
     padding: '1rem 1.25rem',
-    marginBottom: '1.75rem',
+    marginBottom: '1.5rem',
   },
   textarea: {
     width: '100%',
@@ -578,7 +576,7 @@ const styles: Record<string, React.CSSProperties> = {
   filterTabs: {
     display: 'flex',
     gap: '1.5rem',
-    marginBottom: '1.5rem',
+    marginBottom: '1.25rem',
     borderBottom: '1px solid #2A2A2A',
     paddingBottom: '0.5rem',
   },
@@ -599,7 +597,7 @@ const styles: Record<string, React.CSSProperties> = {
   feed: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1.25rem',
+    gap: '1rem',
   },
   empty: {
     textAlign: 'center',
@@ -610,13 +608,13 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#1C1C1C',
     border: '1px solid #2A2A2A',
     borderRadius: '12px',
-    padding: '1.25rem',
+    padding: '1rem 1.25rem',
   },
   cardHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    marginBottom: '0.6rem',
+    marginBottom: '0.5rem',
   },
   avatar: {
     width: '40px',
@@ -741,11 +739,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#888',
     cursor: 'default',
     marginRight: '0.5rem',
-  },
-  editLabel: {
-    fontSize: '0.75rem',
-    color: '#888',
-    cursor: 'default',
   },
   replySection: {
     marginTop: '0.75rem',
