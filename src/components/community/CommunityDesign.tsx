@@ -725,7 +725,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
     width: '64px',
     height: '64px',
-    border: '2px solid '#d68c14',
+    border: '2px solid #d68c14',
     borderRadius: '50%',
     background: '#171717',
     color: '#F4A719',
