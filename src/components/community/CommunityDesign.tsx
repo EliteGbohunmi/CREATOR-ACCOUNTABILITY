@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare, ExternalLink } from 'lucide-react'
 
 export type CommunityPost = {
   id: string
@@ -28,6 +28,8 @@ interface Props {
   loading: boolean
   isPosting: boolean
   isReplying: boolean
+  filter: 'all' | 'boosts' | 'mine'
+  onFilterChange: (filter: 'all' | 'boosts' | 'mine') => void
   onCreatePost: (content: string, link: string | null) => void
   onDeletePost: (postId: string) => void
   onToggleLike: (postId: string) => void
@@ -44,6 +46,8 @@ export default function CommunityDesign({
   loading,
   isPosting,
   isReplying,
+  filter,
+  onFilterChange,
   onCreatePost,
   onDeletePost,
   onToggleLike,
@@ -73,6 +77,7 @@ export default function CommunityDesign({
     return new Date(date).toLocaleDateString()
   }
 
+  // Stats
   const totalPosts = posts.length
   const totalCreators = new Set(posts.map(p => p.user_id)).size
   const totalBoosts = posts.reduce((acc, p) => acc + (p.boosts?.length || 0), 0)
@@ -89,11 +94,14 @@ export default function CommunityDesign({
 
   return (
     <div style={styles.container}>
+      {/* Header */}
       <div style={styles.header}>
-        <h1 style={styles.title}>Community Board</h1>
+        <h1 style={styles.title}>Creator Community</h1>
         <p style={styles.subtitle}>Say hi. Ask for engagement. Show up for each other.</p>
+        <p style={styles.description}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
       </div>
 
+      {/* Stats */}
       <div style={styles.statsBar}>
         <div style={styles.statItem}>
           <MessageSquare size={14} color="#666" />
@@ -116,17 +124,31 @@ export default function CommunityDesign({
         </div>
       </div>
 
+      {/* Action buttons */}
+      <div style={styles.actionRow}>
+        <button style={styles.actionButton} onClick={() => {}}>
+          Say hi
+        </button>
+        <button style={styles.actionButton} onClick={() => {}}>
+          Boost my post
+        </button>
+      </div>
+
+      {/* Post form */}
       <form onSubmit={handleSubmit} style={styles.form}>
         <div style={styles.formRow}>
           <textarea
-            placeholder="What's on your mind?"
+            placeholder="Say hi – who are you, what are you building, what’s your niche?"
             value={newContent}
             onChange={e => setNewContent(e.target.value)}
             style={styles.textarea}
-            rows={2}
+            rows={3}
           />
+        </div>
+        <div style={styles.formFooter}>
+          <span style={styles.charCounter}>{newContent.length}/2000</span>
           <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.sendBtn}>
-            {isPosting ? '...' : <Send size={18} />}
+            {isPosting ? '...' : 'Say hi'}
           </button>
         </div>
         <div style={styles.linkWrapper}>
@@ -140,6 +162,29 @@ export default function CommunityDesign({
         </div>
       </form>
 
+      {/* Tabs */}
+      <div style={styles.tabs}>
+        <button
+          style={{ ...styles.tab, ...(filter === 'all' ? styles.tabActive : {}) }}
+          onClick={() => onFilterChange('all')}
+        >
+          Everything
+        </button>
+        <button
+          style={{ ...styles.tab, ...(filter === 'boosts' ? styles.tabActive : {}) }}
+          onClick={() => onFilterChange('boosts')}
+        >
+          Boosts
+        </button>
+        <button
+          style={{ ...styles.tab, ...(filter === 'mine' ? styles.tabActive : {}) }}
+          onClick={() => onFilterChange('mine')}
+        >
+          Mine
+        </button>
+      </div>
+
+      {/* Posts feed */}
       <div style={styles.feed}>
         <AnimatePresence>
           {posts.length === 0 ? (
@@ -151,6 +196,7 @@ export default function CommunityDesign({
               const isOwner = post.user_id === currentUserId
               const replyKey = post.id
               const isReplyOpen = replyOpen[replyKey] || false
+              const isBoostedPost = post.boosts && post.boosts.length > 0
 
               return (
                 <motion.div
@@ -160,12 +206,18 @@ export default function CommunityDesign({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
+                  {/* Card header */}
                   <div style={styles.cardHeader}>
                     <div style={styles.avatar}>
                       {post.profiles?.name?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div style={styles.meta}>
                       <span style={styles.name}>{post.profiles?.name || 'Unknown'}</span>
+                      {isBoostedPost && (
+                        <span style={styles.boostBadge}>
+                          <Zap size={10} color="#F5A623" /> BOOST
+                        </span>
+                      )}
                       <span style={styles.time}>{formatTime(post.created_at)}</span>
                     </div>
                     {isOwner && (
@@ -179,6 +231,7 @@ export default function CommunityDesign({
                     )}
                   </div>
 
+                  {/* Content */}
                   <p style={styles.content}>{post.content}</p>
                   {post.link && (
                     <a href={post.link} target="_blank" rel="noopener noreferrer" style={styles.link}>
@@ -186,6 +239,7 @@ export default function CommunityDesign({
                     </a>
                   )}
 
+                  {/* Engagement actions */}
                   <div style={styles.actions}>
                     <button
                       onClick={() => onToggleLike(post.id)}
@@ -195,21 +249,23 @@ export default function CommunityDesign({
                       <span>{post.likes?.length || 0}</span>
                     </button>
                     <button
-                      onClick={() => onToggleBoost(post.id)}
-                      style={{ ...styles.actionBtn, color: boosted ? '#F5A623' : '#666' }}
-                    >
-                      <Zap size={16} fill={boosted ? '#F5A623' : 'none'} />
-                      <span>{post.boosts?.length || 0}</span>
-                    </button>
-                    <button
                       onClick={() => setReplyOpen(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
                       style={styles.actionBtn}
                     >
                       <MessageCircle size={16} />
                       <span>{post.comments?.length || 0}</span>
                     </button>
+                    <button
+                      onClick={() => onToggleBoost(post.id)}
+                      style={{ ...styles.actionBtn, color: boosted ? '#F5A623' : '#666' }}
+                    >
+                      <Zap size={16} fill={boosted ? '#F5A623' : 'none'} />
+                      <span>{post.boosts?.length || 0}</span>
+                    </button>
+                    <span style={styles.engageText}>Engage +</span>
                   </div>
 
+                  {/* Replies */}
                   <AnimatePresence>
                     {isReplyOpen && (
                       <motion.div
@@ -221,7 +277,7 @@ export default function CommunityDesign({
                         {post.comments.map(comment => (
                           <div key={comment.id} style={styles.replyItem}>
                             <span style={styles.replyName}>
-                              {comment.profiles?.name || 'Anonymous'}
+                              {comment.user_id === currentUserId ? 'You' : comment.profiles?.name || 'Anonymous'}
                             </span>
                             <span style={styles.replyText}>{comment.content}</span>
                             {comment.user_id === currentUserId && (
@@ -236,7 +292,7 @@ export default function CommunityDesign({
                         ))}
                         <div style={styles.replyInputRow}>
                           <input
-                            placeholder="Write a reply..."
+                            placeholder="Say something useful..."
                             value={replyContent[replyKey] || ''}
                             onChange={e =>
                               setReplyContent(prev => ({ ...prev, [replyKey]: e.target.value }))
@@ -269,6 +325,7 @@ export default function CommunityDesign({
   )
 }
 
+// ---- Styles ----
 const styles: Record<string, React.CSSProperties> = {
   container: {
     maxWidth: '740px',
@@ -287,8 +344,13 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#F0EDE8',
   },
   subtitle: {
-    color: '#666',
+    color: '#888',
     fontSize: '0.9rem',
+    margin: '0 0 0.2rem',
+  },
+  description: {
+    color: '#666',
+    fontSize: '0.85rem',
     margin: 0,
   },
   statsBar: {
@@ -315,22 +377,37 @@ const styles: Record<string, React.CSSProperties> = {
     height: '20px',
     background: 'rgba(255,255,255,0.06)',
   },
+  actionRow: {
+    display: 'flex',
+    gap: '0.75rem',
+    marginBottom: '1.5rem',
+  },
+  actionButton: {
+    background: 'rgba(20,20,20,0.6)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.06)',
+    borderRadius: '8px',
+    padding: '0.5rem 1.25rem',
+    color: '#F0EDE8',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+  },
   form: {
     background: 'rgba(20,20,20,0.6)',
     backdropFilter: 'blur(12px)',
     border: '1px solid rgba(255,255,255,0.06)',
     borderRadius: '16px',
     padding: '1rem 1.25rem',
-    marginBottom: '2rem',
+    marginBottom: '1.5rem',
     boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,0.4)',
   },
   formRow: {
     display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'flex-start',
+    flexDirection: 'column',
   },
   textarea: {
-    flex: 1,
+    width: '100%',
     background: 'rgba(10,10,10,0.6)',
     border: '1px solid rgba(255,255,255,0.06)',
     borderRadius: '12px',
@@ -339,24 +416,30 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.95rem',
     fontFamily: 'inherit',
     resize: 'vertical',
-    minHeight: '56px',
+    minHeight: '80px',
     outline: 'none',
     transition: 'border-color 0.2s',
+  },
+  formFooter: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: '0.5rem',
+  },
+  charCounter: {
+    color: '#666',
+    fontSize: '0.8rem',
   },
   sendBtn: {
     background: '#F5A623',
     border: 'none',
-    borderRadius: '12px',
-    padding: '0 1.2rem',
-    height: '48px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: '8px',
+    padding: '0.5rem 1.25rem',
     color: '#0A0A0A',
     cursor: 'pointer',
     fontWeight: '600',
+    fontSize: '0.85rem',
     transition: 'background 0.2s, transform 0.1s',
-    flexShrink: 0,
   },
   linkWrapper: {
     display: 'flex',
@@ -377,6 +460,27 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
     outline: 'none',
     fontFamily: 'inherit',
+  },
+  tabs: {
+    display: 'flex',
+    gap: '1.5rem',
+    marginBottom: '1.5rem',
+    borderBottom: '1px solid rgba(255,255,255,0.04)',
+    paddingBottom: '0.5rem',
+  },
+  tab: {
+    background: 'none',
+    border: 'none',
+    color: '#666',
+    fontSize: '0.9rem',
+    cursor: 'pointer',
+    padding: '0.25rem 0',
+    transition: 'color 0.2s',
+  },
+  tabActive: {
+    color: '#F5A623',
+    borderBottom: '2px solid #F5A623',
+    marginBottom: '-0.5rem',
   },
   feed: {
     display: 'flex',
@@ -428,6 +532,19 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
     color: '#F0EDE8',
   },
+  boostBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.2rem',
+    fontSize: '0.6rem',
+    color: '#F5A623',
+    background: 'rgba(245,166,35,0.15)',
+    padding: '0.1rem 0.4rem',
+    borderRadius: '4px',
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: '0.04em',
+  },
   time: {
     fontSize: '0.7rem',
     color: '#666',
@@ -462,6 +579,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   actions: {
     display: 'flex',
+    alignItems: 'center',
     gap: '1.5rem',
     marginTop: '0.3rem',
     paddingTop: '0.6rem',
@@ -477,6 +595,12 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     transition: 'color 0.2s',
     color: '#666',
+  },
+  engageText: {
+    marginLeft: 'auto',
+    fontSize: '0.8rem',
+    color: '#666',
+    cursor: 'default',
   },
   replySection: {
     marginTop: '0.75rem',

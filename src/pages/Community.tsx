@@ -15,10 +15,10 @@ export default function Community() {
   const [isReplying, setIsReplying] = useState(false)
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set())
   const [boostedPostIds, setBoostedPostIds] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState<'all' | 'boosts' | 'mine'>('all')
 
   const fetchPosts = useCallback(async () => {
     try {
-      // 1. Fetch posts with user profiles (simple join)
       const { data: postsData, error: postsError } = await supabase
         .from('community_posts')
         .select(`
@@ -33,7 +33,6 @@ export default function Community() {
 
       if (postsError) throw postsError
 
-      // 2. Fetch comments for all posts
       const postIds = postsData?.map(p => p.id) || []
       const { data: commentsData, error: commentsError } = await supabase
         .from('community_comments')
@@ -49,7 +48,6 @@ export default function Community() {
 
       if (commentsError) throw commentsError
 
-      // 3. Fetch likes for all posts
       const { data: likesData, error: likesError } = await supabase
         .from('community_likes')
         .select('id, user_id, post_id')
@@ -57,7 +55,6 @@ export default function Community() {
 
       if (likesError) throw likesError
 
-      // 4. Fetch boosts for all posts
       const { data: boostsData, error: boostsError } = await supabase
         .from('community_boosts')
         .select('id, user_id, post_id')
@@ -65,7 +62,6 @@ export default function Community() {
 
       if (boostsError) throw boostsError
 
-      // Group comments, likes, boosts by post_id
       const commentsByPost: Record<string, any[]> = {}
       commentsData?.forEach((c: any) => {
         if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
@@ -84,7 +80,6 @@ export default function Community() {
         boostsByPost[b.post_id].push(b)
       })
 
-      // Map to CommunityPost[]
       const mapped: CommunityPost[] = postsData?.map((post: any) => ({
         id: post.id,
         content: post.content,
@@ -126,7 +121,6 @@ export default function Community() {
     fetchPosts()
   }, [fetchPosts])
 
-  // Realtime remains the same – we'll keep it simple by refreshing on any change
   useEffect(() => {
     const channel = supabase
       .channel('community-board')
@@ -157,8 +151,12 @@ export default function Community() {
     }
   }, [fetchPosts])
 
-  // ... (rest of the functions: onCreatePost, onDeletePost, etc. unchanged)
-  // They remain the same as in your current file – no changes needed.
+  const filteredPosts = useMemo(() => {
+    if (filter === 'all') return posts
+    if (filter === 'boosts') return posts.filter(p => p.boosts && p.boosts.length > 0)
+    if (filter === 'mine') return posts.filter(p => p.user_id === currentUserId)
+    return posts
+  }, [posts, filter, currentUserId])
 
   const onCreatePost = async (content: string, link: string | null) => {
     if (!currentUserId) {
@@ -308,18 +306,18 @@ export default function Community() {
     fetchPosts()
   }
 
-  const view = useMemo(() => posts, [posts])
-
   return (
     <Layout>
       <CommunityDesign
-        posts={view}
+        posts={filteredPosts}
         currentUserId={currentUserId}
         likedPostIds={likedPostIds}
         boostedPostIds={boostedPostIds}
         loading={loading}
         isPosting={isPosting}
         isReplying={isReplying}
+        filter={filter}
+        onFilterChange={setFilter}
         onCreatePost={onCreatePost}
         onDeletePost={onDeletePost}
         onToggleLike={onToggleLike}
