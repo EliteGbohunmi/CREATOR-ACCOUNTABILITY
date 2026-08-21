@@ -520,11 +520,10 @@ function FontLoader() {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     maxWidth: '480px',
-    margin: '0 auto',
+    margin: 0,
     minHeight: '100vh',
     padding: '28px 20px 100px',
     position: 'relative',
-    backgroundColor: '#121212',
     color: '#f4f2ee',
     fontFamily: '"Nunito Sans", sans-serif',
   },
