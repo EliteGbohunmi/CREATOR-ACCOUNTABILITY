@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare,
-  Flame, Hand, ExternalLink, Plus, User, Star, Share2
+  Flame, Hand, ExternalLink, Plus, Sparkles, Megaphone,
 } from 'lucide-react'
 
 export type CommunityPost = {
@@ -54,6 +54,15 @@ interface Props {
 
 const PLATFORMS = ['X', 'TikTok', 'YouTube', 'Instagram', 'LinkedIn', 'Substack']
 const ENGAGEMENT_TYPES = ['comment', 'like', 'share', 'watch']
+
+// Two-letter initials (e.g. "Tolu Adeyemi" -> "TA", "You" -> "Y")
+const getInitials = (name?: string | null) => {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
 
 export default function CommunityDesign({
   posts,
@@ -144,6 +153,7 @@ export default function CommunityDesign({
   if (loading) {
     return (
       <div style={styles.loading}>
+        <FontLoader />
         <div style={styles.spinner} />
         <span>Loading community board...</span>
       </div>
@@ -152,9 +162,11 @@ export default function CommunityDesign({
 
   return (
     <div style={styles.container}>
+      <FontLoader />
+
       {/* Eyebrow */}
       <div style={styles.eyebrow}>
-        <User size={18} strokeWidth={2} />
+        <Users size={18} strokeWidth={2} />
         Creator Community
       </div>
 
@@ -185,17 +197,19 @@ export default function CommunityDesign({
       <div style={styles.composer}>
         <div style={styles.toggleRow}>
           <button
+            type="button"
             style={{ ...styles.pill, ...(postType === 'say_hi' ? styles.pillActive : {}) }}
             onClick={() => setPostType('say_hi')}
           >
-            <Star size={15} strokeWidth={2} />
+            <Sparkles size={15} strokeWidth={2} />
             Say hi
           </button>
           <button
+            type="button"
             style={{ ...styles.pill, ...(postType === 'boost' ? styles.pillActive : {}) }}
             onClick={() => setPostType('boost')}
           >
-            <Share2 size={15} strokeWidth={2} />
+            <Megaphone size={15} strokeWidth={2} />
             Boost my post
           </button>
         </div>
@@ -210,13 +224,14 @@ export default function CommunityDesign({
             }
             value={newContent}
             onChange={e => setNewContent(e.target.value)}
+            maxLength={2000}
             rows={3}
           />
           <div style={styles.composerFooter}>
             <span style={styles.charCount}>{newContent.length}/2000</span>
             <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.sendBtn}>
               <Send size={15} strokeWidth={2} />
-              {isPosting ? '...' : 'Say hi'}
+              {isPosting ? '...' : postType === 'say_hi' ? 'Say hi' : 'Post boost'}
             </button>
           </div>
 
@@ -257,18 +272,21 @@ export default function CommunityDesign({
       {/* Filter tabs */}
       <div style={styles.tabs}>
         <button
+          type="button"
           style={{ ...styles.tab, ...(filter === 'all' ? styles.tabActive : {}) }}
           onClick={() => onFilterChange('all')}
         >
           Everything
         </button>
         <button
+          type="button"
           style={{ ...styles.tab, ...(filter === 'boost' ? styles.tabActive : {}) }}
           onClick={() => onFilterChange('boost')}
         >
           Boosts
         </button>
         <button
+          type="button"
           style={{ ...styles.tab, ...(filter === 'mine' ? styles.tabActive : {}) }}
           onClick={() => onFilterChange('mine')}
         >
@@ -284,7 +302,6 @@ export default function CommunityDesign({
           ) : (
             sortedPosts.map((post, index) => {
               const liked = likedPostIds.has(post.id)
-              const boosted = boostedPostIds.has(post.id)
               const engaged = engagedPostIds.has(post.id)
               const isOwner = post.user_id === currentUserId
               const replyKey = post.id
@@ -292,6 +309,7 @@ export default function CommunityDesign({
               const isBoost = post.post_type === 'boost'
               const engagementCount = post.engagements?.length || 0
               const repliesToShow = showAllReplies[replyKey] ? post.comments : post.comments.slice(0, 2)
+              const displayName = isOwner ? 'You' : (post.profiles?.name || 'Unknown')
 
               return (
                 <motion.div
@@ -304,20 +322,22 @@ export default function CommunityDesign({
                   {/* Post head */}
                   <div style={styles.postHead}>
                     <div style={styles.avatar}>
-                      {post.profiles?.name?.[0]?.toUpperCase() || '?'}
+                      {getInitials(post.profiles?.name)}
                     </div>
                     <div style={styles.who}>
                       <div style={styles.nameRow}>
-                        <span style={styles.name}>{post.profiles?.name || 'Unknown'}</span>
-                        {isBoost && <span style={{ ...styles.badge, ...styles.badgeBoost }}>Boost</span>}
+                        <span style={styles.name}>{displayName}</span>
                         {isOwner && <span style={{ ...styles.badge, ...styles.badgeYou }}>You</span>}
+                        {isBoost && <span style={{ ...styles.badge, ...styles.badgeBoost }}>Boost</span>}
                       </div>
                       <span style={styles.timestamp}>{formatTime(post.created_at)}</span>
                     </div>
                     {isOwner && (
                       <button
+                        type="button"
                         onClick={() => onDeletePost(post.id)}
                         style={styles.deleteBtn}
+                        aria-label="Delete post"
                       >
                         <Trash2 size={16} strokeWidth={2} />
                       </button>
@@ -349,6 +369,7 @@ export default function CommunityDesign({
                   {/* Post footer actions */}
                   <div style={styles.postFooter}>
                     <button
+                      type="button"
                       onClick={() => onToggleLike(post.id)}
                       style={{ ...styles.statPill, ...(liked ? styles.statPillFilled : styles.statPillOutline) }}
                     >
@@ -356,8 +377,9 @@ export default function CommunityDesign({
                       {post.likes?.length || 0}
                     </button>
                     <button
+                      type="button"
                       onClick={() => setReplyOpen(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
-                      style={styles.statPillOutline}
+                      style={{ ...styles.statPill, ...styles.statPillOutline }}
                     >
                       <MessageCircle size={15} />
                       {post.comments?.length || 0}
@@ -365,6 +387,7 @@ export default function CommunityDesign({
                     {isBoost && (
                       <>
                         <button
+                          type="button"
                           onClick={() => onToggleEngagement(post.id)}
                           style={{
                             ...styles.statPill,
@@ -419,8 +442,10 @@ export default function CommunityDesign({
                               <span style={styles.timestamp}>{formatTime(comment.created_at)}</span>
                               {comment.user_id === currentUserId && (
                                 <button
+                                  type="button"
                                   onClick={() => onDeleteReply(post.id, comment.id)}
                                   style={styles.closeX}
+                                  aria-label="Delete reply"
                                 >
                                   ×
                                 </button>
@@ -432,6 +457,7 @@ export default function CommunityDesign({
 
                         {post.comments.length > 2 && (
                           <button
+                            type="button"
                             onClick={() => setShowAllReplies(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
                             style={styles.showMore}
                           >
@@ -447,8 +473,17 @@ export default function CommunityDesign({
                             onChange={e =>
                               setReplyContent(prev => ({ ...prev, [replyKey]: e.target.value }))
                             }
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                const content = (replyContent[replyKey] || '').trim()
+                                if (!content) return
+                                onReply(post.id, content)
+                                setReplyContent(prev => ({ ...prev, [replyKey]: '' }))
+                              }
+                            }}
                           />
                           <button
+                            type="button"
                             onClick={() => {
                               const content = (replyContent[replyKey] || '').trim()
                               if (!content) return
@@ -457,6 +492,7 @@ export default function CommunityDesign({
                             }}
                             disabled={isReplying}
                             style={styles.sendRound}
+                            aria-label="Send reply"
                           >
                             <Send size={14} strokeWidth={2} />
                           </button>
@@ -472,10 +508,22 @@ export default function CommunityDesign({
       </div>
 
       {/* Floating Action Button */}
-      <button style={styles.fab}>
+      <button type="button" style={styles.fab} aria-label="New post">
         <Plus size={26} strokeWidth={2.4} />
       </button>
     </div>
+  )
+}
+
+// Injects the Google Fonts + keyframes this design depends on.
+// Safe to render multiple times; move this <link>/<style> into your
+// root index.html instead if you'd rather not inject it per-mount.
+function FontLoader() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap');
+      @keyframes spin { to { transform: rotate(360deg); } }
+    `}</style>
   )
 }
 
@@ -588,7 +636,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'transparent',
     border: '1px solid #2c2c2c',
     borderRadius: '14px',
-    color: '#9c9895',
+    color: '#f4f2ee',
     fontFamily: '"Nunito Sans", sans-serif',
     fontSize: '15.5px',
     lineHeight: 1.5,
@@ -724,6 +772,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: '2px',
     flex: 1,
+    minWidth: 0,
   },
   nameRow: {
     display: 'flex',
@@ -767,14 +816,17 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     color: '#6f6c69',
     background: 'transparent',
-    border: '1px solid #2c2c2c',
+    border: 'none',
     cursor: 'pointer',
+    flexShrink: 0,
   },
   postBody: {
     fontSize: '15.5px',
     lineHeight: 1.55,
     color: '#f4f2ee',
     marginBottom: '14px',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
   },
   linkCard: {
     display: 'flex',
@@ -864,6 +916,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#1a1a1a',
     padding: '16px',
     marginTop: '16px',
+    overflow: 'hidden',
   },
   replyTop: {
     display: 'flex',
@@ -913,6 +966,8 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.5,
     color: '#f4f2ee',
     marginBottom: '12px',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
   },
   showMore: {
     background: 'none',
@@ -935,7 +990,7 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    color: '#9c9895',
+    color: '#f4f2ee',
     fontSize: '14.5px',
     fontFamily: '"Nunito Sans", sans-serif',
     outline: 'none',
