@@ -15,7 +15,10 @@ export default function Community() {
   const [isReplying, setIsReplying] = useState(false)
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set())
   const [boostedPostIds, setBoostedPostIds] = useState<Set<string>>(new Set())
-  const [filter, setFilter] = useState<'all' | 'boosts' | 'mine'>('all')
+  const [engagedPostIds, setEngagedPostIds] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState<'all' | 'say_hi' | 'boost' | 'mine'>('all')
+  const [platformFilter, setPlatformFilter] = useState('')
+  const [sortBy, setSortBy] = useState<'newest' | 'needs_engagement'>('newest')
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -27,13 +30,18 @@ export default function Community() {
           link,
           user_id,
           created_at,
-          profiles ( name, email )
+          post_type,
+          platform,
+          engagement_type,
+          engaged_by,
+          profiles ( name, email, streak_days )
         `)
         .order('created_at', { ascending: false })
 
       if (postsError) throw postsError
 
       const postIds = postsData?.map(p => p.id) || []
+
       const { data: commentsData, error: commentsError } = await supabase
         .from('community_comments')
         .select(`
@@ -62,6 +70,13 @@ export default function Community() {
 
       if (boostsError) throw boostsError
 
+      const { data: engagementsData, error: engagementsError } = await supabase
+        .from('community_engagements')
+        .select('id, user_id, post_id')
+        .in('post_id', postIds.length ? postIds : [''])
+
+      if (engagementsError) throw engagementsError
+
       const commentsByPost: Record<string, any[]> = {}
       commentsData?.forEach((c: any) => {
         if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
@@ -80,18 +95,29 @@ export default function Community() {
         boostsByPost[b.post_id].push(b)
       })
 
+      const engagementsByPost: Record<string, any[]> = {}
+      engagementsData?.forEach((e: any) => {
+        if (!engagementsByPost[e.post_id]) engagementsByPost[e.post_id] = []
+        engagementsByPost[e.post_id].push(e)
+      })
+
       const mapped: CommunityPost[] = postsData?.map((post: any) => ({
         id: post.id,
         content: post.content,
         link: post.link,
         user_id: post.user_id,
         created_at: post.created_at,
+        post_type: post.post_type || 'say_hi',
+        platform: post.platform,
+        engagement_type: post.engagement_type,
+        engaged_by: post.engaged_by || [],
         profiles: post.profiles,
         comments: (commentsByPost[post.id] || []).sort(
           (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         ),
         likes: likesByPost[post.id] || [],
         boosts: boostsByPost[post.id] || [],
+        engagements: engagementsByPost[post.id] || [],
       })) || []
 
       setPosts(mapped)
@@ -106,6 +132,13 @@ export default function Community() {
         new Set(
           mapped
             .filter((p) => p.boosts?.some((b) => b.user_id === currentUserId))
+            .map((p) => p.id)
+        )
+      )
+      setEngagedPostIds(
+        new Set(
+          mapped
+            .filter((p) => p.engagements?.some((e) => e.user_id === currentUserId))
             .map((p) => p.id)
         )
       )
@@ -144,6 +177,11 @@ export default function Community() {
         { event: '*', schema: 'public', table: 'community_boosts' },
         () => fetchPosts()
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'community_engagements' },
+        () => fetchPosts()
+      )
       .subscribe()
 
     return () => {
@@ -152,13 +190,28 @@ export default function Community() {
   }, [fetchPosts])
 
   const filteredPosts = useMemo(() => {
-    if (filter === 'all') return posts
-    if (filter === 'boosts') return posts.filter(p => p.boosts && p.boosts.length > 0)
-    if (filter === 'mine') return posts.filter(p => p.user_id === currentUserId)
-    return posts
-  }, [posts, filter, currentUserId])
+    let result = posts
+    if (filter === 'say_hi') result = result.filter(p => p.post_type === 'say_hi')
+    if (filter === 'boost') result = result.filter(p => p.post_type === 'boost')
+    if (filter === 'mine') result = result.filter(p => p.user_id === currentUserId)
+    if (platformFilter) result = result.filter(p => p.platform === platformFilter)
+    return result
+  }, [posts, filter, platformFilter, currentUserId])
 
-  const onCreatePost = async (content: string, link: string | null) => {
+  const sortedPosts = useMemo(() => {
+    if (sortBy === 'needs_engagement') {
+      return [...filteredPosts].sort((a, b) => (a.engagements?.length || 0) - (b.engagements?.length || 0))
+    }
+    return [...filteredPosts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  }, [filteredPosts, sortBy])
+
+  const onCreatePost = async (
+    content: string,
+    link: string | null,
+    postType: 'say_hi' | 'boost',
+    platform: string | null,
+    engagementType: string | null
+  ) => {
     if (!currentUserId) {
       toast.error('Sign in to post')
       return
@@ -166,7 +219,15 @@ export default function Community() {
     setIsPosting(true)
     const { error } = await supabase
       .from('community_posts')
-      .insert({ content, link, user_id: currentUserId })
+      .insert({
+        content,
+        link,
+        user_id: currentUserId,
+        post_type: postType,
+        platform: platform || null,
+        engagement_type: engagementType || null,
+        engaged_by: [],
+      })
     setIsPosting(false)
     if (error) {
       console.error(error)
@@ -275,6 +336,48 @@ export default function Community() {
     }
   }
 
+  const onToggleEngagement = async (postId: string) => {
+    if (!currentUserId) {
+      toast.error('Sign in to engage')
+      return
+    }
+    const engaged = engagedPostIds.has(postId)
+
+    setEngagedPostIds((prev) => {
+      const next = new Set(prev)
+      engaged ? next.delete(postId) : next.add(postId)
+      return next
+    })
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id !== postId
+          ? p
+          : {
+              ...p,
+              engagements: engaged
+                ? (p.engagements ?? []).filter((e) => e.user_id !== currentUserId)
+                : [...(p.engagements ?? []), { user_id: currentUserId }],
+            }
+      )
+    )
+
+    const { error } = engaged
+      ? await supabase
+          .from('community_engagements')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', currentUserId)
+      : await supabase
+          .from('community_engagements')
+          .insert({ post_id: postId, user_id: currentUserId })
+
+    if (error) {
+      console.error(error)
+      toast.error("Couldn't update your engagement")
+      fetchPosts()
+    }
+  }
+
   const onReply = async (postId: string, content: string) => {
     if (!currentUserId) {
       toast.error('Sign in to reply')
@@ -309,19 +412,25 @@ export default function Community() {
   return (
     <Layout>
       <CommunityDesign
-        posts={filteredPosts}
+        posts={sortedPosts}
         currentUserId={currentUserId}
         likedPostIds={likedPostIds}
         boostedPostIds={boostedPostIds}
+        engagedPostIds={engagedPostIds}
         loading={loading}
         isPosting={isPosting}
         isReplying={isReplying}
         filter={filter}
+        platformFilter={platformFilter}
+        sortBy={sortBy}
         onFilterChange={setFilter}
+        onPlatformFilterChange={setPlatformFilter}
+        onSortChange={setSortBy}
         onCreatePost={onCreatePost}
         onDeletePost={onDeletePost}
         onToggleLike={onToggleLike}
         onToggleBoost={onToggleBoost}
+        onToggleEngagement={onToggleEngagement}
         onReply={onReply}
         onDeleteReply={onDeleteReply}
       />

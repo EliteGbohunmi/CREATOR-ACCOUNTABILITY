@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare, ExternalLink } from 'lucide-react'
+import {
+  Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare,
+  Flame, Hand, Filter, SortAsc, X, ChevronDown, ExternalLink, UserPlus
+} from 'lucide-react'
 
 export type CommunityPost = {
   id: string
@@ -8,7 +11,11 @@ export type CommunityPost = {
   link: string | null
   user_id: string
   created_at: string
-  profiles?: { name: string; email?: string } | null
+  post_type: 'say_hi' | 'boost'
+  platform: string | null
+  engagement_type: 'comment' | 'like' | 'share' | 'watch' | null
+  engaged_by: string[]
+  profiles?: { name: string; email?: string; streak_days?: number } | null
   comments: {
     id: string
     content: string
@@ -18,6 +25,7 @@ export type CommunityPost = {
   }[]
   likes: { user_id: string }[]
   boosts: { user_id: string }[]
+  engagements: { user_id: string }[]
 }
 
 interface Props {
@@ -25,47 +33,81 @@ interface Props {
   currentUserId: string | null
   likedPostIds: Set<string>
   boostedPostIds: Set<string>
+  engagedPostIds: Set<string>
   loading: boolean
   isPosting: boolean
   isReplying: boolean
-  filter: 'all' | 'boosts' | 'mine'
-  onFilterChange: (filter: 'all' | 'boosts' | 'mine') => void
-  onCreatePost: (content: string, link: string | null) => void
+  filter: 'all' | 'say_hi' | 'boost'
+  platformFilter: string
+  sortBy: 'newest' | 'needs_engagement'
+  onFilterChange: (filter: 'all' | 'say_hi' | 'boost') => void
+  onPlatformFilterChange: (platform: string) => void
+  onSortChange: (sort: 'newest' | 'needs_engagement') => void
+  onCreatePost: (content: string, link: string | null, postType: 'say_hi' | 'boost', platform: string | null, engagementType: string | null) => void
   onDeletePost: (postId: string) => void
   onToggleLike: (postId: string) => void
   onToggleBoost: (postId: string) => void
+  onToggleEngagement: (postId: string) => void
   onReply: (postId: string, content: string) => void
   onDeleteReply: (postId: string, commentId: string) => void
 }
+
+const PLATFORMS = ['X', 'TikTok', 'YouTube', 'Instagram', 'LinkedIn', 'Substack']
+const ENGAGEMENT_TYPES = ['comment', 'like', 'share', 'watch']
 
 export default function CommunityDesign({
   posts,
   currentUserId,
   likedPostIds,
   boostedPostIds,
+  engagedPostIds,
   loading,
   isPosting,
   isReplying,
   filter,
+  platformFilter,
+  sortBy,
   onFilterChange,
+  onPlatformFilterChange,
+  onSortChange,
   onCreatePost,
   onDeletePost,
   onToggleLike,
   onToggleBoost,
+  onToggleEngagement,
   onReply,
   onDeleteReply,
 }: Props) {
   const [newContent, setNewContent] = useState('')
   const [newLink, setNewLink] = useState('')
+  const [newPlatform, setNewPlatform] = useState('')
+  const [newEngagementType, setNewEngagementType] = useState('')
+  const [postType, setPostType] = useState<'say_hi' | 'boost'>('say_hi')
   const [replyContent, setReplyContent] = useState<Record<string, string>>({})
   const [replyOpen, setReplyOpen] = useState<Record<string, boolean>>({})
+  const [showAllReplies, setShowAllReplies] = useState<Record<string, boolean>>({})
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newContent.trim()) return
-    onCreatePost(newContent.trim(), newLink.trim() || null)
+    if (!newContent.trim()) {
+      alert('Please write something before posting.')
+      return
+    }
+    if (postType === 'boost' && !newLink.trim()) {
+      alert('Please paste a link to your post.')
+      return
+    }
+    onCreatePost(
+      newContent.trim(),
+      newLink.trim() || null,
+      postType,
+      postType === 'boost' ? newPlatform || null : null,
+      postType === 'boost' ? newEngagementType || null : null
+    )
     setNewContent('')
     setNewLink('')
+    setNewPlatform('')
+    setNewEngagementType('')
   }
 
   const formatTime = (date: string) => {
@@ -77,11 +119,26 @@ export default function CommunityDesign({
     return new Date(date).toLocaleDateString()
   }
 
-  // Stats
   const totalPosts = posts.length
   const totalCreators = new Set(posts.map(p => p.user_id)).size
   const totalBoosts = posts.reduce((acc, p) => acc + (p.boosts?.length || 0), 0)
   const totalReplies = posts.reduce((acc, p) => acc + (p.comments?.length || 0), 0)
+
+  const filteredPosts = posts.filter(p => {
+    if (filter === 'say_hi' && p.post_type !== 'say_hi') return false
+    if (filter === 'boost' && p.post_type !== 'boost') return false
+    if (platformFilter && p.platform !== platformFilter) return false
+    return true
+  })
+
+  const sortedPosts = [...filteredPosts].sort((a, b) => {
+    if (sortBy === 'needs_engagement') {
+      const aEngaged = a.engagements?.length || 0
+      const bEngaged = b.engagements?.length || 0
+      return aEngaged - bEngaged
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
 
   if (loading) {
     return (
@@ -97,106 +154,128 @@ export default function CommunityDesign({
       {/* Header */}
       <div style={styles.header}>
         <h1 style={styles.title}>Creator Community</h1>
-        <p style={styles.subtitle}>Say hi. Ask for engagement. Show up for each other.</p>
+        <h2 style={styles.subtitle}>Say hi. Ask for engagement. Show up for each other.</h2>
         <p style={styles.description}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
       </div>
 
       {/* Stats */}
       <div style={styles.statsBar}>
-        <div style={styles.statItem}>
-          <MessageSquare size={14} color="#666" />
-          <span>{totalPosts} Posts</span>
-        </div>
-        <div style={styles.statDivider} />
-        <div style={styles.statItem}>
-          <Users size={14} color="#666" />
-          <span>{totalCreators} Creators</span>
-        </div>
-        <div style={styles.statDivider} />
-        <div style={styles.statItem}>
-          <Zap size={14} color="#F5A623" />
-          <span>{totalBoosts} Boosts</span>
-        </div>
-        <div style={styles.statDivider} />
-        <div style={styles.statItem}>
-          <MessageCircle size={14} color="#666" />
-          <span>{totalReplies} Replies</span>
-        </div>
+        <span style={styles.statItem}>{totalPosts} Posts</span>
+        <span style={styles.statDot}>·</span>
+        <span style={styles.statItem}>{totalCreators} Creators</span>
+        <span style={styles.statDot}>·</span>
+        <span style={styles.statItem}>{totalBoosts} Boosts</span>
+        <span style={styles.statDot}>·</span>
+        <span style={styles.statItem}>{totalReplies} Replies</span>
       </div>
 
-      {/* Action buttons */}
-      <div style={styles.actionRow}>
-        <button style={styles.actionButton} onClick={() => {}}>
+      {/* Composer tabs */}
+      <div style={styles.composerTabs}>
+        <button
+          style={{ ...styles.composerTab, ...(postType === 'say_hi' ? styles.composerTabActive : {}) }}
+          onClick={() => setPostType('say_hi')}
+        >
           Say hi
         </button>
-        <button style={styles.actionButton} onClick={() => {}}>
+        <button
+          style={{ ...styles.composerTab, ...(postType === 'boost' ? styles.composerTabActive : {}) }}
+          onClick={() => setPostType('boost')}
+        >
           Boost my post
         </button>
       </div>
 
-      {/* Post form */}
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <div style={styles.formRow}>
-          <textarea
-            placeholder="Say hi – who are you, what are you building, what’s your niche?"
-            value={newContent}
-            onChange={e => setNewContent(e.target.value)}
-            style={styles.textarea}
-            rows={3}
-          />
-        </div>
-        <div style={styles.formFooter}>
+      {/* Composer */}
+      <form onSubmit={handleSubmit} style={styles.composer}>
+        <textarea
+          placeholder={
+            postType === 'say_hi'
+              ? "Say hi – who are you, what are you building, what's your niche?"
+              : "What's your post about? Why should people engage?"
+          }
+          value={newContent}
+          onChange={e => setNewContent(e.target.value)}
+          style={styles.textarea}
+          rows={3}
+        />
+        <div style={styles.composerFooter}>
           <span style={styles.charCounter}>{newContent.length}/2000</span>
-          <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.sendBtn}>
+          <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.postBtn}>
             {isPosting ? '...' : 'Say hi'}
           </button>
         </div>
-        <div style={styles.linkWrapper}>
-          <Link2 size={14} color="#666" />
-          <input
-            placeholder="Optional: paste a link"
-            value={newLink}
-            onChange={e => setNewLink(e.target.value)}
-            style={styles.linkInput}
-          />
-        </div>
+
+        {postType === 'boost' && (
+          <div style={styles.boostFields}>
+            <div style={styles.fieldRow}>
+              <Link2 size={14} color="#666" />
+              <input
+                placeholder="Paste your post link"
+                value={newLink}
+                onChange={e => setNewLink(e.target.value)}
+                style={styles.linkInput}
+              />
+            </div>
+            <div style={styles.fieldRow}>
+              <select
+                value={newPlatform}
+                onChange={e => setNewPlatform(e.target.value)}
+                style={styles.select}
+              >
+                <option value="">Platform</option>
+                {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <select
+                value={newEngagementType}
+                onChange={e => setNewEngagementType(e.target.value)}
+                style={styles.select}
+              >
+                <option value="">Ask for</option>
+                {ENGAGEMENT_TYPES.map(e => <option key={e} value={e}>{e}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
       </form>
 
-      {/* Tabs */}
-      <div style={styles.tabs}>
+      {/* Filter tabs */}
+      <div style={styles.filterTabs}>
         <button
-          style={{ ...styles.tab, ...(filter === 'all' ? styles.tabActive : {}) }}
+          style={{ ...styles.filterTab, ...(filter === 'all' ? styles.filterTabActive : {}) }}
           onClick={() => onFilterChange('all')}
         >
           Everything
         </button>
         <button
-          style={{ ...styles.tab, ...(filter === 'boosts' ? styles.tabActive : {}) }}
-          onClick={() => onFilterChange('boosts')}
+          style={{ ...styles.filterTab, ...(filter === 'boost' ? styles.filterTabActive : {}) }}
+          onClick={() => onFilterChange('boost')}
         >
           Boosts
         </button>
         <button
-          style={{ ...styles.tab, ...(filter === 'mine' ? styles.tabActive : {}) }}
-          onClick={() => onFilterChange('mine')}
+          style={{ ...styles.filterTab, ...(filter === 'say_hi' ? styles.filterTabActive : {}) }}
+          onClick={() => onFilterChange('say_hi')}
         >
           Mine
         </button>
       </div>
 
-      {/* Posts feed */}
+      {/* Feed */}
       <div style={styles.feed}>
         <AnimatePresence>
-          {posts.length === 0 ? (
+          {sortedPosts.length === 0 ? (
             <p style={styles.empty}>No posts yet. Start the conversation!</p>
           ) : (
-            posts.map((post, index) => {
+            sortedPosts.map((post, index) => {
               const liked = likedPostIds.has(post.id)
               const boosted = boostedPostIds.has(post.id)
+              const engaged = engagedPostIds.has(post.id)
               const isOwner = post.user_id === currentUserId
               const replyKey = post.id
               const isReplyOpen = replyOpen[replyKey] || false
-              const isBoostedPost = post.boosts && post.boosts.length > 0
+              const isBoost = post.post_type === 'boost'
+              const engagementCount = post.engagements?.length || 0
+              const repliesToShow = showAllReplies[replyKey] ? post.comments : post.comments.slice(0, 2)
 
               return (
                 <motion.div
@@ -212,20 +291,14 @@ export default function CommunityDesign({
                       {post.profiles?.name?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div style={styles.meta}>
-                      <span style={styles.name}>{post.profiles?.name || 'Unknown'}</span>
-                      {isBoostedPost && (
-                        <span style={styles.boostBadge}>
-                          <Zap size={10} color="#F5A623" /> BOOST
-                        </span>
-                      )}
+                      <div style={styles.nameRow}>
+                        <span style={styles.name}>{post.profiles?.name || 'Unknown'}</span>
+                        {isBoost && <span style={styles.boostChip}>BOOST</span>}
+                      </div>
                       <span style={styles.time}>{formatTime(post.created_at)}</span>
                     </div>
                     {isOwner && (
-                      <button
-                        onClick={() => onDeletePost(post.id)}
-                        style={styles.deleteBtn}
-                        title="Delete post"
-                      >
+                      <button onClick={() => onDeletePost(post.id)} style={styles.deleteBtn}>
                         <Trash2 size={14} color="#E53E3E" />
                       </button>
                     )}
@@ -233,9 +306,20 @@ export default function CommunityDesign({
 
                   {/* Content */}
                   <p style={styles.content}>{post.content}</p>
-                  {post.link && (
-                    <a href={post.link} target="_blank" rel="noopener noreferrer" style={styles.link}>
-                      <Link2 size={14} /> {post.link}
+
+                  {/* Link preview (boost only) */}
+                  {isBoost && post.link && (
+                    <a
+                      href={post.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.linkPreview}
+                    >
+                      <div style={styles.linkPreviewContent}>
+                        <span style={styles.linkPlatform}>{post.platform || 'Link'}</span>
+                        <span style={styles.linkUrl}>{post.link}</span>
+                      </div>
+                      <ExternalLink size={14} color="#666" />
                     </a>
                   )}
 
@@ -255,14 +339,24 @@ export default function CommunityDesign({
                       <MessageCircle size={16} />
                       <span>{post.comments?.length || 0}</span>
                     </button>
-                    <button
-                      onClick={() => onToggleBoost(post.id)}
-                      style={{ ...styles.actionBtn, color: boosted ? '#F5A623' : '#666' }}
-                    >
-                      <Zap size={16} fill={boosted ? '#F5A623' : 'none'} />
-                      <span>{post.boosts?.length || 0}</span>
-                    </button>
-                    <span style={styles.engageText}>Engage +</span>
+                    {isBoost && (
+                      <>
+                        <button
+                          onClick={() => onToggleEngagement(post.id)}
+                          style={{
+                            ...styles.engageBtn,
+                            background: engaged ? '#2A2A2A' : '#F5A623',
+                            color: engaged ? '#666' : '#0A0A0A',
+                          }}
+                        >
+                          {engaged ? 'Engaged ✓' : 'I engaged'}
+                        </button>
+                        <span style={styles.engagedCount}>
+                          {engagementCount} {engagementCount === 1 ? 'creator' : 'creators'} engaged
+                        </span>
+                      </>
+                    )}
+                    <span style={styles.engageLabel}>Engage +</span>
                   </div>
 
                   {/* Replies */}
@@ -274,12 +368,13 @@ export default function CommunityDesign({
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                       >
-                        {post.comments.map(comment => (
+                        {repliesToShow.map(comment => (
                           <div key={comment.id} style={styles.replyItem}>
                             <span style={styles.replyName}>
                               {comment.user_id === currentUserId ? 'You' : comment.profiles?.name || 'Anonymous'}
                             </span>
                             <span style={styles.replyText}>{comment.content}</span>
+                            <span style={styles.replyTime}>{formatTime(comment.created_at)}</span>
                             {comment.user_id === currentUserId && (
                               <button
                                 onClick={() => onDeleteReply(post.id, comment.id)}
@@ -290,6 +385,14 @@ export default function CommunityDesign({
                             )}
                           </div>
                         ))}
+                        {post.comments.length > 2 && (
+                          <button
+                            onClick={() => setShowAllReplies(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
+                            style={styles.showMoreBtn}
+                          >
+                            {showAllReplies[replyKey] ? 'Show less' : `Show ${post.comments.length - 2} more`}
+                          </button>
+                        )}
                         <div style={styles.replyInputRow}>
                           <input
                             placeholder="Say something useful..."
@@ -328,156 +431,165 @@ export default function CommunityDesign({
 // ---- Styles ----
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    maxWidth: '740px',
+    maxWidth: '860px',
     margin: '0 auto',
-    padding: '1.5rem 0.75rem 3rem',
+    padding: '2rem 1.25rem 3rem',
     fontFamily: 'Inter, system-ui, sans-serif',
-  },
-  header: {
-    marginBottom: '1.5rem',
-  },
-  title: {
-    fontSize: '1.8rem',
-    fontWeight: '700',
-    fontFamily: 'Space Grotesk, sans-serif',
-    margin: '0 0 0.25rem',
+    backgroundColor: '#0F0F0F',
     color: '#F0EDE8',
   },
+  header: {
+    marginBottom: '2rem',
+  },
+  title: {
+    fontSize: '2rem',
+    fontWeight: '700',
+    fontFamily: 'Space Grotesk, sans-serif',
+    margin: '0 0 0.3rem',
+    color: '#F0EDE8',
+    letterSpacing: '-0.02em',
+  },
   subtitle: {
-    color: '#888',
-    fontSize: '0.9rem',
+    fontSize: '1rem',
+    fontWeight: '500',
+    color: '#F0EDE8',
     margin: '0 0 0.2rem',
   },
   description: {
-    color: '#666',
-    fontSize: '0.85rem',
+    fontSize: '0.9rem',
+    color: '#888',
     margin: 0,
   },
   statsBar: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
+    gap: '0.75rem',
     flexWrap: 'wrap',
-    background: 'rgba(20,20,20,0.4)',
-    backdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255,255,255,0.04)',
-    borderRadius: '12px',
-    padding: '0.6rem 1rem',
-    marginBottom: '1.5rem',
-  },
-  statItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-    fontSize: '0.85rem',
+    marginBottom: '1.75rem',
+    fontSize: '0.9rem',
     color: '#888',
   },
-  statDivider: {
-    width: '1px',
-    height: '20px',
-    background: 'rgba(255,255,255,0.06)',
+  statItem: {
+    fontWeight: '500',
   },
-  actionRow: {
+  statDot: {
+    color: '#555',
+  },
+  composerTabs: {
     display: 'flex',
-    gap: '0.75rem',
-    marginBottom: '1.5rem',
+    gap: '0.5rem',
+    marginBottom: '1rem',
   },
-  actionButton: {
-    background: 'rgba(20,20,20,0.6)',
-    backdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '8px',
-    padding: '0.5rem 1.25rem',
-    color: '#F0EDE8',
+  composerTab: {
+    background: 'none',
+    border: 'none',
+    padding: '0.4rem 1rem',
+    borderRadius: '6px',
+    color: '#888',
     fontSize: '0.85rem',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'background 0.2s',
+    transition: 'all 0.2s',
   },
-  form: {
-    background: 'rgba(20,20,20,0.6)',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '16px',
+  composerTabActive: {
+    background: '#F5A623',
+    color: '#0A0A0A',
+  },
+  composer: {
+    background: '#1C1C1C',
+    border: '1px solid #2A2A2A',
+    borderRadius: '12px',
     padding: '1rem 1.25rem',
-    marginBottom: '1.5rem',
-    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,0.4)',
-  },
-  formRow: {
-    display: 'flex',
-    flexDirection: 'column',
+    marginBottom: '1.75rem',
   },
   textarea: {
     width: '100%',
-    background: 'rgba(10,10,10,0.6)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '12px',
-    padding: '0.75rem 1rem',
+    background: 'transparent',
+    border: 'none',
+    padding: '0.5rem 0',
     color: '#F0EDE8',
     fontSize: '0.95rem',
     fontFamily: 'inherit',
     resize: 'vertical',
     minHeight: '80px',
     outline: 'none',
-    transition: 'border-color 0.2s',
   },
-  formFooter: {
+  composerFooter: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: '0.5rem',
+    paddingTop: '0.5rem',
+    borderTop: '1px solid #2A2A2A',
   },
   charCounter: {
-    color: '#666',
+    color: '#555',
     fontSize: '0.8rem',
   },
-  sendBtn: {
+  postBtn: {
     background: '#F5A623',
     border: 'none',
-    borderRadius: '8px',
-    padding: '0.5rem 1.25rem',
+    borderRadius: '6px',
+    padding: '0.4rem 1.25rem',
     color: '#0A0A0A',
-    cursor: 'pointer',
     fontWeight: '600',
     fontSize: '0.85rem',
-    transition: 'background 0.2s, transform 0.1s',
+    cursor: 'pointer',
+    transition: 'background 0.2s',
   },
-  linkWrapper: {
+  boostFields: {
+    marginTop: '0.75rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+  },
+  fieldRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-    marginTop: '0.6rem',
-    background: 'rgba(10,10,10,0.4)',
-    borderRadius: '10px',
+    background: '#0F0F0F',
+    borderRadius: '6px',
     padding: '0 0.75rem',
-    border: '1px solid rgba(255,255,255,0.04)',
+    border: '1px solid #2A2A2A',
   },
   linkInput: {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    padding: '0.6rem 0',
+    padding: '0.5rem 0',
     color: '#F0EDE8',
     fontSize: '0.9rem',
     outline: 'none',
     fontFamily: 'inherit',
   },
-  tabs: {
+  select: {
+    flex: 1,
+    background: 'transparent',
+    border: 'none',
+    padding: '0.5rem 0',
+    color: '#F0EDE8',
+    fontSize: '0.9rem',
+    outline: 'none',
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    appearance: 'auto',
+  },
+  filterTabs: {
     display: 'flex',
     gap: '1.5rem',
     marginBottom: '1.5rem',
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
+    borderBottom: '1px solid #2A2A2A',
     paddingBottom: '0.5rem',
   },
-  tab: {
+  filterTab: {
     background: 'none',
     border: 'none',
-    color: '#666',
+    color: '#888',
     fontSize: '0.9rem',
     cursor: 'pointer',
     padding: '0.25rem 0',
     transition: 'color 0.2s',
   },
-  tabActive: {
+  filterTabActive: {
     color: '#F5A623',
     borderBottom: '2px solid #F5A623',
     marginBottom: '-0.5rem',
@@ -485,7 +597,7 @@ const styles: Record<string, React.CSSProperties> = {
   feed: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem',
+    gap: '1.25rem',
   },
   empty: {
     textAlign: 'center',
@@ -493,13 +605,10 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '2rem 0',
   },
   card: {
-    background: 'rgba(20,20,20,0.5)',
-    backdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255,255,255,0.04)',
-    borderRadius: '16px',
+    background: '#1C1C1C',
+    border: '1px solid #2A2A2A',
+    borderRadius: '12px',
     padding: '1.25rem',
-    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.03), 0 8px 24px rgba(0,0,0,0.3)',
-    transition: 'border-color 0.2s',
   },
   cardHeader: {
     display: 'flex',
@@ -519,71 +628,87 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
     color: '#0A0A0A',
     flexShrink: 0,
-    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2)',
   },
   meta: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.05rem',
+    gap: '0.1rem',
+  },
+  nameRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
   },
   name: {
     fontWeight: '600',
     fontSize: '0.9rem',
     color: '#F0EDE8',
   },
-  boostBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.2rem',
+  boostChip: {
     fontSize: '0.6rem',
+    fontWeight: '700',
+    textTransform: 'uppercase',
     color: '#F5A623',
     background: 'rgba(245,166,35,0.15)',
     padding: '0.1rem 0.4rem',
     borderRadius: '4px',
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    letterSpacing: '0.04em',
   },
   time: {
     fontSize: '0.7rem',
-    color: '#666',
+    color: '#888',
   },
   deleteBtn: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
     padding: '0.2rem',
-    borderRadius: '4px',
-    opacity: 0.6,
-    transition: 'opacity 0.2s',
+    opacity: 0.5,
   },
   content: {
     margin: '0.2rem 0 0.6rem',
     fontSize: '0.95rem',
     lineHeight: 1.6,
-    color: '#DDD',
+    color: '#F0EDE8',
   },
-  link: {
-    display: 'inline-flex',
+  linkPreview: {
+    display: 'flex',
     alignItems: 'center',
-    gap: '0.3rem',
-    color: '#F5A623',
-    textDecoration: 'none',
-    fontSize: '0.85rem',
-    background: 'rgba(245,166,35,0.08)',
-    padding: '0.2rem 0.7rem',
+    justifyContent: 'space-between',
+    background: '#0F0F0F',
     borderRadius: '6px',
+    padding: '0.4rem 0.75rem',
     marginBottom: '0.6rem',
-    wordBreak: 'break-all',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    border: '1px solid #2A2A2A',
+  },
+  linkPreviewContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.1rem',
+    overflow: 'hidden',
+  },
+  linkPlatform: {
+    fontSize: '0.7rem',
+    color: '#F5A623',
+    fontWeight: '600',
+  },
+  linkUrl: {
+    fontSize: '0.8rem',
+    color: '#888',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   actions: {
     display: 'flex',
     alignItems: 'center',
-    gap: '1.5rem',
-    marginTop: '0.3rem',
-    paddingTop: '0.6rem',
-    borderTop: '1px solid rgba(255,255,255,0.04)',
+    gap: '1rem',
+    flexWrap: 'wrap',
+    marginTop: '0.5rem',
+    paddingTop: '0.5rem',
+    borderTop: '1px solid #2A2A2A',
   },
   actionBtn: {
     background: 'none',
@@ -594,30 +719,43 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.85rem',
     cursor: 'pointer',
     transition: 'color 0.2s',
-    color: '#666',
+    color: '#888',
   },
-  engageText: {
-    marginLeft: 'auto',
+  engageBtn: {
+    border: 'none',
+    borderRadius: '6px',
+    padding: '0.2rem 0.75rem',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  engagedCount: {
+    fontSize: '0.7rem',
+    color: '#888',
+  },
+  engageLabel: {
     fontSize: '0.8rem',
-    color: '#666',
+    color: '#888',
     cursor: 'default',
+    marginLeft: 'auto',
   },
   replySection: {
     marginTop: '0.75rem',
     paddingLeft: '1rem',
-    borderLeft: '2px solid rgba(245,166,35,0.2)',
+    borderLeft: '2px solid #F5A623',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.4rem',
+    gap: '0.3rem',
   },
   replyItem: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-    fontSize: '0.9rem',
-    color: '#CCC',
-    padding: '0.3rem 0',
-    borderBottom: '1px solid rgba(255,255,255,0.03)',
+    fontSize: '0.85rem',
+    color: '#888',
+    padding: '0.2rem 0',
+    borderBottom: '1px solid #2A2A2A',
   },
   replyName: {
     fontWeight: '600',
@@ -628,36 +766,49 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     wordBreak: 'break-word',
   },
+  replyTime: {
+    fontSize: '0.65rem',
+    color: '#555',
+    flexShrink: 0,
+  },
   replyDelete: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    opacity: 0.5,
-    transition: 'opacity 0.2s',
+    opacity: 0.4,
+  },
+  showMoreBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#888',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    padding: '0.2rem 0',
+    textAlign: 'left',
   },
   replyInputRow: {
     display: 'flex',
     gap: '0.5rem',
-    marginTop: '0.4rem',
+    marginTop: '0.3rem',
     alignItems: 'center',
   },
   replyInput: {
     flex: 1,
-    background: 'rgba(10,10,10,0.6)',
-    border: '1px solid rgba(255,255,255,0.04)',
-    borderRadius: '8px',
-    padding: '0.5rem 0.75rem',
+    background: '#0F0F0F',
+    border: '1px solid #2A2A2A',
+    borderRadius: '6px',
+    padding: '0.4rem 0.75rem',
     color: '#F0EDE8',
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
     outline: 'none',
     fontFamily: 'inherit',
   },
   replySend: {
     background: '#F5A623',
     border: 'none',
-    borderRadius: '8px',
-    padding: '0.4rem 0.7rem',
-    height: '36px',
+    borderRadius: '6px',
+    padding: '0.3rem 0.7rem',
+    height: '32px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -671,12 +822,12 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     padding: '4rem 0',
     gap: '1rem',
-    color: '#666',
+    color: '#888',
   },
   spinner: {
     width: '28px',
     height: '28px',
-    border: '3px solid #1A1A1A',
+    border: '3px solid #2A2A2A',
     borderTop: '3px solid #F5A623',
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
