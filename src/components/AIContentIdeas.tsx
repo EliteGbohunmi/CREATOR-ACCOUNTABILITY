@@ -155,7 +155,7 @@ A Carousel post needs SLIDE-BY-SLIDE content. Create 6 slides:
 - Slide 6: CTA slide — call to action (save, share, follow, comment)
 
 STRICT RULES:
-- Use SPECIFIC details from the story in every slide
+- Reference specific details from the story, but REWRITE them in new words — never copy sentences directly from the story
 - No placeholders like [add your story] 
 - Hook: "${idea.hook}"
 - ${pillarName ? `Theme: ${pillarName}` : ''}
@@ -199,7 +199,7 @@ Write ONE tweet for X (Twitter) titled "${idea.title}".
 STRICT RULES:
 - MUST be under 280 characters — count carefully
 - Open with this hook: "${idea.hook}"
-- Use a SPECIFIC detail from the story
+- Reference a specific detail from the story, but write it in fresh wording — do not copy the sentence as-is
 - Conversational and authentic — not like AI wrote it
 - No hashtags unless they add value
 - ${pillarName ? `Theme: ${pillarName}` : ''}
@@ -266,7 +266,7 @@ Write:
 4. OUTRO: 1-2 sentences to close and include a call to action
 
 STRICT RULES:
-- Use SPECIFIC details from the story — not generic advice
+- Reference specific details from the story, but rewrite them as if speaking naturally — never copy sentences directly from the story
 - Write as if the creator is speaking — conversational and natural
 - ${pillarName ? `Theme: ${pillarName}` : ''}
 
