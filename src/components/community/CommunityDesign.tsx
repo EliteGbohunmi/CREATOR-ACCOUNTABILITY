@@ -1,66 +1,110 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useMemo, useRef } from "react";
 import {
-  Heart, MessageCircle, Trash2, Link2, Send, Zap, Users, MessageSquare,
-  Flame, Hand, ExternalLink, Plus, Sparkles, Megaphone,
-} from 'lucide-react'
+  Send,
+  Trash2,
+  Link2,
+  MessageCircle,
+  Heart,
+  ExternalLink,
+  Plus,
+  X,
+  Sparkles,
+  Megaphone,
+  Users,
+  Zap,
+  Filter,
+  SortAsc,
+} from "lucide-react";
 
 export type CommunityPost = {
-  id: string
-  content: string
-  link: string | null
-  user_id: string
-  created_at: string
-  post_type: 'say_hi' | 'boost'
-  platform: string | null
-  engagement_type: 'comment' | 'like' | 'share' | 'watch' | null
-  engaged_by: string[]
-  profiles?: { name: string; email?: string; streak_days?: number } | null
+  id: string;
+  content: string;
+  link: string | null;
+  user_id: string;
+  created_at: string;
+  post_type: 'say_hi' | 'boost';
+  platform: string | null;
+  engagement_type: 'comment' | 'like' | 'share' | 'watch' | null;
+  engaged_by: string[];
+  profiles?: { name: string; email?: string; streak_days?: number } | null;
   comments: {
-    id: string
-    content: string
-    user_id: string
-    created_at: string
-    profiles?: { name: string } | null
-  }[]
-  likes: { user_id: string }[]
-  boosts: { user_id: string }[]
-  engagements: { user_id: string }[]
-}
+    id: string;
+    content: string;
+    user_id: string;
+    created_at: string;
+    profiles?: { name: string } | null;
+  }[];
+  likes: { user_id: string }[];
+  boosts: { user_id: string }[];
+  engagements: { user_id: string }[];
+};
 
 interface Props {
-  posts: CommunityPost[]
-  currentUserId: string | null
-  likedPostIds: Set<string>
-  boostedPostIds: Set<string>
-  engagedPostIds: Set<string>
-  loading: boolean
-  isPosting: boolean
-  isReplying: boolean
-  filter: 'all' | 'say_hi' | 'boost' | 'mine'
-  platformFilter: string
-  sortBy: 'newest' | 'needs_engagement'
-  onFilterChange: (filter: 'all' | 'say_hi' | 'boost' | 'mine') => void
-  onPlatformFilterChange: (platform: string) => void
-  onSortChange: (sort: 'newest' | 'needs_engagement') => void
-  onCreatePost: (content: string, link: string | null, postType: 'say_hi' | 'boost', platform: string | null, engagementType: string | null) => void
-  onDeletePost: (postId: string) => void
-  onToggleLike: (postId: string) => void
-  onToggleBoost: (postId: string) => void
-  onToggleEngagement: (postId: string) => void
-  onReply: (postId: string, content: string) => void
-  onDeleteReply: (postId: string, commentId: string) => void
+  posts: CommunityPost[];
+  currentUserId: string | null;
+  likedPostIds: Set<string>;
+  boostedPostIds: Set<string>;
+  engagedPostIds: Set<string>;
+  loading: boolean;
+  isPosting: boolean;
+  isReplying: boolean;
+  filter: 'all' | 'say_hi' | 'boost' | 'mine';
+  platformFilter: string;
+  sortBy: 'newest' | 'needs_engagement';
+  onFilterChange: (filter: 'all' | 'say_hi' | 'boost' | 'mine') => void;
+  onPlatformFilterChange: (platform: string) => void;
+  onSortChange: (sort: 'newest' | 'needs_engagement') => void;
+  onCreatePost: (content: string, link: string | null, postType: 'say_hi' | 'boost', platform: string | null, engagementType: string | null) => void;
+  onDeletePost: (postId: string) => void;
+  onToggleLike: (postId: string) => void;
+  onToggleBoost: (postId: string) => void;
+  onToggleEngagement: (postId: string) => void;
+  onReply: (postId: string, content: string) => void;
+  onDeleteReply: (postId: string, commentId: string) => void;
 }
 
-const PLATFORMS = ['X', 'TikTok', 'YouTube', 'Instagram', 'LinkedIn', 'Substack']
-const ENGAGEMENT_TYPES = ['comment', 'like', 'share', 'watch']
+const PLATFORMS = ['X', 'TikTok', 'YouTube', 'Instagram', 'LinkedIn', 'Substack'];
+const ENGAGEMENT_TYPES = ['comment', 'like', 'share', 'watch'];
+const MAX_LENGTH = 2000;
 
-const getInitials = (name?: string | null) => {
-  if (!name) return '?'
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
-  return (parts[0][0] + parts[1][0]).toUpperCase()
+const c = {
+  bg: "#0B0B0C",
+  card: "#141416",
+  raise: "#1B1B1F",
+  sunk: "#0E0E10",
+  line: "#232327",
+  lineSoft: "#1C1C20",
+  text: "#F2EFEA",
+  dim: "#9A9AA0",
+  muted: "#75757C",
+  accent: "#F5A623",
+  accentSoft: "rgba(245, 166, 35, 0.12)",
+  danger: "#E5544B",
+};
+
+function getInitials(name?: string | null) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?';
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function formatTime(date: string) {
+  const diff = Date.now() - new Date(date).getTime();
+  if (diff < 60_000) return 'Just now';
+  if (diff < 3_600_000) return Math.floor(diff / 60_000) + 'm ago';
+  if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + 'h ago';
+  if (diff < 604_800_000) return Math.floor(diff / 86_400_000) + 'd ago';
+  return new Date(date).toLocaleDateString();
+}
+
+function hostOf(link: string) {
+  try {
+    return new URL(link).hostname.replace(/^www\./, "");
+  } catch {
+    return link;
+  }
 }
 
 export default function CommunityDesign({
@@ -86,920 +130,672 @@ export default function CommunityDesign({
   onReply,
   onDeleteReply,
 }: Props) {
-  const [newContent, setNewContent] = useState('')
-  const [newLink, setNewLink] = useState('')
-  const [newPlatform, setNewPlatform] = useState('')
-  const [newEngagementType, setNewEngagementType] = useState('')
-  const [postType, setPostType] = useState<'say_hi' | 'boost'>('say_hi')
-  const [replyContent, setReplyContent] = useState<Record<string, string>>({})
-  const [replyOpen, setReplyOpen] = useState<Record<string, boolean>>({})
-  const [showAllReplies, setShowAllReplies] = useState<Record<string, boolean>>({})
+  const [mode, setMode] = useState<'say_hi' | 'boost'>('say_hi');
+  const [content, setContent] = useState('');
+  const [link, setLink] = useState('');
+  const [platform, setPlatform] = useState('');
+  const [engagementType, setEngagementType] = useState('');
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyOpen, setReplyOpen] = useState<Record<string, boolean>>({});
+  const [showAllReplies, setShowAllReplies] = useState<Record<string, boolean>>({});
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newContent.trim()) {
-      alert('Please write something before posting.')
-      return
+  const stats = useMemo(() => ({
+    posts: posts.length,
+    creators: new Set(posts.map(p => p.user_id)).size,
+    boosts: posts.reduce((acc, p) => acc + (p.boosts?.length || 0), 0),
+    replies: posts.reduce((acc, p) => acc + (p.comments?.length || 0), 0),
+  }), [posts]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim()) {
+      alert('Please write something.');
+      return;
     }
-    if (postType === 'boost' && !newLink.trim()) {
-      alert('Please paste a link to your post.')
-      return
+    if (mode === 'boost' && !link.trim()) {
+      alert('Please paste a link to your post.');
+      return;
     }
-    onCreatePost(
-      newContent.trim(),
-      newLink.trim() || null,
-      postType,
-      postType === 'boost' ? newPlatform || null : null,
-      postType === 'boost' ? newEngagementType || null : null
-    )
-    setNewContent('')
-    setNewLink('')
-    setNewPlatform('')
-    setNewEngagementType('')
-  }
+    await onCreatePost(
+      content.trim(),
+      link.trim() || null,
+      mode,
+      mode === 'boost' ? platform || null : null,
+      mode === 'boost' ? engagementType || null : null
+    );
+    setContent('');
+    setLink('');
+    setPlatform('');
+    setEngagementType('');
+  };
 
-  const formatTime = (date: string) => {
-    const diff = Date.now() - new Date(date).getTime()
-    if (diff < 60_000) return 'Just now'
-    if (diff < 3_600_000) return Math.floor(diff / 60_000) + 'm ago'
-    if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + 'h ago'
-    if (diff < 604_800_000) return Math.floor(diff / 86_400_000) + 'd ago'
-    return new Date(date).toLocaleDateString()
-  }
+  const submitReply = async (postId: string) => {
+    const draft = replyDraft[postId]?.trim();
+    if (!draft || isReplying) return;
+    await onReply(postId, draft);
+    setReplyDraft(prev => ({ ...prev, [postId]: '' }));
+  };
 
-  const totalPosts = posts.length
-  const totalCreators = new Set(posts.map(p => p.user_id)).size
-  const totalBoosts = posts.reduce((acc, p) => acc + (p.boosts?.length || 0), 0)
-  const totalReplies = posts.reduce((acc, p) => acc + (p.comments?.length || 0), 0)
+  const visiblePosts = useMemo(() => {
+    let result = posts;
+    if (filter === 'say_hi') result = result.filter(p => p.post_type === 'say_hi');
+    if (filter === 'boost') result = result.filter(p => p.post_type === 'boost');
+    if (filter === 'mine') result = result.filter(p => p.user_id === currentUserId);
+    if (platformFilter) result = result.filter(p => p.platform === platformFilter);
+    return result;
+  }, [posts, filter, platformFilter, currentUserId]);
 
-  const filteredPosts = posts.filter(p => {
-    if (filter === 'say_hi' && p.post_type !== 'say_hi') return false
-    if (filter === 'boost' && p.post_type !== 'boost') return false
-    if (filter === 'mine' && p.user_id !== currentUserId) return false
-    if (platformFilter && p.platform !== platformFilter) return false
-    return true
-  })
-
-  const sortedPosts = [...filteredPosts].sort((a, b) => {
+  const sortedPosts = useMemo(() => {
     if (sortBy === 'needs_engagement') {
-      const aEngaged = a.engagements?.length || 0
-      const bEngaged = b.engagements?.length || 0
-      return aEngaged - bEngaged
+      return [...visiblePosts].sort((a, b) => (a.engagements?.length || 0) - (b.engagements?.length || 0));
     }
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })
+    return [...visiblePosts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [visiblePosts, sortBy]);
 
   if (loading) {
     return (
-      <div style={styles.loading}>
-        <div style={styles.spinner} />
+      <div style={s.loading}>
+        <div style={s.spinner} />
         <span>Loading community board...</span>
       </div>
-    )
+    );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.eyebrow}>
-        <Users size={18} strokeWidth={2} />
-        Creator Community
-      </div>
+    <div style={s.page}>
+      <style>{css}</style>
 
-      <h1 style={styles.title}>Say hi. Ask for engagement. Show up for each other.</h1>
-      <p style={styles.subtitle}>Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.</p>
+      <header style={s.hero}>
+        <div style={s.heroKicker}>
+          <Users size={13} color={c.accent} />
+          <span>Creator community</span>
+        </div>
+        <h1 style={s.heroTitle}>Say hi. Ask for engagement. Show up for each other.</h1>
+        <p style={s.heroSub}>
+          Introduce yourself, drop the post you just shipped, and tell creators exactly how to support it.
+        </p>
+        <div style={s.statRow}>
+          <Stat label="Posts" value={stats.posts} />
+          <Stat label="Creators" value={stats.creators} />
+          <Stat label="Boosts" value={stats.boosts} />
+          <Stat label="Replies" value={stats.replies} />
+        </div>
+      </header>
 
-      <div style={styles.stats}>
-        <div style={styles.stat}>
-          <div style={styles.statNum}>{totalPosts}</div>
-          <div style={styles.statLabel}>Posts</div>
-        </div>
-        <div style={styles.stat}>
-          <div style={styles.statNum}>{totalCreators}</div>
-          <div style={styles.statLabel}>Creators</div>
-        </div>
-        <div style={styles.stat}>
-          <div style={styles.statNum}>{totalBoosts}</div>
-          <div style={styles.statLabel}>Boosts</div>
-        </div>
-        <div style={styles.stat}>
-          <div style={styles.statNum}>{totalReplies}</div>
-          <div style={styles.statLabel}>Replies</div>
-        </div>
-      </div>
-
-      <div style={styles.composer}>
-        <div style={styles.toggleRow}>
+      <form onSubmit={handleSubmit} style={s.composer} className="cd-card">
+        <div style={s.modeRow}>
           <button
             type="button"
-            style={{ ...styles.pill, ...(postType === 'say_hi' ? styles.pillActive : {}) }}
-            onClick={() => setPostType('say_hi')}
+            onClick={() => setMode('say_hi')}
+            className={`cd-mode${mode === 'say_hi' ? ' is-on' : ''}`}
           >
-            <Sparkles size={15} strokeWidth={2} />
-            Say hi
+            <Sparkles size={14} /> Say hi
           </button>
           <button
             type="button"
-            style={{ ...styles.pill, ...(postType === 'boost' ? styles.pillActive : {}) }}
-            onClick={() => setPostType('boost')}
+            onClick={() => setMode('boost')}
+            className={`cd-mode${mode === 'boost' ? ' is-on' : ''}`}
           >
-            <Megaphone size={15} strokeWidth={2} />
-            Boost my post
+            <Megaphone size={14} /> Boost my post
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <textarea
-            style={styles.textarea}
-            placeholder={
-              postType === 'say_hi'
-                ? "Say hi – who are you, what are you building, what's your niche?"
-                : "What's your post about? Why should people engage?"
-            }
-            value={newContent}
-            onChange={e => setNewContent(e.target.value)}
-            maxLength={2000}
-            rows={3}
-          />
-          <div style={styles.composerFooter}>
-            <span style={styles.charCount}>{newContent.length}/2000</span>
-            <button type="submit" disabled={isPosting || !newContent.trim()} style={styles.sendBtn}>
-              <Send size={15} strokeWidth={2} />
-              {isPosting ? '...' : postType === 'say_hi' ? 'Say hi' : 'Post boost'}
-            </button>
-          </div>
+        <textarea
+          ref={textareaRef}
+          className="cd-input"
+          rows={mode === 'boost' ? 4 : 3}
+          maxLength={MAX_LENGTH}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder={
+            mode === 'boost'
+              ? "What did you just post, and what kind of engagement helps most?"
+              : "Say hi — who are you, what are you building, what's your niche?"
+          }
+          style={s.textarea}
+        />
 
-          {postType === 'boost' && (
-            <div style={styles.boostFields}>
-              <div style={styles.fieldRow}>
-                <Link2 size={15} color="#6f6c69" />
-                <input
-                  style={styles.linkInput}
-                  placeholder="Paste your post link"
-                  value={newLink}
-                  onChange={e => setNewLink(e.target.value)}
-                />
-              </div>
-              <div style={styles.fieldRow}>
-                <select
-                  style={styles.select}
-                  value={newPlatform}
-                  onChange={e => setNewPlatform(e.target.value)}
-                >
-                  <option value="">Platform</option>
-                  {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                <select
-                  style={styles.select}
-                  value={newEngagementType}
-                  onChange={e => setNewEngagementType(e.target.value)}
-                >
-                  <option value="">Ask for</option>
-                  {ENGAGEMENT_TYPES.map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
-              </div>
+        {mode === 'boost' && (
+          <>
+            <div style={s.askRow}>
+              {ENGAGEMENT_TYPES.map((a) => (
+                <button key={a} type="button" className="cd-chip" onClick={() => setEngagementType(a)}>
+                  {a}
+                </button>
+              ))}
             </div>
-          )}
-        </form>
+            <div style={s.linkWrap} className="cd-linkwrap">
+              <Link2 size={15} color={c.accent} />
+              <input
+                className="cd-input"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder="Paste the link to your post"
+                style={s.linkInput}
+              />
+            </div>
+            <div style={s.linkWrap} className="cd-linkwrap">
+              <select
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value)}
+                style={s.select}
+              >
+                <option value="">Platform</option>
+                {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </>
+        )}
+
+        <div style={s.composerFooter}>
+          <span style={s.count}>
+            {content.length}/{MAX_LENGTH}
+          </span>
+          <button type="submit" className="cd-send" disabled={!content.trim() || isPosting}>
+            <Send size={15} />
+            {isPosting ? 'Posting…' : mode === 'boost' ? 'Post boost' : 'Say hi'}
+          </button>
+        </div>
+      </form>
+
+      <div style={s.filterRow}>
+        {(['all', 'boost', 'mine'] as const).map((key) => (
+          <button
+            key={key}
+            onClick={() => onFilterChange(key)}
+            className={`cd-filter${filter === key ? ' is-on' : ''}`}
+          >
+            {key === 'all' ? 'Everything' : key === 'boost' ? 'Boosts' : 'Mine'}
+          </button>
+        ))}
+        <select
+          value={platformFilter}
+          onChange={(e) => onPlatformFilterChange(e.target.value)}
+          style={s.filterSelect}
+        >
+          <option value="">All platforms</option>
+          {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select
+          value={sortBy}
+          onChange={(e) => onSortChange(e.target.value as 'newest' | 'needs_engagement')}
+          style={s.filterSelect}
+        >
+          <option value="newest">Newest</option>
+          <option value="needs_engagement">Needs engagement</option>
+        </select>
       </div>
 
-      <div style={styles.tabs}>
-        <button
-          type="button"
-          style={{ ...styles.tab, ...(filter === 'all' ? styles.tabActive : {}) }}
-          onClick={() => onFilterChange('all')}
-        >
-          Everything
-        </button>
-        <button
-          type="button"
-          style={{ ...styles.tab, ...(filter === 'boost' ? styles.tabActive : {}) }}
-          onClick={() => onFilterChange('boost')}
-        >
-          Boosts
-        </button>
-        <button
-          type="button"
-          style={{ ...styles.tab, ...(filter === 'mine' ? styles.tabActive : {}) }}
-          onClick={() => onFilterChange('mine')}
-        >
-          Mine
-        </button>
-      </div>
+      {sortedPosts.length === 0 ? (
+        <div style={s.empty} className="cd-card">
+          <Sparkles size={20} color={c.accent} />
+          <p style={s.emptyTitle}>Nothing here yet</p>
+          <p style={s.emptyText}>Be the first to say hi — the board rewards whoever starts.</p>
+        </div>
+      ) : (
+        <div style={s.feed}>
+          {sortedPosts.map((post) => {
+            const liked = likedPostIds.has(post.id);
+            const boosted = boostedPostIds.has(post.id);
+            const engaged = engagedPostIds.has(post.id);
+            const isOwner = post.user_id === currentUserId;
+            const isBoost = post.post_type === 'boost';
+            const open = replyOpen[post.id] || false;
+            const repliesToShow = showAllReplies[post.id] ? post.comments : post.comments.slice(0, 2);
 
-      <div style={styles.feed}>
-        <AnimatePresence>
-          {sortedPosts.length === 0 ? (
-            <p style={styles.empty}>No posts yet. Start the conversation!</p>
-          ) : (
-            sortedPosts.map((post, index) => {
-              const liked = likedPostIds.has(post.id)
-              const engaged = engagedPostIds.has(post.id)
-              const isOwner = post.user_id === currentUserId
-              const replyKey = post.id
-              const isReplyOpen = replyOpen[replyKey] || false
-              const isBoost = post.post_type === 'boost'
-              const engagementCount = post.engagements?.length || 0
-              const repliesToShow = showAllReplies[replyKey] ? post.comments : post.comments.slice(0, 2)
-              const displayName = isOwner ? 'You' : (post.profiles?.name || 'Unknown')
-
-              return (
-                <motion.div
-                  key={post.id}
-                  style={styles.post}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <div style={styles.postHead}>
-                    <div style={styles.avatar}>
-                      {getInitials(post.profiles?.name)}
-                    </div>
-                    <div style={styles.who}>
-                      <div style={styles.nameRow}>
-                        <span style={styles.name}>{displayName}</span>
-                        {isOwner && <span style={{ ...styles.badge, ...styles.badgeYou }}>You</span>}
-                        {isBoost && <span style={{ ...styles.badge, ...styles.badgeBoost }}>Boost</span>}
-                      </div>
-                      <span style={styles.timestamp}>{formatTime(post.created_at)}</span>
-                    </div>
-                    {isOwner && (
-                      <button
-                        type="button"
-                        onClick={() => onDeletePost(post.id)}
-                        style={styles.deleteBtn}
-                        aria-label="Delete post"
-                      >
-                        <Trash2 size={16} strokeWidth={2} />
-                      </button>
-                    )}
+            return (
+              <article key={post.id} style={s.post} className="cd-card cd-post">
+                <div style={s.postHead}>
+                  <div style={s.avatarRing}>
+                    <div style={s.avatar}>{getInitials(post.profiles?.name)}</div>
                   </div>
-
-                  <div style={styles.postBody}>{post.content}</div>
-
-                  {isBoost && post.link && (
-                    <a
-                      href={post.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={styles.linkCard}
+                  <div style={s.who}>
+                    <div style={s.nameRow}>
+                      <span style={s.name}>{post.profiles?.name || 'Anonymous'}</span>
+                      {isOwner && <span style={s.youTag}>you</span>}
+                      {isBoost && <span style={s.boostTag}>boost</span>}
+                    </div>
+                    <span style={s.time}>{formatTime(post.created_at)}</span>
+                  </div>
+                  {isOwner && (
+                    <button
+                      className="cd-del"
+                      onClick={() => onDeletePost(post.id)}
+                      aria-label="Delete post"
                     >
-                      <div style={styles.linkText}>
-                        <div style={styles.linkDomain}>{post.platform || 'Link'}</div>
-                        <div style={styles.linkUrl}>{post.link}</div>
-                      </div>
-                      <div style={styles.engage}>
-                        Engage
-                        <ExternalLink size={13} strokeWidth={2.2} />
-                      </div>
-                    </a>
+                      <Trash2 size={14} />
+                    </button>
                   )}
+                </div>
 
-                  <div style={styles.postFooter}>
-                    <button
-                      type="button"
-                      onClick={() => onToggleLike(post.id)}
-                      style={{ ...styles.statPill, ...(liked ? styles.statPillFilled : styles.statPillOutline) }}
-                    >
-                      <Heart size={15} fill={liked ? '#f0a637' : 'none'} />
-                      {post.likes?.length || 0}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setReplyOpen(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
-                      style={{ ...styles.statPill, ...styles.statPillOutline }}
-                    >
-                      <MessageCircle size={15} />
-                      {post.comments?.length || 0}
-                    </button>
-                    {isBoost && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onToggleEngagement(post.id)}
-                          style={{
-                            ...styles.statPill,
-                            ...(engaged ? styles.statPillFilled : styles.statPillOutline),
-                          }}
-                        >
-                          <Zap size={15} />
-                          {engaged ? 'Engaged' : 'I engaged'}
-                        </button>
-                        <span style={styles.engagedCount}>
-                          {engagementCount} {engagementCount === 1 ? 'creator' : 'creators'} engaged
-                        </span>
-                      </>
-                    )}
-                    {post.comments.length > 0 && (
-                      <span
-                        style={styles.viewThread}
-                        onClick={() => setReplyOpen(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
+                <p style={s.content}>{post.content}</p>
+
+                {post.link && (
+                  <a
+                    href={post.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="cd-linkcard"
+                    style={s.linkCard}
+                  >
+                    <div style={s.linkCardMeta}>
+                      <span style={s.linkHost}>{post.platform || hostOf(post.link)}</span>
+                      <span style={s.linkUrl}>{post.link}</span>
+                    </div>
+                    <span style={s.engageBtn}>
+                      Engage <ExternalLink size={13} />
+                    </span>
+                  </a>
+                )}
+
+                <div style={s.actions}>
+                  <button
+                    className={`cd-action${liked ? ' is-on' : ''}`}
+                    onClick={() => onToggleLike(post.id)}
+                  >
+                    <Heart size={15} fill={liked ? c.accent : 'none'} />
+                    {post.likes?.length || 0}
+                  </button>
+                  <button
+                    className={`cd-action${open ? ' is-on' : ''}`}
+                    onClick={() => setReplyOpen(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                  >
+                    <MessageCircle size={15} />
+                    {post.comments?.length || 0}
+                  </button>
+                  {isBoost && (
+                    <>
+                      <button
+                        className={`cd-action${boosted ? ' is-on' : ''}`}
+                        onClick={() => onToggleBoost(post.id)}
                       >
-                        View thread
+                        <Zap size={15} fill={boosted ? c.accent : 'none'} />
+                        {post.boosts?.length || 0}
+                      </button>
+                      <button
+                        className={`cd-action${engaged ? ' is-on' : ''}`}
+                        onClick={() => onToggleEngagement(post.id)}
+                      >
+                        {engaged ? '✓ Engaged' : 'I engaged'}
+                      </button>
+                      <span style={s.engagedCount}>
+                        {post.engagements?.length || 0} creators engaged
                       </span>
-                    )}
-                  </div>
+                    </>
+                  )}
+                  {post.comments.length > 0 && !open && (
+                    <button className="cd-ghost" onClick={() => setReplyOpen(prev => ({ ...prev, [post.id]: true }))}>
+                      View thread
+                    </button>
+                  )}
+                </div>
 
-                  <AnimatePresence>
-                    {isReplyOpen && (
-                      <motion.div
-                        style={styles.replyBlock}
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                      >
-                        <div style={styles.replyTop}>
-                          <div style={styles.replyStat}>
-                            <Heart size={14} fill="#f0a637" />
-                            {post.likes?.length || 0}
+                {open && (
+                  <div style={s.thread}>
+                    {repliesToShow.map((cm) => (
+                      <div key={cm.id} style={s.reply}>
+                        <div style={s.replyDot} />
+                        <div style={s.replyBody}>
+                          <div style={s.replyMeta}>
+                            <span style={s.replyName}>{cm.user_id === currentUserId ? 'You' : cm.profiles?.name || 'Anonymous'}</span>
+                            <span style={s.replyTime}>{formatTime(cm.created_at)}</span>
                           </div>
-                          <div style={styles.replyStat}>
-                            <MessageCircle size={14} />
-                            {post.comments?.length || 0}
-                          </div>
+                          <p style={s.replyText}>{cm.content}</p>
                         </div>
-
-                        {repliesToShow.map(comment => (
-                          <div key={comment.id} style={styles.replyComment}>
-                            <div style={styles.whoRow}>
-                              <span style={styles.name}>
-                                {comment.user_id === currentUserId ? 'You' : comment.profiles?.name || 'Anonymous'}
-                              </span>
-                              <span style={styles.dot} />
-                              <span style={styles.timestamp}>{formatTime(comment.created_at)}</span>
-                              {comment.user_id === currentUserId && (
-                                <button
-                                  type="button"
-                                  onClick={() => onDeleteReply(post.id, comment.id)}
-                                  style={styles.closeX}
-                                  aria-label="Delete reply"
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </div>
-                            <div style={styles.replyText}>{comment.content}</div>
-                          </div>
-                        ))}
-
-                        {post.comments.length > 2 && (
+                        {cm.user_id === currentUserId && (
                           <button
-                            type="button"
-                            onClick={() => setShowAllReplies(prev => ({ ...prev, [replyKey]: !prev[replyKey] }))}
-                            style={styles.showMore}
+                            className="cd-del sm"
+                            onClick={() => onDeleteReply(post.id, cm.id)}
+                            aria-label="Delete reply"
                           >
-                            {showAllReplies[replyKey] ? 'Show less' : `Show ${post.comments.length - 2} more`}
+                            <X size={12} />
                           </button>
                         )}
-
-                        <div style={styles.sayInputRow}>
-                          <input
-                            style={styles.sayInput}
-                            placeholder="Say something useful..."
-                            value={replyContent[replyKey] || ''}
-                            onChange={e =>
-                              setReplyContent(prev => ({ ...prev, [replyKey]: e.target.value }))
-                            }
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') {
-                                const content = (replyContent[replyKey] || '').trim()
-                                if (!content) return
-                                onReply(post.id, content)
-                                setReplyContent(prev => ({ ...prev, [replyKey]: '' }))
-                              }
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const content = (replyContent[replyKey] || '').trim()
-                              if (!content) return
-                              onReply(post.id, content)
-                              setReplyContent(prev => ({ ...prev, [replyKey]: '' }))
-                            }}
-                            disabled={isReplying}
-                            style={styles.sendRound}
-                            aria-label="Send reply"
-                          >
-                            <Send size={14} strokeWidth={2} />
-                          </button>
-                        </div>
-                      </motion.div>
+                      </div>
+                    ))}
+                    {post.comments.length > 2 && (
+                      <button
+                        className="cd-ghost"
+                        onClick={() => setShowAllReplies(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                      >
+                        {showAllReplies[post.id] ? 'Show less' : `Show ${post.comments.length - 2} more`}
+                      </button>
                     )}
-                  </AnimatePresence>
-                </motion.div>
-              )
-            })
-          )}
-        </AnimatePresence>
-      </div>
+                    <div style={s.replyRow}>
+                      <input
+                        className="cd-input"
+                        value={replyDraft[post.id] || ''}
+                        onChange={(e) => setReplyDraft(prev => ({ ...prev, [post.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void submitReply(post.id);
+                          }
+                        }}
+                        placeholder="Say something useful…"
+                        style={s.replyInput}
+                      />
+                      <button
+                        className="cd-send sm"
+                        disabled={!replyDraft[post.id]?.trim() || isReplying}
+                        onClick={() => void submitReply(post.id)}
+                      >
+                        <Send size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
 
-      <button type="button" style={styles.fab} aria-label="New post">
-        <Plus size={26} strokeWidth={2.4} />
+      <button
+        className="cd-fab"
+        aria-label="New post"
+        onClick={() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setTimeout(() => textareaRef.current?.focus(), 350);
+        }}
+      >
+        <Plus size={22} />
       </button>
     </div>
-  )
+  );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    maxWidth: '740px',
-    margin: '0 auto',
-    padding: '20px 12px 90px',
-    fontFamily: '"Nunito Sans", sans-serif',
-    color: '#f4f2ee',
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={s.stat}>
+      <span style={s.statValue}>{value}</span>
+      <span style={s.statLabel}>{label}</span>
+    </div>
+  );
+}
+
+const css = `
+.cd-card { background:${c.card}; border:1px solid ${c.line}; border-radius:20px; }
+.cd-post { transition: border-color .2s ease, transform .2s ease; }
+.cd-post:hover { border-color:#2E2E34; transform: translateY(-1px); }
+.cd-input { font-family: inherit; background: transparent; border: none; color:${c.text}; outline: none; }
+.cd-input::placeholder { color:${c.muted}; }
+.cd-mode { display:inline-flex; align-items:center; gap:.4rem; padding:.45rem .8rem; border-radius:999px;
+  border:1px solid ${c.line}; background:${c.sunk}; color:${c.muted}; font:inherit; font-size:.8rem; cursor:pointer;
+  transition: all .18s ease; }
+.cd-mode:hover { color:${c.text}; }
+.cd-mode.is-on { color:#100E0A; background:${c.accent}; border-color:${c.accent}; font-weight:600; }
+.cd-chip { padding:.3rem .65rem; border-radius:999px; border:1px dashed ${c.line}; background:transparent;
+  color:${c.muted}; font:inherit; font-size:.75rem; cursor:pointer; transition: all .18s ease; }
+.cd-chip:hover { color:${c.accent}; border-color:${c.accent}; background:${c.accentSoft}; }
+.cd-linkwrap:focus-within { border-color:${c.accent} !important; }
+.cd-send { display:inline-flex; align-items:center; gap:.45rem; background:${c.accent}; color:#100E0A; border:none;
+  border-radius:12px; padding:.6rem 1.1rem; font:inherit; font-size:.85rem; font-weight:600; cursor:pointer;
+  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease; }
+.cd-send:hover:not(:disabled) { transform: translateY(-1px); box-shadow:0 8px 20px rgba(245,166,35,.28); }
+.cd-send:disabled { opacity:.35; cursor:not-allowed; }
+.cd-send.sm { padding:.5rem .6rem; border-radius:10px; }
+.cd-filter { padding:.45rem .9rem; border-radius:999px; border:1px solid ${c.line}; background:transparent;
+  color:${c.muted}; font:inherit; font-size:.8rem; cursor:pointer; transition: all .18s ease; }
+.cd-filter:hover { color:${c.text}; }
+.cd-filter.is-on { color:${c.accent}; border-color:${c.accent}; background:${c.accentSoft}; font-weight:600; }
+.cd-action { display:inline-flex; align-items:center; gap:.4rem; background:transparent; border:1px solid transparent;
+  color:${c.muted}; font:inherit; font-size:.82rem; padding:.4rem .7rem; border-radius:10px; cursor:pointer;
+  transition: all .18s ease; }
+.cd-action:hover { background:${c.raise}; color:${c.text}; }
+.cd-action.is-on { color:${c.accent}; background:${c.accentSoft}; }
+.cd-ghost { background:none; border:none; color:${c.muted}; font:inherit; font-size:.78rem; cursor:pointer; }
+.cd-ghost:hover { color:${c.accent}; }
+.cd-del { background:transparent; border:1px solid ${c.line}; color:${c.muted}; border-radius:10px; padding:.4rem;
+  display:inline-flex; cursor:pointer; transition: all .18s ease; }
+.cd-del:hover { color:${c.danger}; border-color:${c.danger}; background:rgba(229,84,75,.1); }
+.cd-del.sm { border:none; padding:.2rem; }
+.cd-linkcard { display:flex; align-items:center; justify-content:space-between; gap:1rem; text-decoration:none;
+  border:1px solid ${c.line}; background:${c.sunk}; border-radius:14px; padding:.8rem .9rem; margin-bottom:.9rem;
+  transition: all .18s ease; }
+.cd-linkcard:hover { border-color:${c.accent}; background:${c.accentSoft}; }
+.cd-fab { position:fixed; right:1.25rem; bottom:1.5rem; width:52px; height:52px; border-radius:50%; border:none;
+  background:${c.accent}; color:#100E0A; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  box-shadow:0 10px 28px rgba(245,166,35,.35); z-index:40; }
+.cd-skel { animation: cdPulse 1.4s ease-in-out infinite; }
+@keyframes cdPulse { 0%,100% { opacity:.35 } 50% { opacity:.7 } }
+@media (min-width: 720px) { .cd-fab { display:none } }
+`;
+
+const s = {
+  page: {
+    maxWidth: '100%',
+    margin: "0",
+    padding: "4px 1px 110px",
+    color: c.text,
+    fontFamily: "'Space Grotesk', system-ui, sans-serif",
   },
-  eyebrow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    color: '#f0a637',
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 600,
-    fontSize: '13px',
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
-    marginBottom: '14px',
+  hero: { marginBottom: "1.6rem" },
+  heroKicker: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: ".4rem",
+    fontSize: ".72rem",
+    letterSpacing: ".14em",
+    textTransform: "uppercase",
+    color: c.accent,
+    marginBottom: ".7rem",
   },
-  title: {
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 700,
-    fontSize: 'clamp(28px, 6vw, 38px)',
+  heroTitle: {
+    margin: 0,
+    fontSize: "clamp(1.55rem, 6vw, 2.15rem)",
     lineHeight: 1.12,
-    letterSpacing: '0.01em',
-    textTransform: 'uppercase',
-    margin: '0 0 12px',
-  },
-  subtitle: {
-    color: '#9c9895',
-    fontSize: '15px',
-    lineHeight: 1.5,
-    margin: '0 0 18px',
-    maxWidth: '46ch',
-  },
-  stats: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '10px',
-    marginBottom: '18px',
-  },
-  stat: {
-    border: '1px solid #2c2c2c',
-    borderRadius: '14px',
-    padding: '12px 6px 10px',
-    textAlign: 'center',
-    background: '#1a1a1a',
-  },
-  statNum: {
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 600,
-    fontSize: '22px',
-    lineHeight: 1,
-    marginBottom: '6px',
-  },
-  statLabel: {
-    fontSize: '10.5px',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: '#6f6c69',
+    letterSpacing: "-0.02em",
     fontWeight: 700,
   },
-  composer: {
-    border: '1px solid #2c2c2c',
-    borderRadius: '18px',
-    background: '#1a1a1a',
-    padding: '16px',
-    marginBottom: '20px',
+  heroSub: { margin: ".7rem 0 0", color: c.muted, fontSize: ".92rem", lineHeight: 1.6 },
+  statRow: { display: "flex", gap: ".5rem", marginTop: "1.2rem", flexWrap: "wrap" },
+  stat: {
+    display: "flex",
+    flexDirection: "column",
+    gap: ".1rem",
+    padding: ".55rem .85rem",
+    border: `1px solid ${c.lineSoft}`,
+    borderRadius: 14,
+    background: c.card,
+    minWidth: 72,
   },
-  toggleRow: {
-    display: 'flex',
-    gap: '10px',
-    marginBottom: '14px',
-  },
-  pill: {
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 500,
-    fontSize: '14px',
-    borderRadius: '999px',
-    padding: '8px 14px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    border: '1px solid #2c2c2c',
-    cursor: 'pointer',
-    background: 'transparent',
-    color: '#f4f2ee',
-    transition: 'all 0.2s',
-  },
-  pillActive: {
-    background: '#f0a637',
-    color: '#201404',
-    borderColor: '#f0a637',
-  },
+  statValue: { fontSize: "1.05rem", fontWeight: 700 },
+  statLabel: { fontSize: ".68rem", textTransform: "uppercase", letterSpacing: ".1em", color: c.muted },
+  composer: { padding: "1rem", marginBottom: "1.4rem" },
+  modeRow: { display: "flex", gap: ".5rem", marginBottom: ".9rem" },
   textarea: {
-    width: '100%',
-    minHeight: '84px',
-    resize: 'none',
-    background: 'transparent',
-    border: '1px solid #2c2c2c',
-    borderRadius: '14px',
-    color: '#f4f2ee',
-    fontFamily: '"Nunito Sans", sans-serif',
-    fontSize: '15.5px',
-    lineHeight: 1.5,
-    padding: '12px 14px',
-    marginBottom: '12px',
-    outline: 'none',
+    width: "100%",
+    boxSizing: "border-box",
+    background: c.sunk,
+    border: `1px solid ${c.line}`,
+    borderRadius: 14,
+    padding: ".85rem .95rem",
+    fontSize: ".95rem",
+    lineHeight: 1.6,
+    resize: "vertical",
   },
-  composerFooter: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  askRow: { display: "flex", gap: ".4rem", flexWrap: "wrap", marginTop: ".7rem" },
+  linkWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: ".55rem",
+    background: c.sunk,
+    border: `1px solid ${c.line}`,
+    borderRadius: 12,
+    padding: "0 .85rem",
+    marginTop: ".7rem",
   },
-  charCount: {
-    color: '#6f6c69',
-    fontSize: '13px',
-  },
-  sendBtn: {
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 600,
-    fontSize: '14px',
-    background: '#4d3a1a',
-    color: '#d8a05c',
-    border: 'none',
-    borderRadius: '999px',
-    padding: '8px 18px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    cursor: 'pointer',
-    opacity: 0.85,
-    transition: 'opacity 0.2s',
-  },
-  boostFields: {
-    marginTop: '12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  fieldRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    background: 'transparent',
-    border: '1px solid #2c2c2c',
-    borderRadius: '999px',
-    padding: '6px 14px',
-  },
-  linkInput: {
-    flex: 1,
-    background: 'transparent',
-    border: 'none',
-    color: '#f4f2ee',
-    fontSize: '14.5px',
-    fontFamily: '"Nunito Sans", sans-serif',
-    outline: 'none',
-  },
+  linkInput: { flex: 1, padding: ".65rem 0", fontSize: ".85rem", minWidth: 0 },
   select: {
     flex: 1,
-    background: 'transparent',
-    border: 'none',
-    color: '#f4f2ee',
-    fontSize: '14.5px',
-    fontFamily: '"Nunito Sans", sans-serif',
-    outline: 'none',
-    cursor: 'pointer',
+    padding: ".65rem 0",
+    fontSize: ".85rem",
+    background: c.sunk,
+    border: `1px solid ${c.line}`,
+    borderRadius: 12,
+    color: c.text,
+    fontFamily: "inherit",
+    outline: "none",
   },
-  tabs: {
-    display: 'flex',
-    gap: '10px',
-    marginBottom: '18px',
+  error: { color: c.danger, fontSize: ".75rem", marginTop: ".4rem" },
+  composerFooter: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: ".75rem",
+    marginTop: ".9rem",
   },
-  tab: {
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 500,
-    fontSize: '14px',
-    padding: '6px 16px',
-    borderRadius: '999px',
-    border: '1px solid #2c2c2c',
-    color: '#9c9895',
-    background: 'transparent',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
+  count: { fontSize: ".72rem", color: c.muted },
+  filterRow: {
+    display: "flex",
+    gap: ".5rem",
+    marginBottom: "1.1rem",
+    flexWrap: "wrap",
+    alignItems: "center",
   },
-  tabActive: {
-    borderColor: '#f0a637',
-    color: '#f0a637',
-    background: 'rgba(240,166,55,0.08)',
+  filterSelect: {
+    background: c.sunk,
+    border: `1px solid ${c.line}`,
+    borderRadius: 999,
+    padding: ".4rem .8rem",
+    color: c.text,
+    fontSize: ".8rem",
+    fontFamily: "inherit",
+    outline: "none",
+    cursor: "pointer",
   },
-  feed: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '14px',
-  },
-  empty: {
-    textAlign: 'center',
-    color: '#6f6c69',
-    padding: '2rem 0',
-    fontFamily: '"Nunito Sans", sans-serif',
-    fontSize: '15px',
-  },
-  post: {
-    border: '1px solid #2c2c2c',
-    borderRadius: '18px',
-    background: '#1a1a1a',
-    padding: '16px',
-  },
-  postHead: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '12px',
+  skeletonWrap: { display: "grid", gap: "1rem" },
+  skeleton: { height: 140, borderRadius: 20, background: c.card, border: `1px solid ${c.lineSoft}` },
+  empty: { padding: "2.2rem 1.2rem", textAlign: "center" },
+  emptyTitle: { margin: ".7rem 0 .3rem", fontWeight: 700 },
+  emptyText: { margin: 0, color: c.muted, fontSize: ".88rem" },
+  feed: { display: "grid", gap: "1rem" },
+  post: { padding: "1.1rem" },
+  postHead: { display: "flex", alignItems: "center", gap: ".8rem", marginBottom: ".85rem" },
+  avatarRing: {
+    padding: 2,
+    borderRadius: "50%",
+    background: `linear-gradient(135deg, ${c.accent}, #7A3A12)`,
+    flexShrink: 0,
   },
   avatar: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    border: '2px solid #f0a637',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 600,
-    fontSize: '14px',
-    color: '#f0a637',
-    flexShrink: 0,
+    width: 38,
+    height: 38,
+    borderRadius: "50%",
+    background: c.sunk,
+    color: c.accent,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: ".82rem",
+    fontWeight: 700,
   },
-  who: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    flex: 1,
-    minWidth: 0,
+  who: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: ".15rem" },
+  nameRow: { display: "flex", alignItems: "center", gap: ".4rem", flexWrap: "wrap" },
+  name: { fontWeight: 600, fontSize: ".93rem" },
+  youTag: {
+    fontSize: ".62rem",
+    textTransform: "uppercase",
+    letterSpacing: ".08em",
+    color: c.muted,
+    border: `1px solid ${c.line}`,
+    borderRadius: 999,
+    padding: ".1rem .4rem",
   },
-  nameRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    flexWrap: 'wrap',
+  boostTag: {
+    fontSize: ".62rem",
+    textTransform: "uppercase",
+    letterSpacing: ".08em",
+    color: c.accent,
+    background: c.accentSoft,
+    borderRadius: 999,
+    padding: ".1rem .45rem",
   },
-  name: {
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 600,
-    fontSize: '15.5px',
+  time: { fontSize: ".72rem", color: c.muted },
+  content: {
+    margin: "0 0 .9rem",
+    fontSize: ".95rem",
+    lineHeight: 1.68,
+    color: "#D8D5D0",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
   },
-  badge: {
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 600,
-    fontSize: '10.5px',
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-    padding: '2px 8px',
-    borderRadius: '999px',
-  },
-  badgeYou: {
-    border: '1px solid #2c2c2c',
-    color: '#9c9895',
-  },
-  badgeBoost: {
-    background: '#f0a637',
-    color: '#201404',
-  },
-  timestamp: {
-    fontSize: '12.5px',
-    color: '#6f6c69',
-  },
-  deleteBtn: {
-    marginLeft: 'auto',
-    width: '34px',
-    height: '34px',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#6f6c69',
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    flexShrink: 0,
-  },
-  postBody: {
-    fontSize: '15.5px',
-    lineHeight: 1.55,
-    color: '#f4f2ee',
-    marginBottom: '12px',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-  },
-  linkCard: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '10px',
-    border: '1px solid #2c2c2c',
-    borderRadius: '14px',
-    padding: '12px 14px',
-    marginBottom: '12px',
-    textDecoration: 'none',
-    cursor: 'pointer',
-  },
-  linkText: {
-    minWidth: 0,
-    flex: 1,
-  },
-  linkDomain: {
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 500,
-    fontSize: '14.5px',
-    color: '#f4f2ee',
-    marginBottom: '3px',
-  },
+  linkCard: {},
+  linkCardMeta: { display: "flex", flexDirection: "column", gap: ".15rem", minWidth: 0 },
+  linkHost: { fontSize: ".84rem", fontWeight: 600, color: c.text },
   linkUrl: {
-    fontSize: '12.5px',
-    color: '#6f6c69',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    fontSize: ".72rem",
+    color: c.muted,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    maxWidth: "48vw",
   },
-  engage: {
-    fontFamily: '"Fredoka", sans-serif',
+  engageBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: ".35rem",
+    fontSize: ".78rem",
     fontWeight: 600,
-    fontSize: '14px',
-    color: '#f0a637',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    whiteSpace: 'nowrap',
+    color: c.accent,
     flexShrink: 0,
   },
-  postFooter: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    flexWrap: 'wrap',
+  actions: {
+    display: "flex",
+    alignItems: "center",
+    gap: ".35rem",
+    paddingTop: ".7rem",
+    borderTop: `1px solid ${c.lineSoft}`,
+    flexWrap: "wrap",
   },
-  statPill: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '7px',
-    borderRadius: '999px',
-    padding: '6px 12px',
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 600,
-    fontSize: '13.5px',
-    cursor: 'pointer',
-    border: 'none',
-    background: 'transparent',
-  },
-  statPillFilled: {
-    background: '#4d3a1a',
-    color: '#f0a637',
-  },
-  statPillOutline: {
-    border: '1px solid #2c2c2c',
-    color: '#9c9895',
-  },
+  spacer: { flex: 1 },
   engagedCount: {
-    fontSize: '13.5px',
-    color: '#6f6c69',
-    marginLeft: '4px',
+    fontSize: ".7rem",
+    color: c.muted,
+    marginLeft: ".2rem",
   },
-  viewThread: {
-    marginLeft: 'auto',
-    fontSize: '13.5px',
-    color: '#6f6c69',
-    fontWeight: 600,
-    fontFamily: '"Fredoka", sans-serif',
-    cursor: 'pointer',
-  },
-  replyBlock: {
-    border: '1px solid #2c2c2c',
-    borderRadius: '16px',
-    background: '#1a1a1a',
-    padding: '14px',
-    marginTop: '14px',
-    overflow: 'hidden',
-  },
-  replyTop: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    marginBottom: '10px',
-  },
-  replyStat: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    background: '#4d3a1a',
-    color: '#f0a637',
-    borderRadius: '999px',
-    padding: '4px 12px',
-    fontFamily: '"Fredoka", sans-serif',
-    fontWeight: 600,
-    fontSize: '13px',
-  },
-  replyComment: {
-    borderTop: '1px solid #2c2c2c',
-    paddingTop: '10px',
-    marginTop: '4px',
-  },
-  whoRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginBottom: '4px',
-  },
-  dot: {
-    width: '7px',
-    height: '7px',
-    borderRadius: '50%',
-    background: '#6f6c69',
-  },
-  closeX: {
-    marginLeft: 'auto',
-    color: '#6f6c69',
-    fontSize: '16px',
-    cursor: 'pointer',
-    background: 'none',
-    border: 'none',
-  },
-  replyText: {
-    fontSize: '15px',
-    lineHeight: 1.5,
-    color: '#f4f2ee',
-    marginBottom: '10px',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-  },
-  showMore: {
-    background: 'none',
-    border: 'none',
-    color: '#6f6c69',
-    fontSize: '14px',
-    fontFamily: '"Nunito Sans", sans-serif',
-    cursor: 'pointer',
-    padding: '4px 0',
-  },
-  sayInputRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    border: '1px solid #2c2c2c',
-    borderRadius: '999px',
-    padding: '8px 8px 8px 14px',
-  },
-  sayInput: {
-    flex: 1,
-    background: 'transparent',
-    border: 'none',
-    color: '#f4f2ee',
-    fontSize: '14.5px',
-    fontFamily: '"Nunito Sans", sans-serif',
-    outline: 'none',
-  },
-  sendRound: {
-    width: '34px',
-    height: '34px',
-    borderRadius: '50%',
-    background: '#4d3a1a',
-    color: '#f0a637',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+  thread: { marginTop: ".9rem", display: "grid", gap: ".6rem" },
+  reply: { display: "flex", alignItems: "flex-start", gap: ".6rem" },
+  replyDot: {
+    width: 6,
+    height: 6,
+    borderRadius: "50%",
+    background: c.line,
+    marginTop: ".55rem",
     flexShrink: 0,
-    border: 'none',
-    cursor: 'pointer',
   },
-  fab: {
-    position: 'fixed',
-    right: 'max(16px, calc((100vw - 740px) / 2 + 8px))',
-    bottom: '28px',
-    width: '56px',
-    height: '56px',
-    borderRadius: '50%',
-    background: '#f0a637',
-    color: '#201404',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: 'none',
-    boxShadow: '0 0 24px rgba(240,166,55,0.45)',
-    cursor: 'pointer',
+  replyBody: { flex: 1, minWidth: 0 },
+  replyMeta: { display: "flex", gap: ".5rem", alignItems: "baseline" },
+  replyName: { fontSize: ".82rem", fontWeight: 600 },
+  replyTime: { fontSize: ".68rem", color: c.muted },
+  replyText: { margin: ".15rem 0 0", fontSize: ".87rem", lineHeight: 1.55, color: "#C9C6C1", wordBreak: "break-word" },
+  replyRow: { display: "flex", gap: ".5rem", alignItems: "center", marginTop: ".2rem" },
+  replyInput: {
+    flex: 1,
+    background: c.sunk,
+    border: `1px solid ${c.line}`,
+    borderRadius: 12,
+    padding: ".6rem .8rem",
+    fontSize: ".87rem",
+    minWidth: 0,
   },
   loading: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '4rem 0',
-    gap: '1rem',
-    color: '#6f6c69',
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "4rem 0",
+    gap: "1rem",
+    color: c.muted,
   },
   spinner: {
-    width: '28px',
-    height: '28px',
-    border: '3px solid #2c2c2c',
-    borderTop: '3px solid #f0a637',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
+    width: 28,
+    height: 28,
+    border: `2px solid ${c.line}`,
+    borderTop: `2px solid ${c.accent}`,
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
   },
-}
+} satisfies Record<string, React.CSSProperties>;
