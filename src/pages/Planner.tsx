@@ -59,7 +59,7 @@ export default function Planner() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [weekDays, setWeekDays] = useState<Date[]>([])
   const [weekStart, setWeekStart] = useState('monday')
-  const [lastCheckedIn, setLastCheckedIn] = useState<string | null>(null) // 👈 streak check-in date
+  const [lastCheckedIn, setLastCheckedIn] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -72,7 +72,7 @@ export default function Planner() {
         }
       })
     fetchPillars()
-    fetchStreak() // 👈 fetch streak
+    fetchStreak()
   }, [])
 
   useEffect(() => { setWeekDays(getWeekDays(weekOffset, weekStart)) }, [weekOffset, weekStart])
@@ -307,7 +307,8 @@ export default function Planner() {
           const dateStr = day.toISOString().split('T')[0]
           const dayTasks = tasks.filter(t => t.date === dateStr)
           const isToday = dateStr === today
-          const posted = lastCheckedIn === dateStr // 👈 check if user posted that day
+          const isPast = dateStr < today
+          const posted = lastCheckedIn === dateStr
 
           return (
             <div key={dateStr} style={{ ...styles.dayBlock, borderColor: isToday ? '#F5A62340' : '#1E1E1E' }}>
@@ -318,15 +319,17 @@ export default function Planner() {
                 <span style={{ color: isToday ? '#F5A623' : '#333', fontSize: '0.78rem' }}>
                   {day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </span>
-                {/* Post status badge */}
-                {posted ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#4CAF50', fontSize: '0.7rem', marginLeft: '0.5rem' }}>
-                    <CheckCircle2 size={12} color="#4CAF50" /> Posted
-                  </span>
-                ) : (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#E53E3E', fontSize: '0.7rem', marginLeft: '0.5rem' }}>
-                    <X size={12} color="#E53E3E" /> No post
-                  </span>
+                {/* Post status badge – only for past dates */}
+                {isPast && (
+                  posted ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#4CAF50', fontSize: '0.7rem', marginLeft: '0.5rem' }}>
+                      <CheckCircle2 size={12} color="#4CAF50" /> Posted
+                    </span>
+                  ) : (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#E53E3E', fontSize: '0.7rem', marginLeft: '0.5rem' }}>
+                      <X size={12} color="#E53E3E" /> No post
+                    </span>
+                  )
                 )}
                 <button style={styles.addDayBtn} onClick={() => { setDate(dateStr); setSelectedDate(dateStr); setShowForm(true) }}>
                   <Plus size={13} color="#555" />
