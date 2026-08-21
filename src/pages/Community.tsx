@@ -17,81 +17,116 @@ export default function Community() {
   const [boostedPostIds, setBoostedPostIds] = useState<Set<string>>(new Set())
 
   const fetchPosts = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('community_posts')
-      .select(`
-        id,
-        content,
-        link,
-        user_id,
-        created_at,
-        profiles!community_posts_user_id_fkey ( name, email ),
-        community_comments (
+    try {
+      // 1. Fetch posts with user profiles (simple join)
+      const { data: postsData, error: postsError } = await supabase
+        .from('community_posts')
+        .select(`
+          id,
+          content,
+          link,
+          user_id,
+          created_at,
+          profiles ( name, email )
+        `)
+        .order('created_at', { ascending: false })
+
+      if (postsError) throw postsError
+
+      // 2. Fetch comments for all posts
+      const postIds = postsData?.map(p => p.id) || []
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('community_comments')
+        .select(`
           id,
           content,
           user_id,
           created_at,
-          profiles!community_comments_user_id_fkey ( name )
-        ),
-        community_likes ( id, user_id ),
-        community_boosts ( id, user_id )
-      `)
-      .order('created_at', { ascending: false })
+          post_id,
+          profiles ( name )
+        `)
+        .in('post_id', postIds.length ? postIds : [''])
 
-    if (error) {
-      console.error(error)
-      toast.error("Couldn't load the community board")
+      if (commentsError) throw commentsError
+
+      // 3. Fetch likes for all posts
+      const { data: likesData, error: likesError } = await supabase
+        .from('community_likes')
+        .select('id, user_id, post_id')
+        .in('post_id', postIds.length ? postIds : [''])
+
+      if (likesError) throw likesError
+
+      // 4. Fetch boosts for all posts
+      const { data: boostsData, error: boostsError } = await supabase
+        .from('community_boosts')
+        .select('id, user_id, post_id')
+        .in('post_id', postIds.length ? postIds : [''])
+
+      if (boostsError) throw boostsError
+
+      // Group comments, likes, boosts by post_id
+      const commentsByPost: Record<string, any[]> = {}
+      commentsData?.forEach((c: any) => {
+        if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
+        commentsByPost[c.post_id].push(c)
+      })
+
+      const likesByPost: Record<string, any[]> = {}
+      likesData?.forEach((l: any) => {
+        if (!likesByPost[l.post_id]) likesByPost[l.post_id] = []
+        likesByPost[l.post_id].push(l)
+      })
+
+      const boostsByPost: Record<string, any[]> = {}
+      boostsData?.forEach((b: any) => {
+        if (!boostsByPost[b.post_id]) boostsByPost[b.post_id] = []
+        boostsByPost[b.post_id].push(b)
+      })
+
+      // Map to CommunityPost[]
+      const mapped: CommunityPost[] = postsData?.map((post: any) => ({
+        id: post.id,
+        content: post.content,
+        link: post.link,
+        user_id: post.user_id,
+        created_at: post.created_at,
+        profiles: post.profiles,
+        comments: (commentsByPost[post.id] || []).sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        ),
+        likes: likesByPost[post.id] || [],
+        boosts: boostsByPost[post.id] || [],
+      })) || []
+
+      setPosts(mapped)
+      setLikedPostIds(
+        new Set(
+          mapped
+            .filter((p) => p.likes?.some((l) => l.user_id === currentUserId))
+            .map((p) => p.id)
+        )
+      )
+      setBoostedPostIds(
+        new Set(
+          mapped
+            .filter((p) => p.boosts?.some((b) => b.user_id === currentUserId))
+            .map((p) => p.id)
+        )
+      )
+    } catch (err: any) {
+      console.error('Fetch error:', err)
+      toast.error('Could not load the community board: ' + err.message)
+    } finally {
       setLoading(false)
-      return
     }
-
-    const rows = (data ?? []) as any[]
-
-    const mapped: CommunityPost[] = rows.map((row) => ({
-      id: row.id,
-      content: row.content,
-      link: row.link,
-      user_id: row.user_id,
-      created_at: row.created_at,
-      profiles: row.profiles,
-      comments: (row.community_comments ?? [])
-        .map((cm: any) => ({
-          id: cm.id,
-          content: cm.content,
-          user_id: cm.user_id,
-          created_at: cm.created_at,
-          profiles: cm.profiles,
-        }))
-        .sort(
-          (a: any, b: any) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        ),
-      likes: row.community_likes ?? [],
-      boosts: row.community_boosts ?? [],
-    }))
-
-    setPosts(mapped)
-    setLikedPostIds(
-      new Set(
-        mapped
-          .filter((p) => p.likes?.some((l) => l.user_id === currentUserId))
-          .map((p) => p.id)
-      )
-    )
-    setBoostedPostIds(
-      new Set(
-        mapped
-          .filter((p) => p.boosts?.some((b) => b.user_id === currentUserId))
-          .map((p) => p.id)
-      )
-    )
-    setLoading(false)
   }, [currentUserId])
 
   useEffect(() => {
     fetchPosts()
   }, [fetchPosts])
 
+  // Realtime remains the same – we'll keep it simple by refreshing on any change
   useEffect(() => {
     const channel = supabase
       .channel('community-board')
@@ -121,6 +156,9 @@ export default function Community() {
       supabase.removeChannel(channel)
     }
   }, [fetchPosts])
+
+  // ... (rest of the functions: onCreatePost, onDeletePost, etc. unchanged)
+  // They remain the same as in your current file – no changes needed.
 
   const onCreatePost = async (content: string, link: string | null) => {
     if (!currentUserId) {
