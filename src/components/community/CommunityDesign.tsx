@@ -421,17 +421,6 @@ export default function CommunityDesign({
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                       >
-                        <div style={styles.replyTop}>
-                          <div style={styles.replyStat}>
-                            <Heart size={14} fill="#f0a637" />
-                            {post.likes?.length || 0}
-                          </div>
-                          <div style={styles.replyStat}>
-                            <MessageCircle size={14} />
-                            {post.comments?.length || 0}
-                          </div>
-                        </div>
-
                         {repliesToShow.map(comment => (
                           <div key={comment.id} style={styles.replyComment}>
                             <div style={styles.whoRow}>
