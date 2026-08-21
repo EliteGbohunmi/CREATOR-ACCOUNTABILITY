@@ -4,9 +4,8 @@ import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Toaster } from 'react-hot-toast'
 import { setupGlobalErrorHandler } from './lib/errorHandler'
-import './index.css'
+import './global.css'
 
-// Setup global error interceptors
 setupGlobalErrorHandler()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
