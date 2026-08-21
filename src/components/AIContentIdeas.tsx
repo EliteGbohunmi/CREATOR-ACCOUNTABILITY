@@ -68,7 +68,7 @@ export default function AIContentIdeas({ pillars, onIdeaAdded, selectedDate }: P
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, maxTokens })
       }
     )
     const data = await res.json()
