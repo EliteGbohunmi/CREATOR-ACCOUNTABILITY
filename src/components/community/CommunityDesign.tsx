@@ -330,7 +330,7 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     maxWidth: '740px',
     margin: '0 auto',
-    padding: '1.5rem 1rem 3rem',
+    padding: '1.5rem 0.75rem 3rem',
     fontFamily: 'Inter, system-ui, sans-serif',
   },
   header: {
