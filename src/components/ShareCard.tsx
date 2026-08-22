@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import html2canvas from 'html2canvas'
+import domtoimage from 'dom-to-image'
 import { Share2, X, Download, Flame } from 'lucide-react'
 
 interface Props {
@@ -66,34 +66,29 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
     if (!cardRef.current) return
     setCapturing(true)
     try {
-      // Wait for the display font to actually be loaded — capturing before
-      // it's ready is what causes the speckled letter-spacing artifacts.
+      // Wait for fonts to load
       if (document.fonts?.ready) await document.fonts.ready
 
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: '#0A0908',
-        scale: 3,
-        letterRendering: true, // fixes html2canvas letter-spacing ghosting
-        onclone: (clonedDoc) => {
-          // html2canvas doesn't reliably support background-clip:text —
-          // it paints the gradient box and ignores the transparent fill.
-          // Swap to a flat solid color on the clone only; the live UI keeps
-          // its gradient.
-          const num = clonedDoc.querySelector('[data-capture="streak-num"]') as HTMLElement | null
-          if (num) {
-            num.style.background = 'none'
-            num.style.webkitBackgroundClip = 'unset'
-            num.style.backgroundClip = 'unset'
-            num.style.webkitTextFillColor = '#F5A623'
-            num.style.color = '#F5A623'
-          }
+      const dataUrl = await domtoimage.toPng(cardRef.current, {
+        quality: 0.95,
+        width: 300,
+        height: 400,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+        },
+        filter: (node) => {
+          // Exclude the watermark from the capture (optional)
+          return !(node instanceof HTMLElement && node.classList?.contains('watermark'))
         }
       })
+
       const link = document.createElement('a')
       link.download = `streak-${streak}-days.png`
-      link.href = canvas.toDataURL('image/png')
+      link.href = dataUrl
       link.click()
-    } catch {
+    } catch (err) {
+      console.error(err)
       alert('Could not capture card. Try again.')
     }
     setCapturing(false)
@@ -176,7 +171,7 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                   </div>
                 </div>
 
-                <div style={styles.watermark}><Spaced gap="0.08em">creatoraccountability.app</Spaced></div>
+                <div style={styles.watermark} className="watermark"><Spaced gap="0.08em">creatoraccountability.app</Spaced></div>
               </div>
               {/* ===== /Capture target ===== */}
 
