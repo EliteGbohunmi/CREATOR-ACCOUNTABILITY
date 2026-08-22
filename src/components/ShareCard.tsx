@@ -22,6 +22,25 @@ function getMilestoneProgress(streak: number) {
   return { fraction: Math.max(0.03, Math.min(1, fraction)), label: `${next - streak} days to ${next}` }
 }
 
+// html2canvas has a long-standing bug where CSS letter-spacing causes
+// leftover glyph fragments (colored specks) in the captured image. Faking
+// the spacing with real per-character spans avoids it entirely.
+function Spaced({ children, gap }: { children: string; gap: string }) {
+  const chars = children.split('')
+  return (
+    <>
+      {chars.map((ch, i) => (
+        <span
+          key={i}
+          style={{ display: 'inline-block', marginRight: i === chars.length - 1 ? 0 : gap }}
+        >
+          {ch === ' ' ? '\u00A0' : ch}
+        </span>
+      ))}
+    </>
+  )
+}
+
 function getInitials(name: string) {
   return name
     .trim()
@@ -112,7 +131,7 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                 <div style={styles.cardContent}>
                   <div style={styles.eyebrowRow}>
                     <Flame size={13} color="#F5A623" strokeWidth={2.5} />
-                    <span style={styles.eyebrow}>CREATOR ACCOUNTABILITY</span>
+                    <span style={styles.eyebrow}><Spaced gap="0.14em">CREATOR ACCOUNTABILITY</Spaced></span>
                   </div>
 
                   <div style={styles.ringWrap}>
@@ -139,7 +158,7 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                     </svg>
                     <div style={styles.ringCenter}>
                       <div data-capture="streak-num" style={styles.streakNum}>{streak}</div>
-                      <div style={styles.streakLabel}>day streak</div>
+                      <div style={styles.streakLabel}><Spaced gap="0.1em">DAY STREAK</Spaced></div>
                     </div>
                   </div>
 
@@ -157,7 +176,7 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                   </div>
                 </div>
 
-                <div style={styles.watermark}>creatoraccountability.app</div>
+                <div style={styles.watermark}><Spaced gap="0.08em">creatoraccountability.app</Spaced></div>
               </div>
               {/* ===== /Capture target ===== */}
 
@@ -214,7 +233,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '1.6rem 1.5rem 1.3rem'
   },
   eyebrowRow: { display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1.15rem' },
-  eyebrow: { color: '#B8895A', fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.14em' },
+  eyebrow: { color: '#B8895A', fontSize: '0.66rem', fontWeight: 700 },
 
   ringWrap: { position: 'relative', width: '200px', height: '200px' },
   ringCenter: {
@@ -228,13 +247,12 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundClip: 'text', lineHeight: 1
   },
   streakLabel: {
-    color: '#8A8175', fontSize: '0.72rem', letterSpacing: '0.1em',
-    textTransform: 'uppercase', marginTop: '0.25rem', fontWeight: 600
+    color: '#8A8175', fontSize: '0.72rem',
+    marginTop: '0.25rem', fontWeight: 600
   },
 
   milestoneCaption: {
-    marginTop: '0.9rem', color: '#C9A26A', fontSize: '0.78rem', fontWeight: 600,
-    letterSpacing: '0.01em'
+    marginTop: '0.9rem', color: '#C9A26A', fontSize: '0.78rem', fontWeight: 600
   },
 
   footer: {
@@ -255,7 +273,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   watermark: {
     position: 'relative', textAlign: 'center', color: '#4A4136',
-    fontSize: '0.6rem', letterSpacing: '0.08em', padding: '0.6rem 0 0.85rem'
+    fontSize: '0.6rem', padding: '0.6rem 0 0.85rem'
   },
 
   downloadBtn: {
