@@ -65,7 +65,7 @@ export default function AIContentIdeas({ pillars, onIdeaAdded, selectedDate }: P
 
   const callBackendAI = async (prompt: string, maxTokens = 1500) => {
     const res = await fetch(
-      `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'}/api/ai/generate`,
+      `${'https://streak-backend-ar7h.onrender.com'}/api/ai/generate`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
