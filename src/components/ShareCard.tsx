@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import domtoimage from 'dom-to-image'
 import { Share2, X, Download, Flame } from 'lucide-react'
@@ -21,7 +21,7 @@ function getMilestoneProgress(streak: number) {
   return { fraction: Math.max(0.03, Math.min(1, fraction)), label: `${daysToGo} days to ${next}` }
 }
 
-// Avoid html2canvas letter-spacing bug
+// Avoid letter-spacing artifacts
 function Spaced({ children, gap }: { children: string; gap: string }) {
   const chars = children.split('')
   return (
@@ -59,11 +59,21 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
   const CIRC = 2 * Math.PI * RADIUS
   const dashOffset = CIRC * (1 - fraction)
 
+  // Preload fonts when modal opens
+  useEffect(() => {
+    if (open) {
+      document.fonts.load('1em Space Grotesk').catch(() => {})
+    }
+  }, [open])
+
   const capture = async () => {
     if (!cardRef.current) return
     setCapturing(true)
     try {
-      if (document.fonts?.ready) await document.fonts.ready
+      // Ensure font is fully loaded
+      await document.fonts.ready
+      await document.fonts.load('1em Space Grotesk').catch(() => {})
+
       const dataUrl = await domtoimage.toPng(cardRef.current, {
         quality: 0.95,
         width: 300,
@@ -72,10 +82,9 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
           transform: 'scale(1)',
           transformOrigin: 'top left',
         },
-        filter: (node) => {
-          return !(node instanceof HTMLElement && node.classList?.contains('watermark'))
-        }
+        // No filter – capture everything
       })
+
       const link = document.createElement('a')
       link.download = `streak-${streak}-days.png`
       link.href = dataUrl
@@ -228,7 +237,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center', justifyContent: 'center'
   },
   streakNum: {
-    fontSize: '3.6rem', fontWeight: 800, fontFamily: 'Space Grotesk, sans-serif',
+    fontSize: '3.6rem', fontWeight: 800, fontFamily: 'Space Grotesk, system-ui, sans-serif',
     background: 'linear-gradient(160deg, #FFD9A0 0%, #F5A623 55%, #E8562B 100%)',
     WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
     backgroundClip: 'text', lineHeight: 1
