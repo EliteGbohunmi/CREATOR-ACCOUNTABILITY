@@ -1,6 +1,7 @@
-import { useEffect, useRef, useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Share2, X, Download } from 'lucide-react'
+import html2canvas from 'html2canvas'
+import { Share2, X, Download, Flame } from 'lucide-react'
 
 interface Props {
   name: string
@@ -21,6 +22,25 @@ function getMilestoneProgress(streak: number) {
   return { fraction: Math.max(0.03, Math.min(1, fraction)), label: `${next - streak} days to ${next}` }
 }
 
+// html2canvas has a long-standing bug where CSS letter-spacing causes
+// leftover glyph fragments (colored specks) in the captured image. Faking
+// the spacing with real per-character spans avoids it entirely.
+function Spaced({ children, gap }: { children: string; gap: string }) {
+  const chars = children.split('')
+  return (
+    <>
+      {chars.map((ch, i) => (
+        <span
+          key={i}
+          style={{ display: 'inline-block', marginRight: i === chars.length - 1 ? 0 : gap }}
+        >
+          {ch === ' ' ? '\u00A0' : ch}
+        </span>
+      ))}
+    </>
+  )
+}
+
 function getInitials(name: string) {
   return name
     .trim()
@@ -30,185 +50,53 @@ function getInitials(name: string) {
     .join('') || '?'
 }
 
-// Manual rounded-rect path — works on every browser, no native roundRect() needed.
-function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.arcTo(x + w, y, x + w, y + h, r)
-  ctx.arcTo(x + w, y + h, x, y + h, r)
-  ctx.arcTo(x, y + h, x, y, r)
-  ctx.arcTo(x, y, x + w, y, r)
-  ctx.closePath()
-}
-
-const CARD_W = 300
-const CARD_H = 408
-const EXPORT_SCALE = 3
-// Space Grotesk first — same brand font already used elsewhere in the app —
-// falling back to system fonts only if it somehow isn't loaded yet.
-const FONT = "'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
-
-function setLetterSpacing(ctx: CanvasRenderingContext2D, px: string) {
-  // Not all engines support this yet; degrades gracefully to normal spacing.
-  if ('letterSpacing' in ctx) (ctx as any).letterSpacing = px
-}
-
 export default function ShareCard({ name, streak, bestStreak }: Props) {
   const [open, setOpen] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [capturing, setCapturing] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
 
   const { fraction, label } = useMemo(() => getMilestoneProgress(streak), [streak])
   const initials = useMemo(() => getInitials(name), [name])
 
-  useEffect(() => {
-    if (!open) return
-    let cancelled = false
-    ;(async () => {
+  const RADIUS = 86
+  const CIRC = 2 * Math.PI * RADIUS
+  const dashOffset = CIRC * (1 - fraction)
+
+  const capture = async () => {
+    if (!cardRef.current) return
+    setCapturing(true)
+    try {
+      // Wait for the display font to actually be loaded — capturing before
+      // it's ready is what causes the speckled letter-spacing artifacts.
       if (document.fonts?.ready) await document.fonts.ready
-      if (cancelled) return
-      draw()
-    })()
-    return () => {
-      cancelled = true
+
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#0A0908',
+        scale: 3,
+        letterRendering: true, // fixes html2canvas letter-spacing ghosting
+        onclone: (clonedDoc) => {
+          // html2canvas doesn't reliably support background-clip:text —
+          // it paints the gradient box and ignores the transparent fill.
+          // Swap to a flat solid color on the clone only; the live UI keeps
+          // its gradient.
+          const num = clonedDoc.querySelector('[data-capture="streak-num"]') as HTMLElement | null
+          if (num) {
+            num.style.background = 'none'
+            num.style.webkitBackgroundClip = 'unset'
+            num.style.backgroundClip = 'unset'
+            num.style.webkitTextFillColor = '#F5A623'
+            num.style.color = '#F5A623'
+          }
+        }
+      })
+      const link = document.createElement('a')
+      link.download = `streak-${streak}-days.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch {
+      alert('Could not capture card. Try again.')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, streak, bestStreak, name, fraction, label, initials])
-
-  const draw = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    canvas.width = CARD_W * EXPORT_SCALE
-    canvas.height = CARD_H * EXPORT_SCALE
-    ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0)
-    ctx.clearRect(0, 0, CARD_W, CARD_H)
-
-    // ---- card background + clip ----
-    ctx.save()
-    roundRectPath(ctx, 0, 0, CARD_W, CARD_H, 20)
-    ctx.clip()
-
-    ctx.fillStyle = '#0A0908'
-    ctx.fillRect(0, 0, CARD_W, CARD_H)
-
-    const glow = ctx.createRadialGradient(CARD_W / 2, 0, 0, CARD_W / 2, 0, CARD_W * 1.3)
-    glow.addColorStop(0, 'rgba(245,166,35,0.30)')
-    glow.addColorStop(0.35, 'rgba(232,86,43,0.10)')
-    glow.addColorStop(0.65, 'rgba(0,0,0,0)')
-    ctx.fillStyle = glow
-    ctx.fillRect(0, 0, CARD_W, CARD_H)
-
-    // ---- eyebrow ----
-    ctx.textBaseline = 'alphabetic'
-    ctx.textAlign = 'left'
-    ctx.font = `13px ${FONT}`
-    ctx.fillText('🔥', 24, 42)
-    ctx.font = `700 12px ${FONT}`
-    ctx.fillStyle = '#B8895A'
-    setLetterSpacing(ctx, '1.6px')
-    ctx.fillText('CREATOR ACCOUNTABILITY', 44, 42)
-    setLetterSpacing(ctx, 'normal')
-
-    // ---- progress ring ----
-    const cx = 150, cy = 160, r = 86
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.strokeStyle = '#1E1B16'
-    ctx.lineWidth = 9
-    ctx.stroke()
-
-    const ringGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r)
-    ringGrad.addColorStop(0, '#FFCB73')
-    ringGrad.addColorStop(0.45, '#F5A623')
-    ringGrad.addColorStop(1, '#E8562B')
-    const start = -Math.PI / 2
-    const end = start + fraction * Math.PI * 2
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, start, end)
-    ctx.strokeStyle = ringGrad
-    ctx.lineWidth = 9
-    ctx.lineCap = 'round'
-    ctx.stroke()
-    ctx.lineCap = 'butt'
-
-    // ---- streak number ----
-    ctx.textAlign = 'center'
-    const numGrad = ctx.createLinearGradient(cx - 40, cy - 40, cx + 20, cy + 60)
-    numGrad.addColorStop(0, '#FFD9A0')
-    numGrad.addColorStop(0.55, '#F5A623')
-    numGrad.addColorStop(1, '#E8562B')
-    ctx.font = `800 58px ${FONT}`
-    ctx.fillStyle = numGrad
-    ctx.fillText(String(streak), cx, cy + 16)
-
-    ctx.font = `600 11px ${FONT}`
-    ctx.fillStyle = '#8A8175'
-    setLetterSpacing(ctx, '1.4px')
-    ctx.fillText('DAY STREAK', cx, cy + 44)
-    setLetterSpacing(ctx, 'normal')
-
-    // ---- milestone caption ----
-    ctx.font = `600 13px ${FONT}`
-    ctx.fillStyle = '#C9A26A'
-    ctx.fillText(label, CARD_W / 2, 288)
-
-    // ---- divider ----
-    ctx.beginPath()
-    ctx.moveTo(24, 310)
-    ctx.lineTo(CARD_W - 24, 310)
-    ctx.strokeStyle = '#241F19'
-    ctx.lineWidth = 1
-    ctx.stroke()
-
-    // ---- footer: avatar + name ----
-    const avatarGrad = ctx.createLinearGradient(24, 323, 52, 351)
-    avatarGrad.addColorStop(0, '#F5A623')
-    avatarGrad.addColorStop(1, '#E8562B')
-    ctx.beginPath()
-    ctx.arc(38, 337, 14, 0, Math.PI * 2)
-    ctx.fillStyle = avatarGrad
-    ctx.fill()
-
-    ctx.font = `800 11px ${FONT}`
-    ctx.fillStyle = '#0A0908'
-    ctx.fillText(initials, 38, 341)
-
-    ctx.textAlign = 'left'
-    ctx.font = `600 14px ${FONT}`
-    ctx.fillStyle = '#F0EDE8'
-    ctx.fillText(name, 62, 342)
-
-    ctx.textAlign = 'right'
-    ctx.font = `600 12px ${FONT}`
-    ctx.fillStyle = '#9C9184'
-    ctx.fillText(`🔥 Best ${bestStreak}`, CARD_W - 24, 342)
-
-    // ---- watermark ----
-    ctx.textAlign = 'center'
-    ctx.font = `9px ${FONT}`
-    ctx.fillStyle = '#4A4136'
-    setLetterSpacing(ctx, '1px')
-    ctx.fillText('creatoraccountability.app', CARD_W / 2, 388)
-    setLetterSpacing(ctx, 'normal')
-
-    ctx.restore()
-
-    // ---- border ----
-    roundRectPath(ctx, 0.5, 0.5, CARD_W - 1, CARD_H - 1, 20)
-    ctx.strokeStyle = '#26211A'
-    ctx.lineWidth = 1
-    ctx.stroke()
-  }
-
-  const handleDownload = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const link = document.createElement('a')
-    link.download = `streak-${streak}-days.png`
-    link.href = canvas.toDataURL('image/png')
-    link.click()
+    setCapturing(false)
   }
 
   return (
@@ -235,15 +123,67 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                 </button>
               </div>
 
-              <canvas
-                ref={canvasRef}
-                style={{ width: CARD_W, height: CARD_H, borderRadius: 20, display: 'block' }}
-              />
+              {/* ===== Capture target ===== */}
+              <div ref={cardRef} style={styles.card}>
+                <div style={styles.glow} />
+                <div style={styles.grain} />
+
+                <div style={styles.cardContent}>
+                  <div style={styles.eyebrowRow}>
+                    <Flame size={13} color="#F5A623" strokeWidth={2.5} />
+                    <span style={styles.eyebrow}><Spaced gap="0.14em">CREATOR ACCOUNTABILITY</Spaced></span>
+                  </div>
+
+                  <div style={styles.ringWrap}>
+                    <svg width="200" height="200" viewBox="0 0 200 200" style={{ transform: 'rotate(-90deg)' }}>
+                      <defs>
+                        <linearGradient id="emberRing" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#FFCB73" />
+                          <stop offset="45%" stopColor="#F5A623" />
+                          <stop offset="100%" stopColor="#E8562B" />
+                        </linearGradient>
+                      </defs>
+                      <circle cx="100" cy="100" r={RADIUS} fill="none" stroke="#1E1B16" strokeWidth="9" />
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r={RADIUS}
+                        fill="none"
+                        stroke="url(#emberRing)"
+                        strokeWidth="9"
+                        strokeLinecap="round"
+                        strokeDasharray={CIRC}
+                        strokeDashoffset={dashOffset}
+                      />
+                    </svg>
+                    <div style={styles.ringCenter}>
+                      <div data-capture="streak-num" style={styles.streakNum}>{streak}</div>
+                      <div style={styles.streakLabel}><Spaced gap="0.1em">DAY STREAK</Spaced></div>
+                    </div>
+                  </div>
+
+                  <div style={styles.milestoneCaption}>{label}</div>
+
+                  <div style={styles.footer}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                      <div style={styles.avatar}>{initials}</div>
+                      <span style={styles.nameText}>{name}</span>
+                    </div>
+                    <div style={styles.bestChip}>
+                      <Flame size={11} color="#E8562B" strokeWidth={2.5} />
+                      <span>Best {bestStreak}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={styles.watermark}><Spaced gap="0.08em">creatoraccountability.app</Spaced></div>
+              </div>
+              {/* ===== /Capture target ===== */}
 
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.1rem' }}>
-                <button style={styles.downloadBtn} onClick={handleDownload}>
+                <button style={styles.downloadBtn} onClick={capture} disabled={capturing}>
                   <Download size={16} color="#0A0A0A" />
-                  Download image
+                  {capturing ? 'Saving...' : 'Download image'}
                 </button>
                 <button style={styles.cancelBtn} onClick={() => setOpen(false)}>
                   Cancel
@@ -256,6 +196,8 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
     </>
   )
 }
+
+const CARD_W = 300
 
 const styles: Record<string, React.CSSProperties> = {
   triggerBtn: {
@@ -271,6 +213,68 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '1.25rem', zIndex: 201, width: 'fit-content', height: 'fit-content'
   },
   closeBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem' },
+
+  card: {
+    position: 'relative', width: `${CARD_W}px`, borderRadius: '20px', overflow: 'hidden',
+    background: '#0A0908', border: '1px solid #26211A'
+  },
+  glow: {
+    position: 'absolute', inset: 0,
+    background: 'radial-gradient(140% 90% at 50% -10%, rgba(245,166,35,0.30) 0%, rgba(232,86,43,0.10) 35%, transparent 65%)',
+    pointerEvents: 'none'
+  },
+  grain: {
+    position: 'absolute', inset: 0,
+    background: 'radial-gradient(circle at 15% 85%, rgba(255,255,255,0.035) 0%, transparent 40%), radial-gradient(circle at 85% 20%, rgba(255,255,255,0.03) 0%, transparent 35%)',
+    pointerEvents: 'none'
+  },
+  cardContent: {
+    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center',
+    padding: '1.6rem 1.5rem 1.3rem'
+  },
+  eyebrowRow: { display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1.15rem' },
+  eyebrow: { color: '#B8895A', fontSize: '0.66rem', fontWeight: 700 },
+
+  ringWrap: { position: 'relative', width: '200px', height: '200px' },
+  ringCenter: {
+    position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center'
+  },
+  streakNum: {
+    fontSize: '3.6rem', fontWeight: 800, fontFamily: 'Space Grotesk',
+    background: 'linear-gradient(160deg, #FFD9A0 0%, #F5A623 55%, #E8562B 100%)',
+    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text', lineHeight: 1
+  },
+  streakLabel: {
+    color: '#8A8175', fontSize: '0.72rem',
+    marginTop: '0.25rem', fontWeight: 600
+  },
+
+  milestoneCaption: {
+    marginTop: '0.9rem', color: '#C9A26A', fontSize: '0.78rem', fontWeight: 600
+  },
+
+  footer: {
+    marginTop: '1.35rem', paddingTop: '1.1rem', borderTop: '1px solid #241F19',
+    width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+  },
+  avatar: {
+    width: '28px', height: '28px', borderRadius: '999px',
+    background: 'linear-gradient(135deg, #F5A623, #E8562B)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '0.68rem', fontWeight: 800, color: '#0A0908'
+  },
+  nameText: { color: '#F0EDE8', fontWeight: 600, fontSize: '0.88rem' },
+  bestChip: {
+    display: 'flex', alignItems: 'center', gap: '0.3rem',
+    color: '#9C9184', fontSize: '0.74rem', fontWeight: 600
+  },
+
+  watermark: {
+    position: 'relative', textAlign: 'center', color: '#4A4136',
+    fontSize: '0.6rem', padding: '0.6rem 0 0.85rem'
+  },
 
   downloadBtn: {
     flex: 1, background: 'linear-gradient(135deg, #FFCB73, #F5A623 55%, #E8562B)',
