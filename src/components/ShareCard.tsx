@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Share2, X, Download } from 'lucide-react'
 
@@ -30,63 +30,185 @@ function getInitials(name: string) {
     .join('') || '?'
 }
 
+// Manual rounded-rect path — works on every browser, no native roundRect() needed.
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+}
+
 const CARD_W = 300
 const CARD_H = 408
-const SYS_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+const EXPORT_SCALE = 3
+// Space Grotesk first — same brand font already used elsewhere in the app —
+// falling back to system fonts only if it somehow isn't loaded yet.
+const FONT = "'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+
+function setLetterSpacing(ctx: CanvasRenderingContext2D, px: string) {
+  // Not all engines support this yet; degrades gracefully to normal spacing.
+  if ('letterSpacing' in ctx) (ctx as any).letterSpacing = px
+}
 
 export default function ShareCard({ name, streak, bestStreak }: Props) {
   const [open, setOpen] = useState(false)
-  const [capturing, setCapturing] = useState(false)
-  const cardRef = useRef<SVGSVGElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const { fraction, label } = useMemo(() => getMilestoneProgress(streak), [streak])
   const initials = useMemo(() => getInitials(name), [name])
 
-  const RADIUS = 86
-  const CIRC = 2 * Math.PI * RADIUS
-  const dashOffset = CIRC * (1 - fraction)
-
-  // Renders the card by serializing the live SVG, loading it as a native
-  // Image, and drawing it to a canvas — the browser's own SVG renderer does
-  // the text/gradient work, so no html2canvas DOM-parsing artifacts.
-  const capture = async () => {
-    if (!cardRef.current) return
-    setCapturing(true)
-    try {
-      const clone = cardRef.current.cloneNode(true) as SVGSVGElement
-      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-      clone.setAttribute('width', String(CARD_W))
-      clone.setAttribute('height', String(CARD_H))
-
-      const svgString = new XMLSerializer().serializeToString(clone)
-      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
-      const url = URL.createObjectURL(svgBlob)
-
-      const img = new Image()
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve()
-        img.onerror = () => reject(new Error('svg load failed'))
-        img.src = url
-      })
-
-      const scale = 3
-      const canvas = document.createElement('canvas')
-      canvas.width = CARD_W * scale
-      canvas.height = CARD_H * scale
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('no canvas context')
-      ctx.scale(scale, scale)
-      ctx.drawImage(img, 0, 0, CARD_W, CARD_H)
-      URL.revokeObjectURL(url)
-
-      const link = document.createElement('a')
-      link.download = `streak-${streak}-days.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
-    } catch {
-      alert('Could not save image. Try again.')
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    ;(async () => {
+      if (document.fonts?.ready) await document.fonts.ready
+      if (cancelled) return
+      draw()
+    })()
+    return () => {
+      cancelled = true
     }
-    setCapturing(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, streak, bestStreak, name, fraction, label, initials])
+
+  const draw = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    canvas.width = CARD_W * EXPORT_SCALE
+    canvas.height = CARD_H * EXPORT_SCALE
+    ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0)
+    ctx.clearRect(0, 0, CARD_W, CARD_H)
+
+    // ---- card background + clip ----
+    ctx.save()
+    roundRectPath(ctx, 0, 0, CARD_W, CARD_H, 20)
+    ctx.clip()
+
+    ctx.fillStyle = '#0A0908'
+    ctx.fillRect(0, 0, CARD_W, CARD_H)
+
+    const glow = ctx.createRadialGradient(CARD_W / 2, 0, 0, CARD_W / 2, 0, CARD_W * 1.3)
+    glow.addColorStop(0, 'rgba(245,166,35,0.30)')
+    glow.addColorStop(0.35, 'rgba(232,86,43,0.10)')
+    glow.addColorStop(0.65, 'rgba(0,0,0,0)')
+    ctx.fillStyle = glow
+    ctx.fillRect(0, 0, CARD_W, CARD_H)
+
+    // ---- eyebrow ----
+    ctx.textBaseline = 'alphabetic'
+    ctx.textAlign = 'left'
+    ctx.font = `13px ${FONT}`
+    ctx.fillText('🔥', 24, 42)
+    ctx.font = `700 12px ${FONT}`
+    ctx.fillStyle = '#B8895A'
+    setLetterSpacing(ctx, '1.6px')
+    ctx.fillText('CREATOR ACCOUNTABILITY', 44, 42)
+    setLetterSpacing(ctx, 'normal')
+
+    // ---- progress ring ----
+    const cx = 150, cy = 160, r = 86
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.strokeStyle = '#1E1B16'
+    ctx.lineWidth = 9
+    ctx.stroke()
+
+    const ringGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r)
+    ringGrad.addColorStop(0, '#FFCB73')
+    ringGrad.addColorStop(0.45, '#F5A623')
+    ringGrad.addColorStop(1, '#E8562B')
+    const start = -Math.PI / 2
+    const end = start + fraction * Math.PI * 2
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, start, end)
+    ctx.strokeStyle = ringGrad
+    ctx.lineWidth = 9
+    ctx.lineCap = 'round'
+    ctx.stroke()
+    ctx.lineCap = 'butt'
+
+    // ---- streak number ----
+    ctx.textAlign = 'center'
+    const numGrad = ctx.createLinearGradient(cx - 40, cy - 40, cx + 20, cy + 60)
+    numGrad.addColorStop(0, '#FFD9A0')
+    numGrad.addColorStop(0.55, '#F5A623')
+    numGrad.addColorStop(1, '#E8562B')
+    ctx.font = `800 58px ${FONT}`
+    ctx.fillStyle = numGrad
+    ctx.fillText(String(streak), cx, cy + 16)
+
+    ctx.font = `600 11px ${FONT}`
+    ctx.fillStyle = '#8A8175'
+    setLetterSpacing(ctx, '1.4px')
+    ctx.fillText('DAY STREAK', cx, cy + 44)
+    setLetterSpacing(ctx, 'normal')
+
+    // ---- milestone caption ----
+    ctx.font = `600 13px ${FONT}`
+    ctx.fillStyle = '#C9A26A'
+    ctx.fillText(label, CARD_W / 2, 288)
+
+    // ---- divider ----
+    ctx.beginPath()
+    ctx.moveTo(24, 310)
+    ctx.lineTo(CARD_W - 24, 310)
+    ctx.strokeStyle = '#241F19'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    // ---- footer: avatar + name ----
+    const avatarGrad = ctx.createLinearGradient(24, 323, 52, 351)
+    avatarGrad.addColorStop(0, '#F5A623')
+    avatarGrad.addColorStop(1, '#E8562B')
+    ctx.beginPath()
+    ctx.arc(38, 337, 14, 0, Math.PI * 2)
+    ctx.fillStyle = avatarGrad
+    ctx.fill()
+
+    ctx.font = `800 11px ${FONT}`
+    ctx.fillStyle = '#0A0908'
+    ctx.fillText(initials, 38, 341)
+
+    ctx.textAlign = 'left'
+    ctx.font = `600 14px ${FONT}`
+    ctx.fillStyle = '#F0EDE8'
+    ctx.fillText(name, 62, 342)
+
+    ctx.textAlign = 'right'
+    ctx.font = `600 12px ${FONT}`
+    ctx.fillStyle = '#9C9184'
+    ctx.fillText(`🔥 Best ${bestStreak}`, CARD_W - 24, 342)
+
+    // ---- watermark ----
+    ctx.textAlign = 'center'
+    ctx.font = `9px ${FONT}`
+    ctx.fillStyle = '#4A4136'
+    setLetterSpacing(ctx, '1px')
+    ctx.fillText('creatoraccountability.app', CARD_W / 2, 388)
+    setLetterSpacing(ctx, 'normal')
+
+    ctx.restore()
+
+    // ---- border ----
+    roundRectPath(ctx, 0.5, 0.5, CARD_W - 1, CARD_H - 1, 20)
+    ctx.strokeStyle = '#26211A'
+    ctx.lineWidth = 1
+    ctx.stroke()
+  }
+
+  const handleDownload = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const link = document.createElement('a')
+    link.download = `streak-${streak}-days.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
   }
 
   return (
@@ -113,103 +235,15 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                 </button>
               </div>
 
-              {/* ===== Capture target — pure SVG, this is exactly what gets exported ===== */}
-              <svg
-                ref={cardRef}
-                viewBox={`0 0 ${CARD_W} ${CARD_H}`}
-                width={CARD_W}
-                height={CARD_H}
-                style={{ borderRadius: 20, display: 'block' }}
-              >
-                <defs>
-                  <linearGradient id="emberRing" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#FFCB73" />
-                    <stop offset="45%" stopColor="#F5A623" />
-                    <stop offset="100%" stopColor="#E8562B" />
-                  </linearGradient>
-                  <linearGradient id="numberGrad" x1="0" y1="0" x2="0.3" y2="1">
-                    <stop offset="0%" stopColor="#FFD9A0" />
-                    <stop offset="55%" stopColor="#F5A623" />
-                    <stop offset="100%" stopColor="#E8562B" />
-                  </linearGradient>
-                  <linearGradient id="avatarGrad" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#F5A623" />
-                    <stop offset="100%" stopColor="#E8562B" />
-                  </linearGradient>
-                  <radialGradient id="glowGrad" cx="50%" cy="0%" r="75%">
-                    <stop offset="0%" stopColor="#F5A623" stopOpacity="0.30" />
-                    <stop offset="35%" stopColor="#E8562B" stopOpacity="0.10" />
-                    <stop offset="65%" stopColor="#000000" stopOpacity="0" />
-                  </radialGradient>
-                  <clipPath id="cardClip">
-                    <rect width={CARD_W} height={CARD_H} rx="20" />
-                  </clipPath>
-                </defs>
-
-                <g clipPath="url(#cardClip)">
-                  <rect width={CARD_W} height={CARD_H} fill="#0A0908" />
-                  <rect width={CARD_W} height={CARD_H} fill="url(#glowGrad)" />
-
-                  {/* eyebrow */}
-                  <text x="24" y="42" fontSize="13" fontFamily={SYS_FONT}>🔥</text>
-                  <text x="44" y="42" fontSize="12" fontWeight="700" letterSpacing="1.6" fill="#B8895A" fontFamily={SYS_FONT}>
-                    CREATOR ACCOUNTABILITY
-                  </text>
-
-                  {/* progress ring */}
-                  <g transform={`translate(150 160)`}>
-                    <circle r={RADIUS} fill="none" stroke="#1E1B16" strokeWidth="9" />
-                    <circle
-                      r={RADIUS}
-                      fill="none"
-                      stroke="url(#emberRing)"
-                      strokeWidth="9"
-                      strokeLinecap="round"
-                      strokeDasharray={CIRC}
-                      strokeDashoffset={dashOffset}
-                      transform="rotate(-90)"
-                    />
-                    <text textAnchor="middle" y="16" fontSize="58" fontWeight="800" fill="url(#numberGrad)" fontFamily={SYS_FONT}>
-                      {streak}
-                    </text>
-                    <text textAnchor="middle" y="44" fontSize="11" fontWeight="600" letterSpacing="1.4" fill="#8A8175" fontFamily={SYS_FONT}>
-                      DAY STREAK
-                    </text>
-                  </g>
-
-                  {/* milestone caption */}
-                  <text x={CARD_W / 2} y="288" textAnchor="middle" fontSize="13" fontWeight="600" fill="#C9A26A" fontFamily={SYS_FONT}>
-                    {label}
-                  </text>
-
-                  <line x1="24" y1="310" x2={CARD_W - 24} y2="310" stroke="#241F19" strokeWidth="1" />
-
-                  {/* footer */}
-                  <circle cx="38" cy="337" r="14" fill="url(#avatarGrad)" />
-                  <text x="38" y="341" textAnchor="middle" fontSize="11" fontWeight="800" fill="#0A0908" fontFamily={SYS_FONT}>
-                    {initials}
-                  </text>
-                  <text x="62" y="342" fontSize="14" fontWeight="600" fill="#F0EDE8" fontFamily={SYS_FONT}>
-                    {name}
-                  </text>
-                  <text x={CARD_W - 24} y="342" textAnchor="end" fontSize="12" fontWeight="600" fill="#9C9184" fontFamily={SYS_FONT}>
-                    🔥 Best {bestStreak}
-                  </text>
-
-                  {/* watermark */}
-                  <text x={CARD_W / 2} y="388" textAnchor="middle" fontSize="9" letterSpacing="1" fill="#4A4136" fontFamily={SYS_FONT}>
-                    creatoraccountability.app
-                  </text>
-
-                  <rect width={CARD_W} height={CARD_H} fill="none" stroke="#26211A" strokeWidth="1" rx="20" />
-                </g>
-              </svg>
-              {/* ===== /Capture target ===== */}
+              <canvas
+                ref={canvasRef}
+                style={{ width: CARD_W, height: CARD_H, borderRadius: 20, display: 'block' }}
+              />
 
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.1rem' }}>
-                <button style={styles.downloadBtn} onClick={capture} disabled={capturing}>
+                <button style={styles.downloadBtn} onClick={handleDownload}>
                   <Download size={16} color="#0A0A0A" />
-                  {capturing ? 'Saving...' : 'Download image'}
+                  Download image
                 </button>
                 <button style={styles.cancelBtn} onClick={() => setOpen(false)}>
                   Cancel
