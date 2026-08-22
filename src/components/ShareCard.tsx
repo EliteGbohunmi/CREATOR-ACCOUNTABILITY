@@ -9,22 +9,19 @@ interface Props {
   bestStreak: number
 }
 
-// Milestone ladder — mirrors Duolingo-style streak societies.
-// Encodes real progress info rather than decorating the card.
+// Milestone ladder
 const MILESTONES = [7, 14, 30, 50, 100, 200, 365, 500, 1000]
 
 function getMilestoneProgress(streak: number) {
   const next = MILESTONES.find((m) => m > streak)
-  const prevIndex = next ? MILESTONES.indexOf(next) - 1 : MILESTONES.length - 1
-  const prev = prevIndex >= 0 ? MILESTONES[prevIndex] : 0
   if (!next) return { fraction: 1, label: 'Legendary streak' }
+  const prev = MILESTONES[MILESTONES.indexOf(next) - 1] || 0
   const fraction = (streak - prev) / (next - prev)
-  return { fraction: Math.max(0.03, Math.min(1, fraction)), label: `${next - streak} days to ${next}` }
+  const daysToGo = next - streak
+  return { fraction: Math.max(0.03, Math.min(1, fraction)), label: `${daysToGo} days to ${next}` }
 }
 
-// html2canvas has a long-standing bug where CSS letter-spacing causes
-// leftover glyph fragments (colored specks) in the captured image. Faking
-// the spacing with real per-character spans avoids it entirely.
+// Avoid html2canvas letter-spacing bug
 function Spaced({ children, gap }: { children: string; gap: string }) {
   const chars = children.split('')
   return (
@@ -66,9 +63,7 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
     if (!cardRef.current) return
     setCapturing(true)
     try {
-      // Wait for fonts to load
       if (document.fonts?.ready) await document.fonts.ready
-
       const dataUrl = await domtoimage.toPng(cardRef.current, {
         quality: 0.95,
         width: 300,
@@ -78,11 +73,9 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
           transformOrigin: 'top left',
         },
         filter: (node) => {
-          // Exclude the watermark from the capture (optional)
           return !(node instanceof HTMLElement && node.classList?.contains('watermark'))
         }
       })
-
       const link = document.createElement('a')
       link.download = `streak-${streak}-days.png`
       link.href = dataUrl
@@ -118,7 +111,7 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                 </button>
               </div>
 
-              {/* ===== Capture target ===== */}
+              {/* Capture target */}
               <div ref={cardRef} style={styles.card}>
                 <div style={styles.glow} />
                 <div style={styles.grain} />
@@ -126,7 +119,7 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                 <div style={styles.cardContent}>
                   <div style={styles.eyebrowRow}>
                     <Flame size={13} color="#F5A623" strokeWidth={2.5} />
-                    <span style={styles.eyebrow}><Spaced gap="0.14em">CREATOR ACCOUNTABILITY</Spaced></span>
+                    <span style={styles.eyebrow}><Spaced gap="0.14em">CREATOR ACCOUNTABILITY.</Spaced></span>
                   </div>
 
                   <div style={styles.ringWrap}>
@@ -173,7 +166,6 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
 
                 <div style={styles.watermark} className="watermark"><Spaced gap="0.08em">creatoraccountability.app</Spaced></div>
               </div>
-              {/* ===== /Capture target ===== */}
 
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.1rem' }}>
                 <button style={styles.downloadBtn} onClick={capture} disabled={capturing}>
@@ -228,7 +220,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '1.6rem 1.5rem 1.3rem'
   },
   eyebrowRow: { display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1.15rem' },
-  eyebrow: { color: '#B8895A', fontSize: '0.66rem', fontWeight: 700 },
+  eyebrow: { color: '#B8895A', fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.12em' },
 
   ringWrap: { position: 'relative', width: '200px', height: '200px' },
   ringCenter: {
@@ -236,18 +228,18 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center', justifyContent: 'center'
   },
   streakNum: {
-    fontSize: '3.6rem', fontWeight: 800, fontFamily: 'Space Grotesk',
+    fontSize: '3.6rem', fontWeight: 800, fontFamily: 'Space Grotesk, sans-serif',
     background: 'linear-gradient(160deg, #FFD9A0 0%, #F5A623 55%, #E8562B 100%)',
     WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
     backgroundClip: 'text', lineHeight: 1
   },
   streakLabel: {
     color: '#8A8175', fontSize: '0.72rem',
-    marginTop: '0.25rem', fontWeight: 600
+    marginTop: '0.25rem', fontWeight: 600, letterSpacing: '0.08em'
   },
 
   milestoneCaption: {
-    marginTop: '0.9rem', color: '#C9A26A', fontSize: '0.78rem', fontWeight: 600
+    marginTop: '0.9rem', color: '#C9A26A', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.02em'
   },
 
   footer: {
