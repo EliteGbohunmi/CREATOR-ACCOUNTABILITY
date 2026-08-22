@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import html2canvas from 'html2canvas'
-import { Share2, X, Download, Flame } from 'lucide-react'
+import { Share2, X, Download } from 'lucide-react'
 
 interface Props {
   name: string
@@ -22,25 +21,6 @@ function getMilestoneProgress(streak: number) {
   return { fraction: Math.max(0.03, Math.min(1, fraction)), label: `${next - streak} days to ${next}` }
 }
 
-// html2canvas has a long-standing bug where CSS letter-spacing causes
-// leftover glyph fragments (colored specks) in the captured image. Faking
-// the spacing with real per-character spans avoids it entirely.
-function Spaced({ children, gap }: { children: string; gap: string }) {
-  const chars = children.split('')
-  return (
-    <>
-      {chars.map((ch, i) => (
-        <span
-          key={i}
-          style={{ display: 'inline-block', marginRight: i === chars.length - 1 ? 0 : gap }}
-        >
-          {ch === ' ' ? '\u00A0' : ch}
-        </span>
-      ))}
-    </>
-  )
-}
-
 function getInitials(name: string) {
   return name
     .trim()
@@ -50,10 +30,14 @@ function getInitials(name: string) {
     .join('') || '?'
 }
 
+const CARD_W = 300
+const CARD_H = 408
+const SYS_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+
 export default function ShareCard({ name, streak, bestStreak }: Props) {
   const [open, setOpen] = useState(false)
   const [capturing, setCapturing] = useState(false)
-  const cardRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<SVGSVGElement>(null)
 
   const { fraction, label } = useMemo(() => getMilestoneProgress(streak), [streak])
   const initials = useMemo(() => getInitials(name), [name])
@@ -62,39 +46,45 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
   const CIRC = 2 * Math.PI * RADIUS
   const dashOffset = CIRC * (1 - fraction)
 
+  // Renders the card by serializing the live SVG, loading it as a native
+  // Image, and drawing it to a canvas — the browser's own SVG renderer does
+  // the text/gradient work, so no html2canvas DOM-parsing artifacts.
   const capture = async () => {
     if (!cardRef.current) return
     setCapturing(true)
     try {
-      // Wait for the display font to actually be loaded — capturing before
-      // it's ready is what causes the speckled letter-spacing artifacts.
-      if (document.fonts?.ready) await document.fonts.ready
+      const clone = cardRef.current.cloneNode(true) as SVGSVGElement
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+      clone.setAttribute('width', String(CARD_W))
+      clone.setAttribute('height', String(CARD_H))
 
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: '#0A0908',
-        scale: 3,
-        letterRendering: true, // fixes html2canvas letter-spacing ghosting
-        onclone: (clonedDoc) => {
-          // html2canvas doesn't reliably support background-clip:text —
-          // it paints the gradient box and ignores the transparent fill.
-          // Swap to a flat solid color on the clone only; the live UI keeps
-          // its gradient.
-          const num = clonedDoc.querySelector('[data-capture="streak-num"]') as HTMLElement | null
-          if (num) {
-            num.style.background = 'none'
-            num.style.webkitBackgroundClip = 'unset'
-            num.style.backgroundClip = 'unset'
-            num.style.webkitTextFillColor = '#F5A623'
-            num.style.color = '#F5A623'
-          }
-        }
+      const svgString = new XMLSerializer().serializeToString(clone)
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(svgBlob)
+
+      const img = new Image()
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('svg load failed'))
+        img.src = url
       })
+
+      const scale = 3
+      const canvas = document.createElement('canvas')
+      canvas.width = CARD_W * scale
+      canvas.height = CARD_H * scale
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('no canvas context')
+      ctx.scale(scale, scale)
+      ctx.drawImage(img, 0, 0, CARD_W, CARD_H)
+      URL.revokeObjectURL(url)
+
       const link = document.createElement('a')
       link.download = `streak-${streak}-days.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
     } catch {
-      alert('Could not capture card. Try again.')
+      alert('Could not save image. Try again.')
     }
     setCapturing(false)
   }
@@ -123,61 +113,97 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                 </button>
               </div>
 
-              {/* ===== Capture target ===== */}
-              <div ref={cardRef} style={styles.card}>
-                <div style={styles.glow} />
-                <div style={styles.grain} />
+              {/* ===== Capture target — pure SVG, this is exactly what gets exported ===== */}
+              <svg
+                ref={cardRef}
+                viewBox={`0 0 ${CARD_W} ${CARD_H}`}
+                width={CARD_W}
+                height={CARD_H}
+                style={{ borderRadius: 20, display: 'block' }}
+              >
+                <defs>
+                  <linearGradient id="emberRing" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#FFCB73" />
+                    <stop offset="45%" stopColor="#F5A623" />
+                    <stop offset="100%" stopColor="#E8562B" />
+                  </linearGradient>
+                  <linearGradient id="numberGrad" x1="0" y1="0" x2="0.3" y2="1">
+                    <stop offset="0%" stopColor="#FFD9A0" />
+                    <stop offset="55%" stopColor="#F5A623" />
+                    <stop offset="100%" stopColor="#E8562B" />
+                  </linearGradient>
+                  <linearGradient id="avatarGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#F5A623" />
+                    <stop offset="100%" stopColor="#E8562B" />
+                  </linearGradient>
+                  <radialGradient id="glowGrad" cx="50%" cy="0%" r="75%">
+                    <stop offset="0%" stopColor="#F5A623" stopOpacity="0.30" />
+                    <stop offset="35%" stopColor="#E8562B" stopOpacity="0.10" />
+                    <stop offset="65%" stopColor="#000000" stopOpacity="0" />
+                  </radialGradient>
+                  <clipPath id="cardClip">
+                    <rect width={CARD_W} height={CARD_H} rx="20" />
+                  </clipPath>
+                </defs>
 
-                <div style={styles.cardContent}>
-                  <div style={styles.eyebrowRow}>
-                    <Flame size={13} color="#F5A623" strokeWidth={2.5} />
-                    <span style={styles.eyebrow}><Spaced gap="0.14em">CREATOR ACCOUNTABILITY</Spaced></span>
-                  </div>
+                <g clipPath="url(#cardClip)">
+                  <rect width={CARD_W} height={CARD_H} fill="#0A0908" />
+                  <rect width={CARD_W} height={CARD_H} fill="url(#glowGrad)" />
 
-                  <div style={styles.ringWrap}>
-                    <svg width="200" height="200" viewBox="0 0 200 200" style={{ transform: 'rotate(-90deg)' }}>
-                      <defs>
-                        <linearGradient id="emberRing" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#FFCB73" />
-                          <stop offset="45%" stopColor="#F5A623" />
-                          <stop offset="100%" stopColor="#E8562B" />
-                        </linearGradient>
-                      </defs>
-                      <circle cx="100" cy="100" r={RADIUS} fill="none" stroke="#1E1B16" strokeWidth="9" />
-                      <circle
-                        cx="100"
-                        cy="100"
-                        r={RADIUS}
-                        fill="none"
-                        stroke="url(#emberRing)"
-                        strokeWidth="9"
-                        strokeLinecap="round"
-                        strokeDasharray={CIRC}
-                        strokeDashoffset={dashOffset}
-                      />
-                    </svg>
-                    <div style={styles.ringCenter}>
-                      <div data-capture="streak-num" style={styles.streakNum}>{streak}</div>
-                      <div style={styles.streakLabel}><Spaced gap="0.1em">DAY STREAK</Spaced></div>
-                    </div>
-                  </div>
+                  {/* eyebrow */}
+                  <text x="24" y="42" fontSize="13" fontFamily={SYS_FONT}>🔥</text>
+                  <text x="44" y="42" fontSize="12" fontWeight="700" letterSpacing="1.6" fill="#B8895A" fontFamily={SYS_FONT}>
+                    CREATOR ACCOUNTABILITY
+                  </text>
 
-                  <div style={styles.milestoneCaption}>{label}</div>
+                  {/* progress ring */}
+                  <g transform={`translate(150 160)`}>
+                    <circle r={RADIUS} fill="none" stroke="#1E1B16" strokeWidth="9" />
+                    <circle
+                      r={RADIUS}
+                      fill="none"
+                      stroke="url(#emberRing)"
+                      strokeWidth="9"
+                      strokeLinecap="round"
+                      strokeDasharray={CIRC}
+                      strokeDashoffset={dashOffset}
+                      transform="rotate(-90)"
+                    />
+                    <text textAnchor="middle" y="16" fontSize="58" fontWeight="800" fill="url(#numberGrad)" fontFamily={SYS_FONT}>
+                      {streak}
+                    </text>
+                    <text textAnchor="middle" y="44" fontSize="11" fontWeight="600" letterSpacing="1.4" fill="#8A8175" fontFamily={SYS_FONT}>
+                      DAY STREAK
+                    </text>
+                  </g>
 
-                  <div style={styles.footer}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                      <div style={styles.avatar}>{initials}</div>
-                      <span style={styles.nameText}>{name}</span>
-                    </div>
-                    <div style={styles.bestChip}>
-                      <Flame size={11} color="#E8562B" strokeWidth={2.5} />
-                      <span>Best {bestStreak}</span>
-                    </div>
-                  </div>
-                </div>
+                  {/* milestone caption */}
+                  <text x={CARD_W / 2} y="288" textAnchor="middle" fontSize="13" fontWeight="600" fill="#C9A26A" fontFamily={SYS_FONT}>
+                    {label}
+                  </text>
 
-                <div style={styles.watermark}><Spaced gap="0.08em">creatoraccountability.app</Spaced></div>
-              </div>
+                  <line x1="24" y1="310" x2={CARD_W - 24} y2="310" stroke="#241F19" strokeWidth="1" />
+
+                  {/* footer */}
+                  <circle cx="38" cy="337" r="14" fill="url(#avatarGrad)" />
+                  <text x="38" y="341" textAnchor="middle" fontSize="11" fontWeight="800" fill="#0A0908" fontFamily={SYS_FONT}>
+                    {initials}
+                  </text>
+                  <text x="62" y="342" fontSize="14" fontWeight="600" fill="#F0EDE8" fontFamily={SYS_FONT}>
+                    {name}
+                  </text>
+                  <text x={CARD_W - 24} y="342" textAnchor="end" fontSize="12" fontWeight="600" fill="#9C9184" fontFamily={SYS_FONT}>
+                    🔥 Best {bestStreak}
+                  </text>
+
+                  {/* watermark */}
+                  <text x={CARD_W / 2} y="388" textAnchor="middle" fontSize="9" letterSpacing="1" fill="#4A4136" fontFamily={SYS_FONT}>
+                    creatoraccountability.app
+                  </text>
+
+                  <rect width={CARD_W} height={CARD_H} fill="none" stroke="#26211A" strokeWidth="1" rx="20" />
+                </g>
+              </svg>
               {/* ===== /Capture target ===== */}
 
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.1rem' }}>
@@ -197,8 +223,6 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
   )
 }
 
-const CARD_W = 300
-
 const styles: Record<string, React.CSSProperties> = {
   triggerBtn: {
     display: 'flex', alignItems: 'center', gap: '0.5rem',
@@ -213,68 +237,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '1.25rem', zIndex: 201, width: 'fit-content', height: 'fit-content'
   },
   closeBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem' },
-
-  card: {
-    position: 'relative', width: `${CARD_W}px`, borderRadius: '20px', overflow: 'hidden',
-    background: '#0A0908', border: '1px solid #26211A'
-  },
-  glow: {
-    position: 'absolute', inset: 0,
-    background: 'radial-gradient(140% 90% at 50% -10%, rgba(245,166,35,0.30) 0%, rgba(232,86,43,0.10) 35%, transparent 65%)',
-    pointerEvents: 'none'
-  },
-  grain: {
-    position: 'absolute', inset: 0,
-    background: 'radial-gradient(circle at 15% 85%, rgba(255,255,255,0.035) 0%, transparent 40%), radial-gradient(circle at 85% 20%, rgba(255,255,255,0.03) 0%, transparent 35%)',
-    pointerEvents: 'none'
-  },
-  cardContent: {
-    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center',
-    padding: '1.6rem 1.5rem 1.3rem'
-  },
-  eyebrowRow: { display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1.15rem' },
-  eyebrow: { color: '#B8895A', fontSize: '0.66rem', fontWeight: 700 },
-
-  ringWrap: { position: 'relative', width: '200px', height: '200px' },
-  ringCenter: {
-    position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center'
-  },
-  streakNum: {
-    fontSize: '3.6rem', fontWeight: 800, fontFamily: 'Space Grotesk',
-    background: 'linear-gradient(160deg, #FFD9A0 0%, #F5A623 55%, #E8562B 100%)',
-    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-    backgroundClip: 'text', lineHeight: 1
-  },
-  streakLabel: {
-    color: '#8A8175', fontSize: '0.72rem',
-    marginTop: '0.25rem', fontWeight: 600
-  },
-
-  milestoneCaption: {
-    marginTop: '0.9rem', color: '#C9A26A', fontSize: '0.78rem', fontWeight: 600
-  },
-
-  footer: {
-    marginTop: '1.35rem', paddingTop: '1.1rem', borderTop: '1px solid #241F19',
-    width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-  },
-  avatar: {
-    width: '28px', height: '28px', borderRadius: '999px',
-    background: 'linear-gradient(135deg, #F5A623, #E8562B)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '0.68rem', fontWeight: 800, color: '#0A0908'
-  },
-  nameText: { color: '#F0EDE8', fontWeight: 600, fontSize: '0.88rem' },
-  bestChip: {
-    display: 'flex', alignItems: 'center', gap: '0.3rem',
-    color: '#9C9184', fontSize: '0.74rem', fontWeight: 600
-  },
-
-  watermark: {
-    position: 'relative', textAlign: 'center', color: '#4A4136',
-    fontSize: '0.6rem', padding: '0.6rem 0 0.85rem'
-  },
 
   downloadBtn: {
     flex: 1, background: 'linear-gradient(135deg, #FFCB73, #F5A623 55%, #E8562B)',
