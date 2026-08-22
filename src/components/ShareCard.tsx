@@ -47,7 +47,29 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
     if (!cardRef.current) return
     setCapturing(true)
     try {
-      const canvas = await html2canvas(cardRef.current, { backgroundColor: '#0A0908', scale: 3 })
+      // Wait for the display font to actually be loaded — capturing before
+      // it's ready is what causes the speckled letter-spacing artifacts.
+      if (document.fonts?.ready) await document.fonts.ready
+
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#0A0908',
+        scale: 3,
+        letterRendering: true, // fixes html2canvas letter-spacing ghosting
+        onclone: (clonedDoc) => {
+          // html2canvas doesn't reliably support background-clip:text —
+          // it paints the gradient box and ignores the transparent fill.
+          // Swap to a flat solid color on the clone only; the live UI keeps
+          // its gradient.
+          const num = clonedDoc.querySelector('[data-capture="streak-num"]') as HTMLElement | null
+          if (num) {
+            num.style.background = 'none'
+            num.style.webkitBackgroundClip = 'unset'
+            num.style.backgroundClip = 'unset'
+            num.style.webkitTextFillColor = '#F5A623'
+            num.style.color = '#F5A623'
+          }
+        }
+      })
       const link = document.createElement('a')
       link.download = `streak-${streak}-days.png`
       link.href = canvas.toDataURL('image/png')
@@ -116,7 +138,7 @@ export default function ShareCard({ name, streak, bestStreak }: Props) {
                       />
                     </svg>
                     <div style={styles.ringCenter}>
-                      <div style={styles.streakNum}>{streak}</div>
+                      <div data-capture="streak-num" style={styles.streakNum}>{streak}</div>
                       <div style={styles.streakLabel}>day streak</div>
                     </div>
                   </div>
