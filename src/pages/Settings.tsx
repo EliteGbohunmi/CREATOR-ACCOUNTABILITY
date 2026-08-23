@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
-import { Camera, Shield, LogOut, ChevronRight, User, Sliders, Sparkles, Calendar, Copy } from 'lucide-react'
+import { Camera, Shield, LogOut, ChevronRight, User, Sliders, Sparkles, Calendar, Copy, Bell, Award, Eye, EyeOff, UserCircle, PenTool, Check } from 'lucide-react'
 import { requestNotificationPermission, fireReminder, saveReminderTime, getSavedReminderTime } from '../lib/notifications'
 
 const PLATFORMS = ['Instagram', 'X (Twitter)', 'TikTok', 'YouTube', 'LinkedIn', 'Threads', 'Blog', 'Podcast']
@@ -32,11 +32,8 @@ export default function Settings() {
   const [currentStreak, setCurrentStreak] = useState(0)
   const [icsContent, setIcsContent] = useState('')
 
-  // Persona state
   const [aiPersona, setAiPersona] = useState('')
   const [showPersonaTemplate, setShowPersonaTemplate] = useState(false)
-
-  // Store original username to detect changes
   const [originalUsername, setOriginalUsername] = useState('')
 
   const personaTemplate = `Based on our past conversations, analyze my writing style and create a detailed persona description.
@@ -88,7 +85,7 @@ Be specific. Use what you know about me from our conversations.`
       if (data) {
         setName(data.name || '')
         setUsername(data.username || '')
-        setOriginalUsername(data.username || '') // store original
+        setOriginalUsername(data.username || '')
         setBio(data.bio || '')
         setAvatarUrl(data.avatar_url || '')
         setDefaultPlatform(data.default_platform || '')
@@ -98,14 +95,12 @@ Be specific. Use what you know about me from our conversations.`
         setLeavesUsed(data.leaves_used || 0)
         setWeeklyTarget(data.weekly_target || 7)
         setAiPersona(data.ai_persona || '')
-        // Load reminder from profile
         if (data.reminder_hour !== null && data.reminder_minute !== null) {
           const h = String(data.reminder_hour).padStart(2, '0')
           const m = String(data.reminder_minute).padStart(2, '0')
           setReminderTime(`${h}:${m}`)
           setReminderSet(true)
         } else {
-          // fallback to localStorage
           const savedTime = getSavedReminderTime()
           if (savedTime) {
             setReminderTime(`${String(savedTime.hour).padStart(2, '0')}:${String(savedTime.minute).padStart(2, '0')}`)
@@ -125,7 +120,6 @@ Be specific. Use what you know about me from our conversations.`
     if ('Notification' in window) setNotifAllowed(Notification.permission === 'granted')
   }, [user])
 
-  // ---------- FIXED: only update username if it changed ----------
   const save = async () => {
     setSaving(true)
     setSaveError('')
@@ -133,7 +127,6 @@ Be specific. Use what you know about me from our conversations.`
     const trimmedUsername = username.trim()
     const usernameChanged = trimmedUsername !== originalUsername
 
-    // 1. If username changed, check uniqueness
     if (usernameChanged) {
       if (!trimmedUsername) {
         setSaving(false)
@@ -162,7 +155,6 @@ Be specific. Use what you know about me from our conversations.`
       }
     }
 
-    // 2. Build update object – always include name and other fields, include username only if changed
     const updates: any = {
       name,
       bio,
@@ -176,7 +168,6 @@ Be specific. Use what you know about me from our conversations.`
       updates.username = trimmedUsername
     }
 
-    // 3. Update profile
     const { error } = await supabase.from('profiles').update(updates).eq('id', user!.id)
 
     if (error) {
@@ -189,7 +180,6 @@ Be specific. Use what you know about me from our conversations.`
       return
     }
 
-    // 4. Update auth metadata for display name (so it shows in header)
     if (name !== user?.user_metadata?.name) {
       const { error: authError } = await supabase.auth.updateUser({
         data: { name }
@@ -202,7 +192,6 @@ Be specific. Use what you know about me from our conversations.`
       }
     }
 
-    // 5. If username changed, update stored original
     if (usernameChanged) {
       setOriginalUsername(trimmedUsername)
     }
@@ -261,7 +250,6 @@ END:VCALENDAR`
 
   const setReminder = async () => {
     const [h, m] = reminderTime.split(':').map(Number)
-    // Save to profile so scheduler can use it
     const { error } = await supabase.from('profiles').update({
       reminder_hour: h,
       reminder_minute: m
@@ -305,30 +293,30 @@ END:VCALENDAR`
 
   return (
     <Layout>
-      <div style={{ marginBottom: '2rem' }}>
-        <p style={{ color: '#555', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.3rem' }}>Account</p>
-        <h1 style={{ fontSize: '1.8rem', fontFamily: 'Space Grotesk', fontWeight: '700' }}>Settings</h1>
+      <div style={{ marginBottom: '2.5rem' }}>
+        <p style={{ color: '#777', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '0.25rem' }}>Account</p>
+        <h1 style={{ fontSize: '2rem', fontFamily: 'Space Grotesk', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, #F0EDE8 60%, #F5A623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Settings</h1>
       </div>
 
-      {/* Profile card */}
+      {/* Profile Card */}
       <div style={styles.profileCard}>
         <div style={styles.avatarWrap} onClick={() => fileRef.current?.click()}>
           {avatarUrl
             ? <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-            : <User size={30} color="#555" />
+            : <User size={32} color="#888" />
           }
           <div style={styles.avatarOverlay}>
-            <Camera size={12} color="#fff" />
+            <Camera size={14} color="#fff" />
           </div>
         </div>
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadAvatar} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: '700', fontSize: '1rem' }}>{name || 'Your Name'}</div>
-          <div style={{ color: '#555', fontSize: '0.82rem' }}>@{username || 'username'}</div>
-          <div style={{ color: '#444', fontSize: '0.78rem', marginTop: '0.15rem' }}>{user?.email}</div>
+          <div style={{ fontWeight: '700', fontSize: '1.1rem', marginBottom: '0.1rem' }}>{name || 'Your Name'}</div>
+          <div style={{ color: '#888', fontSize: '0.85rem' }}>@{username || 'username'}</div>
+          <div style={{ color: '#666', fontSize: '0.75rem', marginTop: '0.1rem' }}>{user?.email}</div>
         </div>
         <button
-          style={{ background: 'none', border: '1px solid #2A2A2A', borderRadius: '8px', color: '#888', padding: '0.5rem 0.85rem', fontSize: '0.8rem', cursor: 'pointer' }}
+          style={styles.editBtn}
           onClick={() => setActiveSection(activeSection === 'profile' ? null : 'profile')}
         >
           Edit
@@ -344,24 +332,24 @@ END:VCALENDAR`
           <div style={styles.field}>
             <label style={styles.label}>Username</label>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#555' }}>@</span>
-              <input style={{ ...styles.input, paddingLeft: '1.75rem' }} value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} placeholder="username" />
+              <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#666' }}>@</span>
+              <input style={{ ...styles.input, paddingLeft: '2rem' }} value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} placeholder="username" />
             </div>
           </div>
           <div style={styles.field}>
             <label style={styles.label}>Bio</label>
-            <textarea style={{ ...styles.input, minHeight: '70px', resize: 'vertical' as const }} value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell other creators about yourself..." />
+            <textarea style={{ ...styles.input, minHeight: '80px', resize: 'vertical' as const }} value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell other creators about yourself..." />
           </div>
           {saveError && (
             <p style={{ color: '#E53E3E', fontSize: '0.8rem', margin: 0 }}>{saveError}</p>
           )}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button style={styles.saveBtn} onClick={save} disabled={saving}>
-              {saved ? 'Saved ✓' : saving ? 'Saving...' : 'Save'}
+              {saved ? <><Check size={16} /> Saved</> : saving ? 'Saving...' : 'Save Changes'}
             </button>
             <button style={styles.cancelBtn} onClick={() => { setActiveSection(null); setSaveError('') }}>Cancel</button>
           </div>
-          {uploading && <p style={{ color: '#555', fontSize: '0.8rem', margin: 0 }}>Uploading photo...</p>}
+          {uploading && <p style={{ color: '#888', fontSize: '0.8rem', margin: 0 }}>Uploading photo...</p>}
         </div>
       )}
 
@@ -370,25 +358,25 @@ END:VCALENDAR`
         {/* Reminder */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
-            <Calendar size={13} color="#555" />
+            <Bell size={14} color="#F5A623" />
             Daily Reminder
           </div>
           <div style={styles.row} onClick={() => setActiveSection(activeSection === 'notif' ? null : 'notif')}>
             <span style={styles.rowLabel}>Set Posting Reminder</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: notifAllowed ? '#4CAF50' : '#555', fontSize: '0.8rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ color: notifAllowed ? '#4CAF50' : '#777', fontSize: '0.8rem', fontWeight: '500' }}>
                 {reminderSet ? reminderTime : 'Not set'}
               </span>
-              <ChevronRight size={15} color="#333" />
+              <ChevronRight size={16} color="#666" />
             </div>
           </div>
           {activeSection === 'notif' && (
             <div style={styles.expandedInner}>
-              <p style={{ color: '#555', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+              <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '0.75rem', lineHeight: 1.5 }}>
                 Set a time and we'll open a calendar file with an alarm.
                 {currentStreak > 0 && ` 🔥 You're on a ${currentStreak}-day streak!`}
               </p>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                 <input 
                   style={{ ...styles.input, flex: 1 }} 
                   type="time" 
@@ -403,21 +391,15 @@ END:VCALENDAR`
                 </button>
               </div>
               {reminderSet && (
-                <div style={{ 
-                  background: '#0D2010', 
-                  border: '1px solid #4CAF5030', 
-                  borderRadius: '8px', 
-                  padding: '0.75rem 1rem',
-                  marginTop: '0.5rem'
-                }}>
-                  <div style={{ color: '#4CAF50', fontSize: '0.85rem' }}>
-                    ✓ Reminder set for {reminderTime}
+                <div style={styles.successBox}>
+                  <div style={{ color: '#4CAF50', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Check size={16} /> Reminder set for {reminderTime}
                   </div>
                   <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '0.2rem' }}>
                     A new tab opened with the calendar file. If it didn't download, use the copy button below.
                   </div>
                   {icsContent && (
-                    <div style={{ marginTop: '0.5rem' }}>
+                    <div style={{ marginTop: '0.75rem' }}>
                       <button 
                         onClick={copyICS}
                         style={{ ...styles.saveBtn, padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
@@ -440,14 +422,14 @@ END:VCALENDAR`
         {/* Preferences */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
-            <Sliders size={13} color="#555" />
+            <Sliders size={14} color="#F5A623" />
             Preferences
           </div>
           <div style={styles.row} onClick={() => setActiveSection(activeSection === 'prefs' ? null : 'prefs')}>
             <span style={styles.rowLabel}>App Preferences</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: '#555', fontSize: '0.8rem' }}>{defaultPlatform || 'None'}</span>
-              <ChevronRight size={15} color="#333" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ color: '#888', fontSize: '0.8rem' }}>{defaultPlatform || 'None'}</span>
+              <ChevronRight size={16} color="#666" />
             </div>
           </div>
           {activeSection === 'prefs' && (
@@ -466,11 +448,12 @@ END:VCALENDAR`
                     <button
                       key={n}
                       style={{
-                        width: '40px', height: '40px', borderRadius: '8px',
-                        background: weeklyTarget === n ? '#F5A623' : '#0A0A0A',
-                        color: weeklyTarget === n ? '#0A0A0A' : '#555',
+                        width: '42px', height: '42px', borderRadius: '10px',
+                        background: weeklyTarget === n ? '#F5A623' : 'transparent',
+                        color: weeklyTarget === n ? '#0A0A0A' : '#999',
                         fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer',
-                        border: weeklyTarget === n ? 'none' : '1px solid #1E1E1E'
+                        border: weeklyTarget === n ? 'none' : '1px solid #2A2A2A',
+                        transition: 'all 0.2s'
                       }}
                       onClick={() => setWeeklyTarget(n)}
                     >
@@ -478,7 +461,7 @@ END:VCALENDAR`
                     </button>
                   ))}
                 </div>
-                <p style={{ color: '#444', fontSize: '0.75rem', margin: 0 }}>
+                <p style={{ color: '#666', fontSize: '0.75rem', margin: 0 }}>
                   {weeklyTarget === 7 ? 'Daily — every day counts' : `${weeklyTarget}x per week — streak resets if you miss your weekly target`}
                 </p>
               </div>
@@ -489,11 +472,12 @@ END:VCALENDAR`
                     <button
                       key={d}
                       style={{
-                        flex: 1, borderRadius: '8px', padding: '0.65rem',
+                        flex: 1, borderRadius: '10px', padding: '0.65rem',
                         fontWeight: '500', cursor: 'pointer', fontSize: '0.85rem',
-                        background: weekStart === d ? '#F5A623' : '#0A0A0A',
-                        color: weekStart === d ? '#0A0A0A' : '#555',
-                        border: weekStart === d ? 'none' : '1px solid #1E1E1E'
+                        background: weekStart === d ? '#F5A623' : 'transparent',
+                        color: weekStart === d ? '#0A0A0A' : '#999',
+                        border: weekStart === d ? 'none' : '1px solid #2A2A2A',
+                        transition: 'all 0.2s'
                       }}
                       onClick={() => setWeekStart(d)}
                     >
@@ -506,7 +490,7 @@ END:VCALENDAR`
                 <p style={{ color: '#E53E3E', fontSize: '0.8rem', margin: 0 }}>{saveError}</p>
               )}
               <button style={styles.saveBtn} onClick={save} disabled={saving}>
-                {saved ? 'Saved ✓' : 'Save'}
+                {saved ? <><Check size={16} /> Saved</> : 'Save'}
               </button>
             </div>
           )}
@@ -515,7 +499,7 @@ END:VCALENDAR`
         {/* Privacy */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
-            <Shield size={13} color="#555" />
+            <Shield size={14} color="#F5A623" />
             Privacy
           </div>
           <div style={styles.row} onClick={async () => {
@@ -524,12 +508,15 @@ END:VCALENDAR`
             const { error } = await supabase.from('profiles').update({ is_public: newVal }).eq('id', user!.id)
             if (error) {
               console.error('Public profile toggle failed:', error)
-              setIsPublic(!newVal) // revert the toggle if it didn't actually save
+              setIsPublic(!newVal)
               alert('Could not update privacy setting: ' + error.message)
             }
           }}>
-            <span style={styles.rowLabel}>Public Profile</span>
-            <div style={{ ...styles.toggleSwitch, background: isPublic ? '#F5A623' : '#1E1E1E' }}>
+            <span style={styles.rowLabel}>
+              <Eye size={16} style={{ marginRight: '0.5rem', color: '#666' }} />
+              Public Profile
+            </span>
+            <div style={{ ...styles.toggleSwitch, background: isPublic ? '#F5A623' : '#2A2A2A' }}>
               <div style={{ ...styles.toggleDot, transform: isPublic ? 'translateX(20px)' : 'translateX(2px)' }} />
             </div>
           </div>
@@ -540,18 +527,21 @@ END:VCALENDAR`
             const { error } = await supabase.from('profiles').update({ show_streak: newVal }).eq('id', user!.id)
             if (error) {
               console.error('Show streak toggle failed:', error)
-              setShowStreak(!newVal) // revert the toggle if it didn't actually save
+              setShowStreak(!newVal)
               alert('Could not update privacy setting: ' + error.message)
             }
           }}>
-            <span style={styles.rowLabel}>Show Streak on Leaderboard</span>
-            <div style={{ ...styles.toggleSwitch, background: showStreak ? '#F5A623' : '#1E1E1E' }}>
+            <span style={styles.rowLabel}>
+              <Award size={16} style={{ marginRight: '0.5rem', color: '#666' }} />
+              Show Streak on Leaderboard
+            </span>
+            <div style={{ ...styles.toggleSwitch, background: showStreak ? '#F5A623' : '#2A2A2A' }}>
               <div style={{ ...styles.toggleDot, transform: showStreak ? 'translateX(20px)' : 'translateX(2px)' }} />
             </div>
           </div>
           <div style={styles.expandedInner}>
             <button style={styles.saveBtn} onClick={save} disabled={saving}>
-              {saved ? 'Saved ✓' : 'Save Privacy Settings'}
+              {saved ? <><Check size={16} /> Saved</> : 'Save Privacy Settings'}
             </button>
           </div>
         </div>
@@ -559,26 +549,26 @@ END:VCALENDAR`
         {/* AI Persona */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
-            <Sparkles size={13} color="#555" />
+            <Sparkles size={14} color="#F5A623" />
             AI Persona
           </div>
           <div style={styles.row} onClick={() => setActiveSection(activeSection === 'persona' ? null : 'persona')}>
             <span style={styles.rowLabel}>Your Content Voice</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: '#555', fontSize: '0.8rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ color: aiPersona ? '#4CAF50' : '#777', fontSize: '0.8rem', fontWeight: '500' }}>
                 {aiPersona ? '✓ Persona set' : 'Not set'}
               </span>
-              <ChevronRight size={15} color="#333" />
+              <ChevronRight size={16} color="#666" />
             </div>
           </div>
           {activeSection === 'persona' && (
             <div style={styles.expandedInner}>
               {!aiPersona ? (
                 <>
-                  <p style={{ color: '#555', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '1rem' }}>
+                  <p style={{ color: '#999', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '1rem' }}>
                     To make our AI sound like <strong>you</strong>, we need to understand your unique voice. Just 2 steps:
                   </p>
-                  <div style={{ background: '#0A0A0A', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
+                  <div style={{ background: '#0A0A0A', borderRadius: '10px', padding: '1rem', marginBottom: '1rem', border: '1px solid #1E1E1E' }}>
                     <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem' }}>
                       <span style={{ color: '#F5A623', fontWeight: '700' }}>1.</span>
                       <span style={{ color: '#F0EDE8' }}>Copy the prompt below</span>
@@ -619,12 +609,12 @@ END:VCALENDAR`
                 </>
               ) : (
                 <>
-                  <div style={{ background: '#0D2010', border: '1px solid #4CAF5030', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '0.75rem' }}>
+                  <div style={styles.successBox}>
                     <div style={{ color: '#4CAF50', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      ✓ Persona set! Your content will now sound like you.
+                      <Check size={16} /> Persona set! Your content will now sound like you.
                     </div>
                   </div>
-                  <div style={{ background: '#0A0A0A', borderRadius: '8px', padding: '0.75rem 1rem', maxHeight: '100px', overflow: 'auto', marginBottom: '0.75rem' }}>
+                  <div style={{ background: '#0A0A0A', borderRadius: '8px', padding: '0.75rem 1rem', maxHeight: '100px', overflow: 'auto', border: '1px solid #1E1E1E' }}>
                     <pre style={{ color: '#888', fontSize: '0.78rem', margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'Inter' }}>
                       {aiPersona.slice(0, 300)}{aiPersona.length > 300 ? '...' : ''}
                     </pre>
@@ -646,17 +636,17 @@ END:VCALENDAR`
         {/* Plan */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
-            <Shield size={13} color="#555" />
+            <Award size={14} color="#F5A623" />
             Your Plan
           </div>
-          <div style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '0.2rem' }}>Free Plan</div>
-              <div style={{ color: '#555', fontSize: '0.78rem' }}>{5 - leavesUsed} of 5 leaves remaining</div>
+              <div style={{ fontWeight: '600', fontSize: '1rem', marginBottom: '0.2rem' }}>Free Plan</div>
+              <div style={{ color: '#777', fontSize: '0.8rem' }}>{5 - leavesUsed} of 5 leaves remaining</div>
             </div>
-            <span style={{ background: '#1A1A1A', color: '#555', border: '1px solid #2A2A2A', borderRadius: '20px', padding: '0.25rem 0.75rem', fontSize: '0.72rem' }}>Free</span>
+            <span style={{ background: '#1A1A1A', color: '#888', border: '1px solid #2A2A2A', borderRadius: '20px', padding: '0.25rem 0.9rem', fontSize: '0.7rem', fontWeight: '600' }}>Free</span>
           </div>
-          <div style={{ padding: '0 1rem 1rem' }}>
+          <div style={{ padding: '0 1.25rem 1.25rem' }}>
             <button style={styles.upgradeBtn}>Upgrade to Pro — $5/mo</button>
           </div>
         </div>
@@ -664,7 +654,7 @@ END:VCALENDAR`
         {/* Sign Out */}
         <div style={styles.settingsGroup}>
           <button style={styles.signOutRow} onClick={signOut}>
-            <LogOut size={16} color="#E53E3E" />
+            <LogOut size={18} color="#E53E3E" />
             <span>Sign Out</span>
           </button>
         </div>
@@ -676,86 +666,170 @@ END:VCALENDAR`
 
 const styles: Record<string, React.CSSProperties> = {
   profileCard: {
-    background: '#111111', border: '1px solid #1E1E1E', borderRadius: '14px',
-    padding: '1.1rem', display: 'flex', alignItems: 'center',
-    gap: '1rem', marginBottom: '1.5rem'
+    background: '#111111',
+    border: '1px solid #1E1E1E',
+    borderRadius: '16px',
+    padding: '1.25rem 1.5rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1.25rem',
+    marginBottom: '1.5rem',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+    transition: 'border-color 0.2s'
   },
   avatarWrap: {
-    width: '58px', height: '58px', borderRadius: '50%',
+    width: '64px', height: '64px', borderRadius: '50%',
     background: '#1A1A1A', border: '2px solid #2A2A2A',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden', flexShrink: 0, cursor: 'pointer', position: 'relative'
+    overflow: 'hidden', flexShrink: 0, cursor: 'pointer', position: 'relative',
+    transition: 'border-color 0.2s'
   },
   avatarOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    background: 'rgba(0,0,0,0.55)', display: 'flex',
-    alignItems: 'center', justifyContent: 'center', padding: '0.2rem'
+    background: 'rgba(0,0,0,0.6)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', padding: '0.25rem',
+    backdropFilter: 'blur(2px)'
+  },
+  editBtn: {
+    background: 'transparent',
+    border: '1px solid #2A2A2A',
+    borderRadius: '8px',
+    color: '#F0EDE8',
+    padding: '0.5rem 1rem',
+    fontSize: '0.8rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    fontWeight: '500'
   },
   expandedCard: {
-    background: '#111111', border: '1px solid #1E1E1E', borderRadius: '14px',
-    padding: '1.1rem', marginBottom: '1.5rem',
-    display: 'flex', flexDirection: 'column', gap: '0.75rem'
+    background: '#111111',
+    border: '1px solid #1E1E1E',
+    borderRadius: '16px',
+    padding: '1.5rem',
+    marginBottom: '1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
   },
   settingsList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   settingsGroup: {
-    background: '#111111', border: '1px solid #1E1E1E',
-    borderRadius: '14px', overflow: 'hidden'
+    background: '#111111',
+    border: '1px solid #1E1E1E',
+    borderRadius: '16px',
+    overflow: 'hidden',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+    transition: 'border-color 0.2s'
   },
   groupLabel: {
-    display: 'flex', alignItems: 'center', gap: '0.4rem',
-    color: '#555', fontSize: '0.72rem', textTransform: 'uppercase',
-    letterSpacing: '0.08em', padding: '0.85rem 1rem 0.5rem'
+    display: 'flex', alignItems: 'center', gap: '0.5rem',
+    color: '#888', fontSize: '0.7rem', textTransform: 'uppercase',
+    letterSpacing: '0.1em', padding: '0.85rem 1.25rem 0.4rem'
   },
   row: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '0.85rem 1rem', cursor: 'pointer'
+    padding: '0.85rem 1.25rem', cursor: 'pointer',
+    transition: 'background 0.15s'
   },
-  rowLabel: { color: '#F0EDE8', fontSize: '0.9rem' },
+  rowLabel: { 
+    color: '#F0EDE8', 
+    fontSize: '0.92rem',
+    display: 'flex',
+    alignItems: 'center'
+  },
   expandedInner: {
-    padding: '0.75rem 1rem 1rem',
+    padding: '0.75rem 1.25rem 1.25rem',
     display: 'flex', flexDirection: 'column', gap: '0.75rem',
     borderTop: '1px solid #1A1A1A'
   },
   field: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
-  label: { color: '#555', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  label: { color: '#888', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' },
   input: {
-    background: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: '8px',
-    padding: '0.75rem 1rem', color: '#F0EDE8', fontSize: '0.92rem',
-    outline: 'none', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'Inter'
+    background: '#0A0A0A',
+    border: '1px solid #1E1E1E',
+    borderRadius: '10px',
+    padding: '0.75rem 1rem',
+    color: '#F0EDE8',
+    fontSize: '0.92rem',
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    fontFamily: 'Inter',
+    transition: 'border-color 0.2s'
   },
   toggleSwitch: {
     width: '44px', height: '24px', borderRadius: '999px',
-    position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer'
+    position: 'relative', flexShrink: 0, transition: 'background 0.25s', cursor: 'pointer'
   },
   toggleDot: {
     position: 'absolute', top: '2px', width: '20px', height: '20px',
-    borderRadius: '50%', background: '#fff', transition: 'transform 0.2s'
+    borderRadius: '50%', background: '#fff', transition: 'transform 0.25s',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
   },
   saveBtn: {
-    background: '#F5A623', color: '#0A0A0A', border: 'none',
-    borderRadius: '8px', padding: '0.7rem 1.25rem', fontWeight: '600',
-    cursor: 'pointer', fontSize: '0.88rem', alignSelf: 'flex-start'
+    background: '#F5A623',
+    color: '#0A0A0A',
+    border: 'none',
+    borderRadius: '10px',
+    padding: '0.7rem 1.5rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    fontSize: '0.88rem',
+    alignSelf: 'flex-start',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 8px rgba(245,166,35,0.25)'
   },
   cancelBtn: {
-    background: 'none', border: '1px solid #1E1E1E', borderRadius: '8px',
-    padding: '0.7rem 1.25rem', color: '#666', cursor: 'pointer', fontSize: '0.88rem'
+    background: 'transparent',
+    border: '1px solid #2A2A2A',
+    borderRadius: '10px',
+    padding: '0.7rem 1.5rem',
+    color: '#888',
+    cursor: 'pointer',
+    fontSize: '0.88rem',
+    transition: 'all 0.2s'
   },
   templateBtn: {
-    background: '#1A1A1A', color: '#F0EDE8',
-    border: '1px solid #2A2A2A', borderRadius: '8px',
-    padding: '0.65rem 1rem', fontSize: '0.85rem',
-    cursor: 'pointer', marginBottom: '0.5rem'
+    background: '#1A1A1A',
+    color: '#F0EDE8',
+    border: '1px solid #2A2A2A',
+    borderRadius: '10px',
+    padding: '0.65rem 1rem',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    alignSelf: 'flex-start'
   },
   upgradeBtn: {
     background: 'linear-gradient(135deg, #F5A623, #E8900A)',
-    color: '#0A0A0A', border: 'none', borderRadius: '8px',
-    padding: '0.85rem', fontWeight: '700', cursor: 'pointer',
-    fontSize: '0.9rem', width: '100%'
+    color: '#0A0A0A',
+    border: 'none',
+    borderRadius: '10px',
+    padding: '0.85rem',
+    fontWeight: '700',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    width: '100%',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 12px rgba(245,166,35,0.3)'
   },
   signOutRow: {
     display: 'flex', alignItems: 'center', gap: '0.75rem',
-    background: 'none', border: 'none', color: '#E53E3E',
-    padding: '1rem', fontSize: '0.9rem', fontWeight: '500',
-    cursor: 'pointer', width: '100%'
+    background: 'none', border: 'none',
+    color: '#E53E3E',
+    padding: '1rem 1.25rem',
+    fontSize: '0.9rem', fontWeight: '500',
+    cursor: 'pointer', width: '100%',
+    transition: 'background 0.15s'
+  },
+  successBox: {
+    background: '#0D2010',
+    border: '1px solid #4CAF5030',
+    borderRadius: '10px',
+    padding: '0.75rem 1rem',
+    marginTop: '0.5rem'
   }
 }
