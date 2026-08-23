@@ -121,12 +121,41 @@ Be specific. Use what you know about me from our conversations.`
     if ('Notification' in window) setNotifAllowed(Notification.permission === 'granted')
   }, [user])
 
+  // ---------- FIXED save function with username uniqueness check ----------
   const save = async () => {
     setSaving(true)
     setSaveError('')
 
+    const trimmedUsername = username.trim()
+
+    // 1. Check if the new username is already taken by another user
+    if (trimmedUsername) {
+      const { data: existing, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', trimmedUsername)
+        .neq('id', user!.id)
+        .maybeSingle()
+
+      if (checkError) {
+        console.error('Username check failed:', checkError)
+        setSaving(false)
+        setSaveError('Could not validate username. Please try again.')
+        return
+      }
+
+      if (existing) {
+        setSaving(false)
+        setSaveError('Username is already taken. Please choose another.')
+        return
+      }
+    }
+
+    // 2. Update profile
     const { error } = await supabase.from('profiles').update({
-      name, username, bio,
+      name,
+      username: trimmedUsername,
+      bio,
       default_platform: defaultPlatform,
       week_start: weekStart,
       weekly_target: weeklyTarget,
@@ -135,16 +164,17 @@ Be specific. Use what you know about me from our conversations.`
     }).eq('id', user!.id)
 
     if (error) {
-      // Don't touch auth metadata or claim success if the DB write failed —
-      // this is what was causing the name to "revert" after save.
-      console.error('Profile update failed:', error)
+      // Handle possible duplicate from the update itself (just in case)
+      if (error.code === '23505') {
+        setSaveError('Username is already taken. Please choose another.')
+      } else {
+        setSaveError(error.message || 'Could not save changes.')
+      }
       setSaving(false)
-      setSaveError(error.message || 'Could not save changes.')
       return
     }
 
-    // Only update auth metadata (which triggers the [user] useEffect / refetch)
-    // AFTER we know the DB write succeeded.
+    // 3. Update auth metadata only if name changed
     if (name !== user?.user_metadata?.name) {
       const { error: authError } = await supabase.auth.updateUser({
         data: { name }
@@ -161,6 +191,7 @@ Be specific. Use what you know about me from our conversations.`
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
+  // ---------- END fixed save ----------
 
   const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
