@@ -35,6 +35,49 @@ function getRandomNudgeMessage(partnerName: string): string {
   return raw.replace(/{partner}/g, partnerName);
 }
 
+// Brand tokens — same palette as the rest of the app, tuned for depth
+const COLORS = {
+  bg: '#0A0A0A',
+  surface: '#111111',
+  surfaceRaised: 'linear-gradient(180deg, #141414 0%, #0D0D0D 100%)',
+  border: '#1E1E1E',
+  borderSoft: 'rgba(255,255,255,0.06)',
+  gold: '#F5A623',
+  goldSoft: 'rgba(245,166,35,0.12)',
+  goldBorder: 'rgba(245,166,35,0.28)',
+  goldGlow: '0 0 22px rgba(245,166,35,0.22)',
+  text: '#F0EDE8',
+  textDim: '#8A8A8A',
+  textFaint: '#5C5C5C',
+  green: '#4CAF50',
+  greenSoft: 'rgba(76,175,80,0.12)',
+  greenBorder: 'rgba(76,175,80,0.28)',
+  red: '#E53E3E',
+  redSoft: 'rgba(229,62,62,0.12)',
+  redBorder: 'rgba(229,62,62,0.28)',
+}
+
+// Presentational only — deterministic avatar tint per name, doesn't touch app state
+const AVATAR_GRADIENTS = [
+  ['#F5A623', '#D9821A'],
+  ['#6FA8F5', '#3D7DD9'],
+  ['#F56F91', '#D93D63'],
+  ['#6FCB73', '#3DA843'],
+  ['#B98CF5', '#8A4DD9'],
+]
+function getInitials(name?: string) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || name[0]?.toUpperCase() || '?'
+}
+function getAvatarGradient(name?: string) {
+  const key = name || '?'
+  let hash = 0
+  for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash)
+  const [a, b] = AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]
+  return `linear-gradient(135deg, ${a}, ${b})`
+}
+
 export default function Partners() {
   const { user } = useAuth()
   const [partners, setPartners] = useState<any[]>([])
@@ -187,8 +230,13 @@ export default function Partners() {
     return (
       <Layout>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
-          {[1,2,3].map(i => (
-            <div key={i} style={{ height: '100px', borderRadius: '14px', background: '#111', border: '1px solid #1E1E1E' }} />
+          {[1, 2, 3].map(i => (
+            <motion.div
+              key={i}
+              style={{ height: '100px', borderRadius: '20px', background: COLORS.surfaceRaised, border: `1px solid ${COLORS.border}` }}
+              animate={{ opacity: [0.5, 0.9, 0.5] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut', delay: i * 0.15 }}
+            />
           ))}
         </div>
       </Layout>
@@ -198,11 +246,20 @@ export default function Partners() {
   if (error) {
     return (
       <Layout>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', textAlign: 'center' }}>
-          <AlertCircle size={48} color="#E53E3E" style={{ marginBottom: '1rem' }} />
-          <h2 style={{ color: '#E53E3E' }}>Oops</h2>
-          <p style={{ color: '#888' }}>{error}</p>
-          <button onClick={() => { setError(null); setLoading(true); fetchAll().catch(e => setError(e.message)) }} style={{ marginTop: '1.5rem', background: '#F5A623', color: '#000', border: 'none', padding: '0.6rem 1.5rem', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>Try Again</button>
+        <div style={styles.errorWrap}>
+          <div style={styles.errorIconRing}>
+            <AlertCircle size={26} color={COLORS.red} />
+          </div>
+          <h2 style={styles.errorTitle}>Something went wrong</h2>
+          <p style={styles.errorMessage}>{error}</p>
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            style={styles.retryBtn}
+            onClick={() => { setError(null); setLoading(true); fetchAll().catch(e => setError(e.message)) }}
+          >
+            Try Again
+          </motion.button>
         </div>
       </Layout>
     )
@@ -213,39 +270,65 @@ export default function Partners() {
 
   return (
     <Layout>
-      <div style={{ marginBottom: '2rem' }}>
-        <p style={{ color: '#555', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.3rem' }}>Accountability</p>
-        <h1 style={{ fontSize: '1.8rem', fontFamily: 'Space Grotesk', fontWeight: '700' }}>Partners</h1>
-        <p style={{ color: '#555', marginTop: '0.3rem', fontSize: '0.9rem' }}>Stay accountable with other creators. Max {maxPartners} partners.</p>
+      <div style={{ marginBottom: '2.2rem' }}>
+        <div style={styles.eyebrow}>
+          <span style={styles.eyebrowDot} />
+          Accountability
+        </div>
+        <h1 style={styles.title}>Partners</h1>
+        <p style={styles.subtitle}>Stay accountable with other creators. Max {maxPartners} partners.</p>
       </div>
 
       {partners.length > 0 && (
-        <div style={{ marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '2.2rem' }}>
           <div style={styles.sectionLabel}>
-            <Users size={13} color="#F5A623" />
+            <div style={{ ...styles.iconChipSmall, background: COLORS.goldSoft }}>
+              <Users size={12} color={COLORS.gold} />
+            </div>
             Your Partners ({partners.length}/{maxPartners})
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             {partners.map(p => {
               const checkedIn = partnerCheckedIn(p.streak)
               return (
-                <div key={p.id} style={{ ...styles.card, borderColor: checkedIn ? '#4CAF5040' : '#E53E3E40' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: '600', fontSize: '1rem' }}>{p.partnerName}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
-                        <Flame size={14} color="#F5A623" />
-                        <span style={{ color: '#F5A623', fontWeight: '600' }}>{p.streak?.current_streak || 0}</span>
-                        <span style={{ color: '#555', fontSize: '0.8rem' }}>day streak</span>
-                        <span style={{ color: '#555', fontSize: '0.7rem', marginLeft: '0.5rem' }}>
-                          {checkedIn ? '✅ Posted today' : '❌ Missed today'}
-                        </span>
+                <motion.div
+                  key={p.id}
+                  whileHover={{ y: -2 }}
+                  transition={{ duration: 0.18 }}
+                  style={{
+                    ...styles.card,
+                    borderColor: checkedIn ? COLORS.greenBorder : COLORS.redBorder,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
+                      <div style={{ ...styles.avatar, background: getAvatarGradient(p.partnerName) }}>
+                        {getInitials(p.partnerName)}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={styles.partnerName}>{p.partnerName}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.3rem', flexWrap: 'wrap' }}>
+                          <span style={styles.streakChip}>
+                            <Flame size={12} color={COLORS.gold} />
+                            {p.streak?.current_streak || 0} day{(p.streak?.current_streak || 0) === 1 ? '' : 's'}
+                          </span>
+                          <span style={{
+                            ...styles.statusChip,
+                            color: checkedIn ? COLORS.green : COLORS.red,
+                            background: checkedIn ? COLORS.greenSoft : COLORS.redSoft,
+                            border: `1px solid ${checkedIn ? COLORS.greenBorder : COLORS.redBorder}`,
+                          }}>
+                            {checkedIn ? 'Posted today' : 'Missed today'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
                       {!checkedIn && (
-                        <button
-                          style={{ background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '6px', padding: '0.3rem 0.8rem', fontWeight: '600', fontSize: '0.75rem', cursor: 'pointer' }}
+                        <motion.button
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.96 }}
+                          style={styles.nudgeBtn}
                           onClick={async () => {
                             try {
                               await sendNudge(user!.id, p.partnerId)
@@ -258,17 +341,18 @@ export default function Partners() {
                           }}
                         >
                           Copy Nudge
-                        </button>
+                        </motion.button>
                       )}
                       <button
-                        style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer' }}
+                        style={styles.iconGhostBtn}
                         onClick={() => removePartner(p.partnerId)}
+                        aria-label="Remove partner"
                       >
-                        <UserMinus size={16} />
+                        <UserMinus size={16} color={COLORS.textFaint} />
                       </button>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )
             })}
           </div>
@@ -276,12 +360,14 @@ export default function Partners() {
       )}
 
       {canAddMore && (
-        <div style={styles.card}>
+        <div style={{ ...styles.card, marginBottom: '2.2rem' }}>
           <div style={styles.sectionLabel}>
-            <UserPlus size={13} color="#555" />
+            <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
+              <UserPlus size={12} color={COLORS.textDim} />
+            </div>
             Find a New Partner
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.6rem' }}>
             <input
               style={{ ...styles.input, flex: 1 }}
               placeholder="Search by name..."
@@ -289,38 +375,51 @@ export default function Partners() {
               onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && searchUsers()}
             />
-            <button style={styles.searchBtn} onClick={searchUsers} disabled={searching}>
-              <Search size={16} color="#0A0A0A" />
-            </button>
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              style={styles.searchBtn}
+              onClick={searchUsers}
+              disabled={searching}
+            >
+              <Search size={16} color={COLORS.bg} />
+            </motion.button>
           </div>
           <AnimatePresence>
             {searchResults.length > 0 && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.9rem' }}
               >
                 {searchResults.map(u => {
                   const alreadySent = sent.some(s => s.receiver_id === u.id)
                   return (
                     <div key={u.id} style={styles.resultRow}>
-                      <div>
-                        <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>{u.name}</div>
-                        <div style={{ color: '#555', fontSize: '0.78rem' }}>{u.email}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                        <div style={{ ...styles.avatarSmall, background: getAvatarGradient(u.name) }}>
+                          {getInitials(u.name)}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text }}>{u.name}</div>
+                          <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>{u.email}</div>
+                        </div>
                       </div>
                       {alreadySent ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#555', fontSize: '0.8rem' }}>
-                          <Clock size={13} color="#555" />
+                        <div style={styles.pendingChip}>
+                          <Clock size={12} color={COLORS.textFaint} />
                           Pending
                         </div>
                       ) : (
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.96 }}
                           style={styles.requestBtn}
                           onClick={() => sendRequest(u.id)}
                           disabled={sending === u.id}
                         >
                           {sending === u.id ? '...' : 'Request'}
-                        </button>
+                        </motion.button>
                       )}
                     </div>
                   )
@@ -332,36 +431,58 @@ export default function Partners() {
       )}
 
       {!canAddMore && (
-        <div style={{ ...styles.card, borderColor: '#F5A62340' }}>
-          <p style={{ color: '#F5A623', fontSize: '0.9rem', margin: 0 }}>
-            ✅ You have reached the maximum of {maxPartners} partners. Remove one to add another.
-          </p>
+        <div style={{ ...styles.card, borderColor: COLORS.goldBorder, background: 'linear-gradient(180deg, #1A1400 0%, #131313 100%)', marginBottom: '2.2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <Check size={16} color={COLORS.gold} />
+            <p style={{ color: COLORS.gold, fontSize: '0.88rem', margin: 0 }}>
+              You've reached the maximum of {maxPartners} partners. Remove one to add another.
+            </p>
+          </div>
         </div>
       )}
 
       {requests.length > 0 && (
-        <div style={{ marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '2.2rem' }}>
           <div style={styles.sectionLabel}>
-            <Clock size={13} color="#555" />
+            <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
+              <Clock size={12} color={COLORS.textDim} />
+            </div>
             Incoming Requests
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             {requests.map(r => (
               <div key={r.id} style={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontWeight: '500', fontSize: '0.9rem', marginBottom: '0.2rem' }}>
-                      {r.profiles?.name}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                    <div style={{ ...styles.avatarSmall, background: getAvatarGradient(r.profiles?.name) }}>
+                      {getInitials(r.profiles?.name)}
                     </div>
-                    <div style={{ color: '#555', fontSize: '0.78rem' }}>wants to be your accountability partner</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, marginBottom: '0.15rem' }}>
+                        {r.profiles?.name}
+                      </div>
+                      <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>wants to be your accountability partner</div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button style={styles.acceptBtn} onClick={() => acceptRequest(r.id, r.sender_id)}>
-                      <Check size={15} color="#0A0A0A" />
-                    </button>
-                    <button style={styles.declineBtn} onClick={() => declineRequest(r.id)}>
-                      <X size={15} color="#E53E3E" />
-                    </button>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                    <motion.button
+                      whileHover={{ scale: 1.06 }}
+                      whileTap={{ scale: 0.94 }}
+                      style={styles.acceptBtn}
+                      onClick={() => acceptRequest(r.id, r.sender_id)}
+                      aria-label="Accept request"
+                    >
+                      <Check size={15} color={COLORS.bg} />
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.06 }}
+                      whileTap={{ scale: 0.94 }}
+                      style={styles.declineBtn}
+                      onClick={() => declineRequest(r.id)}
+                      aria-label="Decline request"
+                    >
+                      <X size={15} color={COLORS.red} />
+                    </motion.button>
                   </div>
                 </div>
               </div>
@@ -373,21 +494,28 @@ export default function Partners() {
       {sent.length > 0 && (
         <div>
           <div style={styles.sectionLabel}>
-            <Clock size={13} color="#555" />
+            <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
+              <Clock size={12} color={COLORS.textDim} />
+            </div>
             Sent Requests
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             {sent.map(r => (
               <div key={r.id} style={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontWeight: '500', fontSize: '0.9rem', marginBottom: '0.2rem' }}>
-                      {r.profiles?.name}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                    <div style={{ ...styles.avatarSmall, background: getAvatarGradient(r.profiles?.name) }}>
+                      {getInitials(r.profiles?.name)}
                     </div>
-                    <div style={{ color: '#555', fontSize: '0.78rem' }}>Request pending</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, marginBottom: '0.15rem' }}>
+                        {r.profiles?.name}
+                      </div>
+                      <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>Request pending</div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#555', fontSize: '0.8rem' }}>
-                    <Clock size={13} color="#555" />
+                  <div style={styles.pendingChip}>
+                    <Clock size={12} color={COLORS.textFaint} />
                     Waiting
                   </div>
                 </div>
@@ -399,8 +527,10 @@ export default function Partners() {
 
       {partners.length === 0 && requests.length === 0 && sent.length === 0 && searchResults.length === 0 && (
         <div style={styles.empty}>
-          <Users size={32} color="#2A2A2A" style={{ marginBottom: '0.75rem' }} />
-          <p style={{ margin: 0, color: '#555', textAlign: 'center' }}>
+          <div style={styles.emptyIconRing}>
+            <Users size={24} color={COLORS.textFaint} />
+          </div>
+          <p style={{ margin: 0, marginTop: '0.9rem', color: COLORS.textDim, textAlign: 'center', fontSize: '0.9rem', maxWidth: '260px' }}>
             No partners yet. Search for a creator above and send a request.
           </p>
         </div>
@@ -409,62 +539,140 @@ export default function Partners() {
   )
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  sectionLabel: {
+const styles: Record<string, any> = {
+  eyebrow: {
     display: 'flex', alignItems: 'center', gap: '0.4rem',
-    color: '#555', fontSize: '0.75rem', textTransform: 'uppercase',
-    letterSpacing: '0.08em', marginBottom: '0.75rem'
+    color: COLORS.textFaint, fontSize: '0.78rem', textTransform: 'uppercase',
+    letterSpacing: '0.1em', marginBottom: '0.4rem', fontWeight: 600
+  },
+  eyebrowDot: {
+    width: '5px', height: '5px', borderRadius: '50%',
+    background: COLORS.gold, boxShadow: '0 0 6px rgba(245,166,35,0.7)', display: 'inline-block'
+  },
+  title: {
+    fontSize: '1.9rem', fontFamily: 'Space Grotesk', fontWeight: 700,
+    letterSpacing: '-0.02em', color: COLORS.text, lineHeight: 1.1
+  },
+  subtitle: {
+    color: COLORS.textDim, marginTop: '0.4rem', fontSize: '0.9rem', letterSpacing: '-0.005em'
+  },
+  sectionLabel: {
+    display: 'flex', alignItems: 'center', gap: '0.55rem',
+    color: COLORS.textDim, fontSize: '0.76rem', textTransform: 'uppercase',
+    letterSpacing: '0.09em', marginBottom: '0.85rem', fontWeight: 600
+  },
+  iconChipSmall: {
+    width: '20px', height: '20px', borderRadius: '6px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
   },
   card: {
-    background: '#111111', border: '1px solid #1E1E1E',
-    borderRadius: '14px', padding: '1rem 1.25rem', marginBottom: '1rem'
+    background: COLORS.surfaceRaised, border: `1px solid ${COLORS.border}`,
+    borderRadius: '18px', padding: '1.15rem 1.3rem',
+    boxShadow: '0 6px 20px -14px rgba(0,0,0,0.7)'
   },
-  statBox: {
-    background: '#0A0A0A', borderRadius: '10px', padding: '0.85rem'
+  avatar: {
+    width: '46px', height: '46px', borderRadius: '14px', flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#0A0A0A', fontWeight: 700, fontSize: '0.95rem',
+    fontFamily: 'Space Grotesk', letterSpacing: '-0.01em',
+    boxShadow: '0 4px 14px -4px rgba(0,0,0,0.5)'
   },
-  missedAlert: {
-    display: 'flex', alignItems: 'center', gap: '0.5rem',
-    background: '#1A0000', border: '1px solid #E53E3E20',
-    borderRadius: '8px', padding: '0.75rem',
-    color: '#E53E3E', fontSize: '0.82rem', marginBottom: '0.85rem'
+  avatarSmall: {
+    width: '36px', height: '36px', borderRadius: '11px', flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#0A0A0A', fontWeight: 700, fontSize: '0.8rem',
+    fontFamily: 'Space Grotesk', letterSpacing: '-0.01em'
   },
-  removeBtn: {
-    display: 'flex', alignItems: 'center', gap: '0.4rem',
-    background: 'none', border: 'none', color: '#444',
-    fontSize: '0.78rem', cursor: 'pointer', padding: 0
+  partnerName: {
+    fontWeight: 600, fontSize: '1rem', color: COLORS.text, letterSpacing: '-0.01em',
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+  },
+  streakChip: {
+    display: 'flex', alignItems: 'center', gap: '0.3rem',
+    color: COLORS.gold, fontWeight: 600, fontSize: '0.78rem',
+    background: COLORS.goldSoft, border: `1px solid ${COLORS.goldBorder}`,
+    borderRadius: '20px', padding: '0.18rem 0.55rem'
+  },
+  statusChip: {
+    fontSize: '0.72rem', fontWeight: 600, borderRadius: '20px',
+    padding: '0.18rem 0.55rem'
+  },
+  nudgeBtn: {
+    background: COLORS.gold, color: COLORS.bg, border: 'none',
+    borderRadius: '9px', padding: '0.5rem 0.9rem', fontWeight: 600,
+    fontSize: '0.78rem', cursor: 'pointer', whiteSpace: 'nowrap',
+    boxShadow: '0 4px 14px -4px rgba(245,166,35,0.5)'
+  },
+  iconGhostBtn: {
+    background: 'rgba(255,255,255,0.04)', border: `1px solid ${COLORS.border}`,
+    borderRadius: '9px', width: '34px', height: '34px', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center'
   },
   input: {
-    background: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: '8px',
-    padding: '0.75rem 1rem', color: '#F0EDE8', fontSize: '0.95rem',
+    background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '11px',
+    padding: '0.8rem 1rem', color: COLORS.text, fontSize: '0.95rem',
     outline: 'none'
   },
   searchBtn: {
-    background: '#F5A623', border: 'none', borderRadius: '8px',
-    padding: '0.75rem 1rem', cursor: 'pointer',
-    display: 'flex', alignItems: 'center'
+    background: COLORS.gold, border: 'none', borderRadius: '11px',
+    padding: '0.8rem 1.05rem', cursor: 'pointer',
+    display: 'flex', alignItems: 'center',
+    boxShadow: '0 4px 14px -4px rgba(245,166,35,0.5)'
   },
   resultRow: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    background: '#0A0A0A', borderRadius: '10px', padding: '0.85rem 1rem'
+    background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '13px',
+    padding: '0.75rem 0.9rem', gap: '0.75rem'
+  },
+  pendingChip: {
+    display: 'flex', alignItems: 'center', gap: '0.3rem',
+    color: COLORS.textFaint, fontSize: '0.78rem', flexShrink: 0
   },
   requestBtn: {
-    background: '#1A1400', color: '#F5A623',
-    border: '1px solid #F5A62330', borderRadius: '8px',
-    padding: '0.4rem 0.85rem', fontWeight: '600',
-    fontSize: '0.82rem', cursor: 'pointer'
+    background: COLORS.goldSoft, color: COLORS.gold,
+    border: `1px solid ${COLORS.goldBorder}`, borderRadius: '9px',
+    padding: '0.42rem 0.9rem', fontWeight: 600,
+    fontSize: '0.8rem', cursor: 'pointer', flexShrink: 0
   },
   acceptBtn: {
-    background: '#F5A623', border: 'none', borderRadius: '8px',
-    padding: '0.5rem', cursor: 'pointer',
-    display: 'flex', alignItems: 'center'
+    background: COLORS.gold, border: 'none', borderRadius: '9px',
+    width: '34px', height: '34px', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 4px 14px -4px rgba(245,166,35,0.5)'
   },
   declineBtn: {
-    background: 'none', border: '1px solid #E53E3E30',
-    borderRadius: '8px', padding: '0.5rem', cursor: 'pointer',
-    display: 'flex', alignItems: 'center'
+    background: 'rgba(229,62,62,0.06)', border: `1px solid ${COLORS.redBorder}`,
+    borderRadius: '9px', width: '34px', height: '34px', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center'
   },
   empty: {
-    background: '#111111', border: '1px dashed #1E1E1E', borderRadius: '14px',
-    padding: '2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center'
+    background: COLORS.surfaceRaised, border: `1px dashed ${COLORS.border}`, borderRadius: '20px',
+    padding: '3rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center'
+  },
+  emptyIconRing: {
+    width: '54px', height: '54px', borderRadius: '50%',
+    background: 'rgba(255,255,255,0.04)', border: `1px solid ${COLORS.border}`,
+    display: 'flex', alignItems: 'center', justifyContent: 'center'
+  },
+  errorWrap: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    padding: '3.5rem 1.5rem', textAlign: 'center'
+  },
+  errorIconRing: {
+    width: '56px', height: '56px', borderRadius: '50%',
+    background: COLORS.redSoft, border: `1px solid ${COLORS.redBorder}`,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.1rem'
+  },
+  errorTitle: {
+    color: COLORS.text, fontFamily: 'Space Grotesk', fontWeight: 700,
+    fontSize: '1.3rem', margin: 0, letterSpacing: '-0.01em'
+  },
+  errorMessage: {
+    color: COLORS.textDim, marginTop: '0.5rem', fontSize: '0.9rem', maxWidth: '320px'
+  },
+  retryBtn: {
+    marginTop: '1.5rem', background: COLORS.gold, color: COLORS.bg, border: 'none',
+    padding: '0.7rem 1.6rem', borderRadius: '11px', fontWeight: 600, cursor: 'pointer',
+    fontSize: '0.88rem', boxShadow: '0 6px 18px -6px rgba(245,166,35,0.55)'
   }
 }
