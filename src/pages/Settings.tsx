@@ -23,6 +23,7 @@ export default function Settings() {
   const [leavesUsed, setLeavesUsed] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [uploading, setUploading] = useState(false)
   const [reminderTime, setReminderTime] = useState('09:00')
   const [reminderSet, setReminderSet] = useState(false)
@@ -65,11 +66,16 @@ STRATEGIC GOALS:
 Be specific. Use what you know about me from our conversations.`
 
   const savePersona = async () => {
-    if (!aiPersona.trim()) return
+    if (!aiPersona.trim() && aiPersona !== '') return
     setSaving(true)
-    await supabase.from('profiles').update({ ai_persona: aiPersona.trim() }).eq('id', user!.id)
-    setSaved(true)
+    const { error } = await supabase.from('profiles').update({ ai_persona: aiPersona.trim() }).eq('id', user!.id)
     setSaving(false)
+    if (error) {
+      console.error('Persona save failed:', error)
+      alert('Could not save persona: ' + error.message)
+      return
+    }
+    setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
@@ -117,7 +123,9 @@ Be specific. Use what you know about me from our conversations.`
 
   const save = async () => {
     setSaving(true)
-    await supabase.from('profiles').update({
+    setSaveError('')
+
+    const { error } = await supabase.from('profiles').update({
       name, username, bio,
       default_platform: defaultPlatform,
       week_start: weekStart,
@@ -126,11 +134,27 @@ Be specific. Use what you know about me from our conversations.`
       show_streak: showStreak
     }).eq('id', user!.id)
 
-    // If name changed, update user metadata so header/sidebar updates
+    if (error) {
+      // Don't touch auth metadata or claim success if the DB write failed —
+      // this is what was causing the name to "revert" after save.
+      console.error('Profile update failed:', error)
+      setSaving(false)
+      setSaveError(error.message || 'Could not save changes.')
+      return
+    }
+
+    // Only update auth metadata (which triggers the [user] useEffect / refetch)
+    // AFTER we know the DB write succeeded.
     if (name !== user?.user_metadata?.name) {
-      await supabase.auth.updateUser({
+      const { error: authError } = await supabase.auth.updateUser({
         data: { name }
       })
+      if (authError) {
+        console.error('Auth metadata update failed:', authError)
+        setSaving(false)
+        setSaveError(authError.message || 'Saved profile, but could not update account name.')
+        return
+      }
     }
 
     setSaving(false)
@@ -150,6 +174,9 @@ Be specific. Use what you know about me from our conversations.`
       const url = data.publicUrl + '?t=' + Date.now()
       await supabase.from('profiles').update({ avatar_url: url }).eq('id', user!.id)
       setAvatarUrl(url)
+    } else {
+      console.error('Avatar upload failed:', error)
+      alert('Could not upload photo: ' + error.message)
     }
     setUploading(false)
   }
@@ -185,10 +212,16 @@ END:VCALENDAR`
   const setReminder = async () => {
     const [h, m] = reminderTime.split(':').map(Number)
     // Save to profile so scheduler can use it
-    await supabase.from('profiles').update({
+    const { error } = await supabase.from('profiles').update({
       reminder_hour: h,
       reminder_minute: m
     }).eq('id', user!.id)
+
+    if (error) {
+      console.error('Reminder save failed:', error)
+      alert('Could not save reminder time: ' + error.message)
+      return
+    }
 
     saveReminderTime(h, m)
     setReminderSet(true)
@@ -269,11 +302,14 @@ END:VCALENDAR`
             <label style={styles.label}>Bio</label>
             <textarea style={{ ...styles.input, minHeight: '70px', resize: 'vertical' as const }} value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell other creators about yourself..." />
           </div>
+          {saveError && (
+            <p style={{ color: '#E53E3E', fontSize: '0.8rem', margin: 0 }}>{saveError}</p>
+          )}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button style={styles.saveBtn} onClick={save} disabled={saving}>
               {saved ? 'Saved ✓' : saving ? 'Saving...' : 'Save'}
             </button>
-            <button style={styles.cancelBtn} onClick={() => setActiveSection(null)}>Cancel</button>
+            <button style={styles.cancelBtn} onClick={() => { setActiveSection(null); setSaveError('') }}>Cancel</button>
           </div>
           {uploading && <p style={{ color: '#555', fontSize: '0.8rem', margin: 0 }}>Uploading photo...</p>}
         </div>
@@ -416,6 +452,9 @@ END:VCALENDAR`
                   ))}
                 </div>
               </div>
+              {saveError && (
+                <p style={{ color: '#E53E3E', fontSize: '0.8rem', margin: 0 }}>{saveError}</p>
+              )}
               <button style={styles.saveBtn} onClick={save} disabled={saving}>
                 {saved ? 'Saved ✓' : 'Save'}
               </button>
@@ -432,7 +471,12 @@ END:VCALENDAR`
           <div style={styles.row} onClick={async () => {
             const newVal = !isPublic
             setIsPublic(newVal)
-            await supabase.from('profiles').update({ is_public: newVal }).eq('id', user!.id)
+            const { error } = await supabase.from('profiles').update({ is_public: newVal }).eq('id', user!.id)
+            if (error) {
+              console.error('Public profile toggle failed:', error)
+              setIsPublic(!newVal) // revert the toggle if it didn't actually save
+              alert('Could not update privacy setting: ' + error.message)
+            }
           }}>
             <span style={styles.rowLabel}>Public Profile</span>
             <div style={{ ...styles.toggleSwitch, background: isPublic ? '#F5A623' : '#1E1E1E' }}>
@@ -443,7 +487,12 @@ END:VCALENDAR`
           <div style={styles.row} onClick={async () => {
             const newVal = !showStreak
             setShowStreak(newVal)
-            await supabase.from('profiles').update({ show_streak: newVal }).eq('id', user!.id)
+            const { error } = await supabase.from('profiles').update({ show_streak: newVal }).eq('id', user!.id)
+            if (error) {
+              console.error('Show streak toggle failed:', error)
+              setShowStreak(!newVal) // revert the toggle if it didn't actually save
+              alert('Could not update privacy setting: ' + error.message)
+            }
           }}>
             <span style={styles.rowLabel}>Show Streak on Leaderboard</span>
             <div style={{ ...styles.toggleSwitch, background: showStreak ? '#F5A623' : '#1E1E1E' }}>

@@ -3,7 +3,6 @@ const BASE_URL = 'https://streak-backend-ar7h.onrender.com';
 export async function registerPushSubscription(userId: string, subscription: PushSubscription) {
   const key = subscription.getKey('p256dh');
   const auth = subscription.getKey('auth');
-
   const res = await fetch(`${BASE_URL}/api/notifications/subscribe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -27,6 +26,7 @@ export async function notifyPartnerCheckin(userId: string) {
 }
 
 export async function sendNudge(fromUserId: string, toUserId: string) {
+  alert('📨 Nudge URL: ' + `${BASE_URL}/api/notifications/nudge`);
   const res = await fetch(`${BASE_URL}/api/notifications/nudge`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
