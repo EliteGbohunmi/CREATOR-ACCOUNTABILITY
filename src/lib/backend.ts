@@ -26,7 +26,6 @@ export async function notifyPartnerCheckin(userId: string) {
 }
 
 export async function sendNudge(fromUserId: string, toUserId: string) {
-  alert('📨 Nudge URL: ' + `${BASE_URL}/api/notifications/nudge`);
   const res = await fetch(`${BASE_URL}/api/notifications/nudge`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
