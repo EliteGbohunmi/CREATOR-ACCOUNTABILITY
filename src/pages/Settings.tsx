@@ -36,6 +36,9 @@ export default function Settings() {
   const [aiPersona, setAiPersona] = useState('')
   const [showPersonaTemplate, setShowPersonaTemplate] = useState(false)
 
+  // Store original username to detect changes
+  const [originalUsername, setOriginalUsername] = useState('')
+
   const personaTemplate = `Based on our past conversations, analyze my writing style and create a detailed persona description.
 
 Create a persona description with these sections:
@@ -85,6 +88,7 @@ Be specific. Use what you know about me from our conversations.`
       if (data) {
         setName(data.name || '')
         setUsername(data.username || '')
+        setOriginalUsername(data.username || '') // store original
         setBio(data.bio || '')
         setAvatarUrl(data.avatar_url || '')
         setDefaultPlatform(data.default_platform || '')
@@ -121,15 +125,22 @@ Be specific. Use what you know about me from our conversations.`
     if ('Notification' in window) setNotifAllowed(Notification.permission === 'granted')
   }, [user])
 
-  // ---------- FIXED save function with username uniqueness check ----------
+  // ---------- FIXED: only update username if it changed ----------
   const save = async () => {
     setSaving(true)
     setSaveError('')
 
     const trimmedUsername = username.trim()
+    const usernameChanged = trimmedUsername !== originalUsername
 
-    // 1. Check if the new username is already taken by another user
-    if (trimmedUsername) {
+    // 1. If username changed, check uniqueness
+    if (usernameChanged) {
+      if (!trimmedUsername) {
+        setSaving(false)
+        setSaveError('Username cannot be empty.')
+        return
+      }
+
       const { data: existing, error: checkError } = await supabase
         .from('profiles')
         .select('id')
@@ -151,20 +162,24 @@ Be specific. Use what you know about me from our conversations.`
       }
     }
 
-    // 2. Update profile
-    const { error } = await supabase.from('profiles').update({
+    // 2. Build update object – always include name and other fields, include username only if changed
+    const updates: any = {
       name,
-      username: trimmedUsername,
       bio,
       default_platform: defaultPlatform,
       week_start: weekStart,
       weekly_target: weeklyTarget,
       is_public: isPublic,
       show_streak: showStreak
-    }).eq('id', user!.id)
+    }
+    if (usernameChanged) {
+      updates.username = trimmedUsername
+    }
+
+    // 3. Update profile
+    const { error } = await supabase.from('profiles').update(updates).eq('id', user!.id)
 
     if (error) {
-      // Handle possible duplicate from the update itself (just in case)
       if (error.code === '23505') {
         setSaveError('Username is already taken. Please choose another.')
       } else {
@@ -174,7 +189,7 @@ Be specific. Use what you know about me from our conversations.`
       return
     }
 
-    // 3. Update auth metadata only if name changed
+    // 4. Update auth metadata for display name (so it shows in header)
     if (name !== user?.user_metadata?.name) {
       const { error: authError } = await supabase.auth.updateUser({
         data: { name }
@@ -187,11 +202,15 @@ Be specific. Use what you know about me from our conversations.`
       }
     }
 
+    // 5. If username changed, update stored original
+    if (usernameChanged) {
+      setOriginalUsername(trimmedUsername)
+    }
+
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
-  // ---------- END fixed save ----------
 
   const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
