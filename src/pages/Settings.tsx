@@ -29,7 +29,7 @@ export default function Settings() {
   const [notifAllowed, setNotifAllowed] = useState(false)
   const [activeSection, setActiveSection] = useState<string | null>(null)
   const [currentStreak, setCurrentStreak] = useState(0)
-  const [icsContent, setIcsContent] = useState('') // for copy fallback
+  const [icsContent, setIcsContent] = useState('')
 
   // Persona state
   const [aiPersona, setAiPersona] = useState('')
@@ -74,22 +74,38 @@ Be specific. Use what you know about me from our conversations.`
   }
 
   useEffect(() => {
-    supabase.from('profiles').select('*').eq('id', user!.id).single()
-      .then(({ data }) => {
-        if (data) {
-          setName(data.name || '')
-          setUsername(data.username || '')
-          setBio(data.bio || '')
-          setAvatarUrl(data.avatar_url || '')
-          setDefaultPlatform(data.default_platform || '')
-          setWeekStart(data.week_start || 'monday')
-          setIsPublic(data.is_public ?? true)
-          setShowStreak(data.show_streak ?? true)
-          setLeavesUsed(data.leaves_used || 0)
-          setWeeklyTarget(data.weekly_target || 7)
-          setAiPersona(data.ai_persona || '')
+    const fetchProfile = async () => {
+      const { data } = await supabase.from('profiles').select('*').eq('id', user!.id).single()
+      if (data) {
+        setName(data.name || '')
+        setUsername(data.username || '')
+        setBio(data.bio || '')
+        setAvatarUrl(data.avatar_url || '')
+        setDefaultPlatform(data.default_platform || '')
+        setWeekStart(data.week_start || 'monday')
+        setIsPublic(data.is_public ?? true)
+        setShowStreak(data.show_streak ?? true)
+        setLeavesUsed(data.leaves_used || 0)
+        setWeeklyTarget(data.weekly_target || 7)
+        setAiPersona(data.ai_persona || '')
+        // Load reminder from profile
+        if (data.reminder_hour !== null && data.reminder_minute !== null) {
+          const h = String(data.reminder_hour).padStart(2, '0')
+          const m = String(data.reminder_minute).padStart(2, '0')
+          setReminderTime(`${h}:${m}`)
+          setReminderSet(true)
+        } else {
+          // fallback to localStorage
+          const savedTime = getSavedReminderTime()
+          if (savedTime) {
+            setReminderTime(`${String(savedTime.hour).padStart(2, '0')}:${String(savedTime.minute).padStart(2, '0')}`)
+            setReminderSet(true)
+          }
         }
-      })
+      }
+    }
+
+    fetchProfile()
 
     supabase.from('streaks').select('current_streak').eq('user_id', user!.id).single()
       .then(({ data }) => {
@@ -97,13 +113,7 @@ Be specific. Use what you know about me from our conversations.`
       })
 
     if ('Notification' in window) setNotifAllowed(Notification.permission === 'granted')
-
-    const savedTime = getSavedReminderTime()
-    if (savedTime) {
-      setReminderTime(`${String(savedTime.hour).padStart(2, '0')}:${String(savedTime.minute).padStart(2, '0')}`)
-      setReminderSet(true)
-    }
-  }, [])
+  }, [user])
 
   const save = async () => {
     setSaving(true)
@@ -115,6 +125,14 @@ Be specific. Use what you know about me from our conversations.`
       is_public: isPublic,
       show_streak: showStreak
     }).eq('id', user!.id)
+
+    // If name changed, update user metadata so header/sidebar updates
+    if (name !== user?.user_metadata?.name) {
+      await supabase.auth.updateUser({
+        data: { name }
+      })
+    }
+
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -136,7 +154,6 @@ Be specific. Use what you know about me from our conversations.`
     setUploading(false)
   }
 
-  // Generate ICS content
   const generateICS = (hour: number, minute: number): string => {
     const now = new Date()
     const eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute)
@@ -165,24 +182,23 @@ END:VEVENT
 END:VCALENDAR`
   }
 
-  // Set reminder – opens ICS in a new tab (always works)
-  const setReminder = () => {
+  const setReminder = async () => {
     const [h, m] = reminderTime.split(':').map(Number)
+    // Save to profile so scheduler can use it
+    await supabase.from('profiles').update({
+      reminder_hour: h,
+      reminder_minute: m
+    }).eq('id', user!.id)
+
     saveReminderTime(h, m)
     setReminderSet(true)
     setNotifAllowed(true)
 
     const content = generateICS(h, m)
     setIcsContent(content)
-
-    // Open in new tab – this always triggers download or calendar app
     const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(content)
     window.open(dataUri, '_blank')
 
-    // Also copy to clipboard as fallback (optional)
-    // We'll show a copy button in the UI
-
-    // Browser notification if allowed
     if (Notification.permission === 'granted') {
       fireReminder()
     } else {
@@ -191,11 +207,9 @@ END:VCALENDAR`
       })
     }
 
-    // Show a success message
-    alert(`📅 Reminder file opened in new tab! If it doesn't download automatically, copy the text below and save it as a .ics file.`)
+    alert('📅 Reminder file opened in new tab! If it doesn\'t download automatically, copy the text below and save it as a .ics file.')
   }
 
-  // Copy ICS content to clipboard
   const copyICS = async () => {
     if (!icsContent) return
     try {
@@ -337,7 +351,7 @@ END:VCALENDAR`
           )}
         </div>
 
-        {/* Preferences, Privacy, Persona, Plan, Sign out – same as before */}
+        {/* Preferences */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
             <Sliders size={13} color="#555" />
@@ -409,6 +423,7 @@ END:VCALENDAR`
           )}
         </div>
 
+        {/* Privacy */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
             <Shield size={13} color="#555" />
@@ -442,6 +457,7 @@ END:VCALENDAR`
           </div>
         </div>
 
+        {/* AI Persona */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
             <Sparkles size={13} color="#555" />
@@ -528,6 +544,7 @@ END:VCALENDAR`
           )}
         </div>
 
+        {/* Plan */}
         <div style={styles.settingsGroup}>
           <div style={styles.groupLabel}>
             <Shield size={13} color="#555" />
@@ -545,6 +562,7 @@ END:VCALENDAR`
           </div>
         </div>
 
+        {/* Sign Out */}
         <div style={styles.settingsGroup}>
           <button style={styles.signOutRow} onClick={signOut}>
             <LogOut size={16} color="#E53E3E" />
