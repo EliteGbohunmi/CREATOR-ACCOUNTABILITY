@@ -5,7 +5,6 @@ import { sendNudge } from '../lib/backend'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
 import { Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock, UserMinus } from 'lucide-react'
-import toast from 'react-hot-toast'   // <-- added
 
 const NUDGE_MESSAGES = [
   "Hey {partner}! 👋 You haven't posted today yet. Don't break your streak — go create something! 🔥",
@@ -40,14 +39,17 @@ export default function Partners() {
   const [partners, setPartners] = useState<any[]>([])
   const [requests, setRequests] = useState<any[]>([])
   const [sent, setSent] = useState<any[]>([])
+  const [suggestions, setSuggestions] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState<string | null>(null)
+  const [toast, setToast] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
   useEffect(() => {
     if (user) {
@@ -55,10 +57,25 @@ export default function Partners() {
         setError(err.message || 'Network error')
         setLoading(false)
       })
+      fetchSuggestions()
     } else {
       setLoading(false)
     }
   }, [user])
+
+  const fetchSuggestions = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'}/api/partners/suggest?userId=${user!.id}`
+      )
+      if (!res.ok) throw new Error('Failed to fetch suggestions')
+      const data = await res.json()
+      setSuggestions(data || [])
+    } catch (err) {
+      console.error('Suggestions error:', err)
+      // don't show toast to avoid clutter – just log
+    }
+  }
 
   const fetchAll = async () => {
     setError(null)
@@ -126,7 +143,7 @@ export default function Partners() {
       const partnerIds = partners.map(p => p.partnerId)
       setSearchResults((data || []).filter(u => !partnerIds.includes(u.id)))
     } catch (err) {
-      toast.error('Search failed: ' + (err as Error).message)
+      showToast('❌ Search failed: ' + (err as Error).message)
     }
     setSearching(false)
   }
@@ -140,11 +157,12 @@ export default function Partners() {
         status: 'pending'
       })
       await fetchAll()
+      await fetchSuggestions()
       setSearchResults([])
       setSearchQuery('')
-      toast.success('Request sent')
+      showToast('✅ Request sent')
     } catch (err) {
-      toast.error('Request failed: ' + (err as Error).message)
+      showToast('❌ Request failed: ' + (err as Error).message)
     }
     setSending(null)
   }
@@ -157,9 +175,10 @@ export default function Partners() {
         user2_id: user!.id
       })
       await fetchAll()
-      toast.success('Partner added')
+      await fetchSuggestions()
+      showToast('✅ Partner added')
     } catch (err) {
-      toast.error('Accept failed: ' + (err as Error).message)
+      showToast('❌ Accept failed: ' + (err as Error).message)
     }
   }
 
@@ -168,7 +187,7 @@ export default function Partners() {
       await supabase.from('partner_requests').update({ status: 'declined' }).eq('id', requestId)
       await fetchAll()
     } catch (err) {
-      toast.error('Decline failed: ' + (err as Error).message)
+      showToast('❌ Decline failed: ' + (err as Error).message)
     }
   }
 
@@ -181,13 +200,29 @@ export default function Partners() {
         .or(`user1_id.eq.${partnerId},user2_id.eq.${partnerId}`)
         .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
       await fetchAll()
-      toast.success('Partner removed')
+      await fetchSuggestions()
+      showToast('Partner removed')
     } catch (err) {
-      toast.error('Remove failed: ' + (err as Error).message)
+      showToast('❌ Remove failed: ' + (err as Error).message)
     }
   }
 
   const partnerCheckedIn = (streak: any) => streak?.last_checked_in === today
+
+  const toastStyle: React.CSSProperties = {
+    position: 'fixed',
+    bottom: '90px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: '#1C1C1C',
+    border: '1px solid #2A2A2A',
+    borderRadius: '10px',
+    padding: '0.75rem 1.25rem',
+    color: '#F0EDE8',
+    fontSize: '0.85rem',
+    zIndex: 999,
+    whiteSpace: 'nowrap'
+  }
 
   if (loading) {
     return (
@@ -197,6 +232,7 @@ export default function Partners() {
             <div key={i} style={{ height: '100px', borderRadius: '14px', background: '#111', border: '1px solid #1E1E1E' }} />
           ))}
         </div>
+        {toast && <div style={toastStyle}>{toast}</div>}
       </Layout>
     )
   }
@@ -210,6 +246,7 @@ export default function Partners() {
           <p style={{ color: '#888' }}>{error}</p>
           <button onClick={() => { setError(null); setLoading(true); fetchAll().catch(e => setError(e.message)) }} style={{ marginTop: '1.5rem', background: '#F5A623', color: '#000', border: 'none', padding: '0.6rem 1.5rem', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>Try Again</button>
         </div>
+        {toast && <div style={toastStyle}>{toast}</div>}
       </Layout>
     )
   }
@@ -257,9 +294,9 @@ export default function Partners() {
                               await sendNudge(user!.id, p.partnerId)
                               const message = getRandomNudgeMessage(p.partnerName)
                               await navigator.clipboard.writeText(message)
-                              toast.success('✅ Nudge sent to ' + p.partnerName)
+                              showToast('✅ Nudge sent to ' + p.partnerName)
                             } catch (err: any) {
-                              toast.error('❌ Failed: ' + (err.message || 'Unknown error'))
+                              showToast('❌ Failed: ' + (err.message || 'Unknown error'))
                             }
                           }}
                         >
@@ -282,59 +319,101 @@ export default function Partners() {
       )}
 
       {canAddMore && (
-        <div style={styles.card}>
-          <div style={styles.sectionLabel}>
-            <UserPlus size={13} color="#555" />
-            Find a New Partner
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              style={{ ...styles.input, flex: 1 }}
-              placeholder="Search by name..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && searchUsers()}
-            />
-            <button style={styles.searchBtn} onClick={searchUsers} disabled={searching}>
-              <Search size={16} color="#0A0A0A" />
-            </button>
-          </div>
-          <AnimatePresence>
-            {searchResults.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}
-              >
-                {searchResults.map(u => {
-                  const alreadySent = sent.some(s => s.receiver_id === u.id)
+        <>
+          {/* Suggested partners */}
+          {suggestions.length > 0 && (
+            <div style={{ marginBottom: '2rem' }}>
+              <div style={styles.sectionLabel}>
+                <UserPlus size={13} color="#F5A623" />
+                Suggested Partners
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {suggestions.map(s => {
+                  const alreadySent = sent.some(req => req.receiver_id === s.id)
                   return (
-                    <div key={u.id} style={styles.resultRow}>
-                      <div>
-                        <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>{u.name}</div>
-                        <div style={{ color: '#555', fontSize: '0.78rem' }}>{u.email}</div>
-                      </div>
-                      {alreadySent ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#555', fontSize: '0.8rem' }}>
-                          <Clock size={13} color="#555" />
-                          Pending
+                    <div key={s.id} style={styles.card}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>{s.name || 'Unknown'}</div>
+                          <div style={{ color: '#555', fontSize: '0.78rem' }}>Active recently</div>
                         </div>
-                      ) : (
-                        <button
-                          style={styles.requestBtn}
-                          onClick={() => sendRequest(u.id)}
-                          disabled={sending === u.id}
-                        >
-                          {sending === u.id ? '...' : 'Request'}
-                        </button>
-                      )}
+                        {alreadySent ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#555', fontSize: '0.8rem' }}>
+                            <Clock size={13} color="#555" />
+                            Pending
+                          </div>
+                        ) : (
+                          <button
+                            style={styles.requestBtn}
+                            onClick={() => sendRequest(s.id)}
+                            disabled={sending === s.id}
+                          >
+                            {sending === s.id ? '...' : 'Request'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              </div>
+            </div>
+          )}
+
+          {/* Search */}
+          <div style={styles.card}>
+            <div style={styles.sectionLabel}>
+              <UserPlus size={13} color="#555" />
+              Find a New Partner
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                style={{ ...styles.input, flex: 1 }}
+                placeholder="Search by name..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && searchUsers()}
+              />
+              <button style={styles.searchBtn} onClick={searchUsers} disabled={searching}>
+                <Search size={16} color="#0A0A0A" />
+              </button>
+            </div>
+            <AnimatePresence>
+              {searchResults.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}
+                >
+                  {searchResults.map(u => {
+                    const alreadySent = sent.some(s => s.receiver_id === u.id)
+                    return (
+                      <div key={u.id} style={styles.resultRow}>
+                        <div>
+                          <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>{u.name}</div>
+                          <div style={{ color: '#555', fontSize: '0.78rem' }}>{u.email}</div>
+                        </div>
+                        {alreadySent ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#555', fontSize: '0.8rem' }}>
+                            <Clock size={13} color="#555" />
+                            Pending
+                          </div>
+                        ) : (
+                          <button
+                            style={styles.requestBtn}
+                            onClick={() => sendRequest(u.id)}
+                            disabled={sending === u.id}
+                          >
+                            {sending === u.id ? '...' : 'Request'}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </>
       )}
 
       {!canAddMore && (
@@ -403,14 +482,16 @@ export default function Partners() {
         </div>
       )}
 
-      {partners.length === 0 && requests.length === 0 && sent.length === 0 && searchResults.length === 0 && (
+      {partners.length === 0 && requests.length === 0 && sent.length === 0 && suggestions.length === 0 && searchResults.length === 0 && (
         <div style={styles.empty}>
           <Users size={32} color="#2A2A2A" style={{ marginBottom: '0.75rem' }} />
           <p style={{ margin: 0, color: '#555', textAlign: 'center' }}>
-            No partners yet. Search for a creator above and send a request.
+            No partners yet. Check suggested partners or search for a creator above.
           </p>
         </div>
       )}
+
+      {toast && <div style={toastStyle}>{toast}</div>}
     </Layout>
   )
 }
