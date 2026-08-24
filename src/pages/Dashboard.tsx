@@ -165,14 +165,25 @@ export default function Dashboard() {
     }
   }
 
+  // ============================================================
+  // FIXED submitProof – validates link & notifies partner
+  // ============================================================
   const submitProof = async () => {
     const link = proofLink.trim()
+
+    // --- Validate link ---
     if (link) {
       try {
         const url = new URL(link)
         if (!['http:', 'https:'].includes(url.protocol)) {
           showToast('Please enter a valid link starting with http:// or https://')
           return
+        }
+        // Optional: quick HEAD check (won't block)
+        try {
+          await fetch(link, { method: 'HEAD', mode: 'no-cors' })
+        } catch (_) {
+          showToast('⚠️ Warning: The link might not be reachable. You can still submit.')
         }
       } catch (_) {
         showToast('Please enter a valid URL (e.g., https://instagram.com/p/...)')
@@ -196,13 +207,26 @@ export default function Dashboard() {
         proofUrl = data.publicUrl
       }
     }
+
+    // Insert proof
     await supabase.from('checkin_proofs').upsert({
-      user_id: user!.id, date: today,
-      proof_url: proofUrl, proof_link: link,
+      user_id: user!.id,
+      date: today,
+      proof_url: proofUrl,
+      proof_link: link,
       status: partner ? 'pending' : 'confirmed'
     })
-    if (!partner) await confirmStreak()
-    else setTodayPending(true)
+
+    if (partner) {
+      // Notify partner via push/email
+      await notifyPartnerCheckin(user!.id)
+      showToast(`📨 Proof sent to ${partner.name} for confirmation.`)
+      setTodayPending(true)
+    } else {
+      // No partner → auto-confirm
+      await confirmStreak()
+    }
+
     setShowProofForm(false)
     setProofLink('')
     setProofFile(null)
