@@ -12,7 +12,7 @@ import OnboardingTour from '../components/OnboardingTour'
 import { checkAndAwardAchievements } from '../lib/achievements'
 import { checkAndAwardToken, useRestToken } from '../lib/restTokens'
 import { awardScore, getScoreLabel } from '../lib/creatorScore'
-import { notifyPartnerCheckin } from '../lib/backend'
+// import { notifyPartnerCheckin } from '../lib/backend'  // temporarily disabled
 import {
   Flame,
   CheckCircle2,
@@ -92,81 +92,108 @@ export default function Dashboard() {
     setTimeout(() => setToast(''), 3000)
   }
 
+  // ============================================================
+  // fetchAll – with debug alerts
+  // ============================================================
   const fetchAll = async () => {
+    alert('🔄 fetchAll started');
     const [{ data: prof }, { data: str }, { data: tasks }, { data: proof }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user!.id).single(),
       supabase.from('streaks').select('*').eq('user_id', user!.id).single(),
       supabase.from('tasks').select('*').eq('user_id', user!.id).eq('date', today),
       supabase.from('checkin_proofs').select('*').eq('user_id', user!.id).eq('date', today).single()
-    ])
+    ]);
 
-    setProfile(prof)
-    setStreak(str)
-    setTasksToday(tasks || [])
-    setRestTokens(prof?.rest_tokens || 0)
-    setCreatorScore(prof?.creator_score || 0)
-    setWeeklyTarget(prof?.weekly_target || 7)
+    setProfile(prof);
+    setStreak(str);
+    setTasksToday(tasks || []);
+    setRestTokens(prof?.rest_tokens || 0);
+    setCreatorScore(prof?.creator_score || 0);
+    setWeeklyTarget(prof?.weekly_target || 7);
 
-    const weekStart = new Date()
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-    const weekStartStr = weekStart.toISOString().split('T')[0]
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const weekStartStr = weekStart.toISOString().split('T')[0];
     const { data: weekCheckins } = await supabase
       .from('checkin_proofs').select('id')
       .eq('user_id', user!.id).eq('status', 'confirmed')
-      .gte('date', weekStartStr)
-    setWeekPosts(weekCheckins?.length || 0)
+      .gte('date', weekStartStr);
+    setWeekPosts(weekCheckins?.length || 0);
 
     if (str?.last_checked_in === today) {
-      if (str?.on_rest_day) setTodayRest(true)
-      else setTodayDone(true)
+      if (str?.on_rest_day) setTodayRest(true);
+      else setTodayDone(true);
     }
-    if (proof?.status === 'pending') setTodayPending(true)
+    if (proof?.status === 'pending') setTodayPending(true);
 
+    // --- Lost streak check ---
     if (str?.last_checked_in && !str?.on_rest_day) {
-      const yesterday = new Date()
-      yesterday.setDate(yesterday.getDate() - 1)
-      const yesterdayStr = yesterday.toISOString().split('T')[0]
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
       if (str.last_checked_in < yesterdayStr && str.current_streak > 0) {
-        await supabase.from('streaks').update({ current_streak: 0 }).eq('user_id', user!.id)
-        setLostStreak(str.current_streak)
-        setStreak((prev: any) => ({ ...prev, current_streak: 0 }))
-        setShowReflection(true)
+        await supabase.from('streaks').update({ current_streak: 0 }).eq('user_id', user!.id);
+        setLostStreak(str.current_streak);
+        setStreak((prev: any) => ({ ...prev, current_streak: 0 }));
+        setShowReflection(true);
       }
     }
 
-    const hour = new Date().getHours()
-    if (hour >= 20 && str?.last_checked_in !== today && (prof?.rest_tokens || 0) > 0) {
-      showToast(`You have ${prof?.rest_tokens} rest token(s) available tonight.`)
-    }
-
+    // --- Partner & pending proofs ---
     const { data: p1 } = await supabase
       .from('accountability_partners')
       .select('*, profiles!accountability_partners_user2_id_fkey(id, name)')
-      .eq('user1_id', user!.id).single()
+      .eq('user1_id', user!.id).single();
     const { data: p2 } = await supabase
       .from('accountability_partners')
       .select('*, profiles!accountability_partners_user1_id_fkey(id, name)')
-      .eq('user2_id', user!.id).single()
+      .eq('user2_id', user!.id).single();
 
-    const activePartner = p1 || p2
+    const activePartner = p1 || p2;
+    alert('🔍 Active partner: ' + (activePartner ? 'found' : 'none'));
     if (activePartner) {
-      const partnerId = activePartner.user1_id === user!.id ? activePartner.user2_id : activePartner.user1_id
-      setPartner({ id: partnerId, name: activePartner.profiles?.name })
-      const { data: pendingProofs } = await supabase
-        .from('checkin_proofs').select('*, profiles(name)')
-        .eq('user_id', partnerId).eq('status', 'pending')
-      setPendingConfirmations(pendingProofs || [])
+      const partnerId = activePartner.user1_id === user!.id
+        ? activePartner.user2_id
+        : activePartner.user1_id;
+      const partnerName = activePartner.user1_id === user!.id
+        ? activePartner.profiles?.name
+        : activePartner.profiles?.name;
+      alert('👤 Partner ID: ' + partnerId + ', Name: ' + partnerName);
+      setPartner({ id: partnerId, name: partnerName });
+
+      // Fetch pending proofs for THIS partner
+      const { data: pendingProofs, error: pendingError } = await supabase
+        .from('checkin_proofs')
+        .select('*, profiles!checkin_proofs_user_id_fkey(name)')
+        .eq('user_id', partnerId)
+        .eq('status', 'pending');
+
+      if (pendingError) {
+        console.error('❌ Error fetching pending proofs:', pendingError);
+        alert('❌ Error fetching pending proofs: ' + pendingError.message);
+      } else {
+        console.log('🔍 Pending proofs for partner:', pendingProofs);
+        alert('📦 Pending proofs found: ' + (pendingProofs ? pendingProofs.length : 0));
+        setPendingConfirmations(pendingProofs || []);
+        if (pendingProofs && pendingProofs.length > 0) {
+          showToast('📬 ' + pendingProofs.length + ' pending proof(s) from ' + partnerName);
+        }
+      }
+    } else {
+      setPartner(null);
+      setPendingConfirmations([]);
+      alert('No active partner found');
     }
 
-    setLoading(false)
+    setLoading(false);
 
     if (!localStorage.getItem('onboarding_complete')) {
-      setTimeout(() => setShowOnboarding(true), 500)
+      setTimeout(() => setShowOnboarding(true), 500);
     }
   }
 
   // ============================================================
-  // submitProof – fixed duplicate key error
+  // submitProof – fixed upsert with conflict handling
   // ============================================================
   const submitProof = async () => {
     const link = proofLink.trim()
@@ -178,6 +205,11 @@ export default function Dashboard() {
         if (!['http:', 'https:'].includes(url.protocol)) {
           showToast('Please enter a valid link starting with http:// or https://')
           return
+        }
+        try {
+          await fetch(link, { method: 'HEAD', mode: 'no-cors' })
+        } catch (_) {
+          showToast('⚠️ Warning: The link might not be reachable. You can still submit.')
         }
       } catch (_) {
         showToast('Please enter a valid URL (e.g., https://instagram.com/p/...)')
@@ -202,7 +234,8 @@ export default function Dashboard() {
       }
     }
 
-    // Insert proof – using upsert to avoid duplicate key error
+    // Insert proof – use upsert to avoid duplicate key error
+    alert('📝 Inserting proof for user: ' + user!.id + ', partner: ' + (partner ? partner.id : 'none'));
     const { data: inserted, error: insertError } = await supabase
       .from('checkin_proofs')
       .upsert({
@@ -212,37 +245,34 @@ export default function Dashboard() {
         proof_link: link,
         status: partner ? 'pending' : 'confirmed'
       }, {
-        onConflict: 'user_id, date'  // 👈 prevents duplicate key error
+        onConflict: 'user_id, date',  // prevents duplicate key error
+        ignoreDuplicates: false
       })
-      .select()
+      .select();
 
     if (insertError) {
-      console.error('Insert error:', insertError)
-      showToast('❌ Error submitting proof: ' + insertError.message)
-      setSubmittingProof(false)
-      return
+      alert('❌ Insert error: ' + insertError.message);
+      showToast('❌ Error submitting proof: ' + insertError.message);
+      setSubmittingProof(false);
+      return;
     }
+    alert('✅ Proof inserted: ' + JSON.stringify(inserted));
 
     if (partner) {
-      // Notify partner via push/email
-      try {
-        await notifyPartnerCheckin(user!.id)
-      } catch (e) {
-        console.warn('Partner notification failed (404):', e)
-        // It's okay – the partner still sees the proof on their dashboard.
-      }
-      showToast('📨 Proof sent to ' + partner.name + ' for confirmation.')
-      setTodayPending(true)
+      // Notify partner via push/email (temporarily disabled to avoid 404)
+      // await notifyPartnerCheckin(user!.id);
+      showToast('📨 Proof sent to ' + partner.name + ' for confirmation.');
+      setTodayPending(true);
     } else {
       // No partner → auto-confirm
-      await confirmStreak()
+      await confirmStreak();
     }
 
-    setShowProofForm(false)
-    setProofLink('')
-    setProofFile(null)
-    setSubmittingProof(false)
-    await fetchAll()
+    setShowProofForm(false);
+    setProofLink('');
+    setProofFile(null);
+    setSubmittingProof(false);
+    await fetchAll();
   }
 
   const confirmStreak = async () => {
@@ -273,7 +303,7 @@ export default function Dashboard() {
     const newAchievements = await checkAndAwardAchievements(user!.id)
     if (newAchievements.length > 0) setCurrentMilestone(newAchievements[0])
     await checkAndAwardToken(user!.id)
-    await notifyPartnerCheckin(user!.id)
+    // await notifyPartnerCheckin(user!.id); // temporarily disabled
 
     if (partner) {
       await awardScore(user!.id, 'POST_CONFIRMED')
@@ -299,34 +329,67 @@ export default function Dashboard() {
     setUsingRestToken(false)
   }
 
+  // ============================================================
+  // confirmPartnerProof – updates poster's streak
+  // ============================================================
   const confirmPartnerProof = async (proof: any) => {
-    // 1. Update the proof status
-    await supabase.from('checkin_proofs').update({
-      status: 'confirmed',
-      confirmed_by: user!.id,
-      confirmed_at: new Date().toISOString()
-    }).eq('id', proof.id)
+    alert('✅ Confirm proof clicked for: ' + proof.id);
+    try {
+      // 1. Update proof status to confirmed
+      const { error: updateError } = await supabase
+        .from('checkin_proofs')
+        .update({
+          status: 'confirmed',
+          confirmed_by: user!.id,
+          confirmed_at: new Date().toISOString()
+        })
+        .eq('id', proof.id);
 
-    // 2. Update the poster's streak
-    const { data: partnerStreak } = await supabase
-      .from('streaks').select('*').eq('user_id', proof.user_id).single()
-    if (partnerStreak) {
-      const newStreak = (partnerStreak.current_streak || 0) + 1
-      await supabase.from('streaks').update({
-        current_streak: newStreak,
-        best_streak: Math.max(newStreak, partnerStreak.best_streak || 0),
-        last_checked_in: proof.date
-      }).eq('user_id', proof.user_id)
+      if (updateError) {
+        alert('❌ Update proof error: ' + updateError.message);
+        return;
+      }
+
+      // 2. Award scores
+      await awardScore(proof.user_id, 'POST_CONFIRMED');
+      await awardScore(user!.id, 'PARTNER_BONUS');
+
+      // 3. Update the poster's streak
+      const { data: partnerStreak } = await supabase
+        .from('streaks')
+        .select('*')
+        .eq('user_id', proof.user_id)
+        .single();
+
+      if (partnerStreak) {
+        const newStreak = (partnerStreak.current_streak || 0) + 1;
+        const bestStreak = Math.max(newStreak, partnerStreak.best_streak || 0);
+        const { error: streakError } = await supabase
+          .from('streaks')
+          .update({
+            current_streak: newStreak,
+            best_streak: bestStreak,
+            last_checked_in: proof.date,
+            on_rest_day: false
+          })
+          .eq('user_id', proof.user_id);
+
+        if (streakError) {
+          alert('❌ Streak update error: ' + streakError.message);
+        } else {
+          alert('✅ Streak updated for user ' + proof.user_id + ' to ' + newStreak);
+        }
+      } else {
+        alert('⚠️ No streak record found for user ' + proof.user_id);
+      }
+
+      // 4. Refresh everything
+      await fetchAll();
+      showToast('✅ Post confirmed! Streak updated.');
+    } catch (err: any) {
+      alert('💥 Unexpected error in confirmPartnerProof: ' + err.message);
     }
-
-    // 3. Award scores
-    await awardScore(proof.user_id, 'POST_CONFIRMED')
-    await awardScore(user!.id, 'PARTNER_BONUS')
-
-    // 4. Refresh the dashboard
-    await fetchAll()
-    showToast('✅ Confirmed ' + (proof.profiles?.name || 'partner') + '\'s post!')
-  }
+  };
 
   const rejectPartnerProof = async (proof: any) => {
     await supabase.from('checkin_proofs').update({ status: 'rejected' }).eq('id', proof.id)
@@ -339,6 +402,12 @@ export default function Dashboard() {
     if (h < 17) return 'Good afternoon'
     return 'Good evening'
   }
+
+  // --- Manual refresh button ---
+  const handleRefresh = () => {
+    alert('🔄 Manual refresh triggered');
+    fetchAll();
+  };
 
   if (loading) {
     return (
@@ -410,6 +479,16 @@ export default function Dashboard() {
           >
             <BookMarked size={14} color={mode === 'creator' ? '#0A0A0A' : '#555'} />
             Creator
+          </button>
+        </div>
+
+        {/* ===== Refresh button (DEBUG) ===== */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+          <button
+            onClick={handleRefresh}
+            style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '0.3rem 0.8rem', color: '#888', fontSize: '0.75rem', cursor: 'pointer' }}
+          >
+            🔄 Refresh pending proofs
           </button>
         </div>
 
