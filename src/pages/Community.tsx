@@ -1,9 +1,75 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { X, Loader } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
 import CommunityDesign, { type CommunityPost } from '../components/community/CommunityDesign'
+
+// --- Avatar helper (same as Partners) ---
+const AVATAR_GRADIENTS = [
+  ['#F5A623', '#D9821A'],
+  ['#6FA8F5', '#3D7DD9'],
+  ['#F56F91', '#D93D63'],
+  ['#6FCB73', '#3DA843'],
+  ['#B98CF5', '#8A4DD9'],
+]
+
+function getInitials(name?: string | null) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || name[0]?.toUpperCase() || '?'
+}
+
+function getAvatarGradient(name?: string | null) {
+  const key = name || '?'
+  let hash = 0
+  for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash)
+  const [a, b] = AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]
+  return `linear-gradient(135deg, ${a}, ${b})`
+}
+
+function renderAvatar(avatarUrl: string | null, name: string, size: 'small' | 'large' = 'small') {
+  const sizeStyle = size === 'large'
+    ? { width: '64px', height: '64px', borderRadius: '20px' }
+    : { width: '36px', height: '36px', borderRadius: '11px' }
+  const common = {
+    flexShrink: 0,
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: avatarUrl ? 'transparent' : getAvatarGradient(name),
+    color: '#0A0A0A',
+    fontWeight: 700,
+    fontSize: size === 'large' ? '1.3rem' : '0.8rem',
+    fontFamily: 'Space Grotesk',
+    letterSpacing: '-0.01em',
+    boxShadow: '0 4px 14px -4px rgba(0,0,0,0.5)',
+    ...sizeStyle
+  }
+  if (avatarUrl) {
+    return (
+      <div style={{ ...common, background: 'transparent' }}>
+        <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </div>
+    )
+  }
+  return <div style={common}>{getInitials(name)}</div>
+}
+
+// --- Color tokens for modal ---
+const COLORS = {
+  bg: '#0A0A0A',
+  surface: '#111111',
+  surfaceRaised: 'linear-gradient(180deg, #141414 0%, #0D0D0D 100%)',
+  border: '#1E1E1E',
+  gold: '#F5A623',
+  text: '#F0EDE8',
+  textDim: '#8A8A8A',
+  textFaint: '#5C5C5C',
+}
 
 export default function Community() {
   const { user } = useAuth()
@@ -20,6 +86,11 @@ export default function Community() {
   const [platformFilter, setPlatformFilter] = useState('')
   const [sortBy, setSortBy] = useState<'newest' | 'needs_engagement'>('newest')
 
+  // --- Profile modal state ---
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [profileData, setProfileData] = useState<any | null>(null)
+  const [loadingProfile, setLoadingProfile] = useState(false)
+
   const fetchPosts = useCallback(async () => {
     try {
       const { data: postsData, error: postsError } = await supabase
@@ -34,7 +105,7 @@ export default function Community() {
           platform,
           engagement_type,
           engaged_by,
-          profiles ( name, email )
+          profiles ( name, email, avatar_url )
         `)
         .order('created_at', { ascending: false })
 
@@ -204,6 +275,54 @@ export default function Community() {
     }
     return [...filteredPosts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   }, [filteredPosts, sortBy])
+
+  // --- Profile fetch ---
+  const fetchUserProfile = async (userId: string) => {
+    setLoadingProfile(true)
+    try {
+      const { data: profile, error: pErr } = await supabase
+        .from('profiles')
+        .select('id, name, email, created_at, bio, avatar_url')
+        .eq('id', userId)
+        .single()
+      if (pErr) throw pErr
+
+      const { data: streak, error: sErr } = await supabase
+        .from('streaks')
+        .select('current_streak, best_streak, last_checked_in')
+        .eq('user_id', userId)
+        .single()
+      if (sErr && sErr.code !== 'PGRST116') throw sErr
+
+      const { count: partnerCount, error: pcErr } = await supabase
+        .from('accountability_partners')
+        .select('*', { count: 'exact', head: true })
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      if (pcErr) throw pcErr
+
+      setProfileData({
+        ...profile,
+        streak: streak || { current_streak: 0, best_streak: 0, last_checked_in: null },
+        partnerCount: partnerCount || 0,
+      })
+    } catch (err) {
+      toast.error('Failed to load profile')
+      console.error(err)
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
+
+  const handleViewProfile = (userId: string) => {
+    if (!userId) return
+    setSelectedUserId(userId)
+    fetchUserProfile(userId)
+  }
+
+  const closeProfile = () => {
+    setSelectedUserId(null)
+    setProfileData(null)
+  }
 
   const onCreatePost = async (
     content: string,
@@ -433,7 +552,151 @@ export default function Community() {
         onToggleEngagement={onToggleEngagement}
         onReply={onReply}
         onDeleteReply={onDeleteReply}
+        onViewProfile={handleViewProfile}
       />
+
+      {/* --- Profile Modal --- */}
+      <AnimatePresence>
+        {selectedUserId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={modalStyles.overlay}
+            onClick={closeProfile}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={modalStyles.card}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button style={modalStyles.close} onClick={closeProfile}>
+                <X size={20} color={COLORS.textFaint} />
+              </button>
+              {loadingProfile ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                  <Loader size={30} color={COLORS.textFaint} className="animate-spin" />
+                </div>
+              ) : profileData ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                    {renderAvatar(profileData.avatar_url, profileData.name, 'large')}
+                    <div>
+                      <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: COLORS.text, margin: 0 }}>
+                        {profileData.name}
+                      </h2>
+                      <p style={{ color: COLORS.textDim, fontSize: '0.9rem', margin: '0.2rem 0 0' }}>
+                        {profileData.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={modalStyles.stats}>
+                    <div style={modalStyles.stat}>
+                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Joined</span>
+                      <span style={{ color: COLORS.text, fontWeight: 600 }}>
+                        {new Date(profileData.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div style={modalStyles.stat}>
+                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Partners</span>
+                      <span style={{ color: COLORS.text, fontWeight: 600 }}>{profileData.partnerCount}</span>
+                    </div>
+                    <div style={modalStyles.stat}>
+                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Current Streak</span>
+                      <span style={{ color: COLORS.gold, fontWeight: 700 }}>
+                        {profileData.streak.current_streak || 0} days
+                      </span>
+                    </div>
+                    <div style={modalStyles.stat}>
+                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Best Streak</span>
+                      <span style={{ color: COLORS.text, fontWeight: 600 }}>
+                        {profileData.streak.best_streak || 0} days
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
+                      About
+                    </span>
+                    <p
+                      style={{
+                        color: COLORS.textDim,
+                        fontSize: '0.9rem',
+                        marginTop: '0.3rem',
+                        borderTop: `1px solid ${COLORS.border}`,
+                        paddingTop: '0.8rem',
+                      }}
+                    >
+                      {profileData.bio || "This creator hasn't added a bio yet."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ color: COLORS.textDim }}>No profile data</p>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   )
+}
+
+// --- Modal styles (inline object) ---
+const modalStyles = {
+  overlay: {
+    position: 'fixed' as const,
+    inset: 0,
+    background: 'rgba(0,0,0,0.7)',
+    backdropFilter: 'blur(8px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '1.5rem',
+  },
+  card: {
+    background: COLORS.surfaceRaised,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '24px',
+    padding: '2rem',
+    maxWidth: '440px',
+    width: '100%',
+    position: 'relative' as const,
+    boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
+  },
+  close: {
+    position: 'absolute' as const,
+    top: '0.8rem',
+    right: '0.8rem',
+    background: 'rgba(255,255,255,0.04)',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '10px',
+    width: '34px',
+    height: '34px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    color: COLORS.textFaint,
+  },
+  stats: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1rem',
+    marginBottom: '1rem',
+  },
+  stat: {
+    background: 'rgba(255,255,255,0.04)',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '12px',
+    padding: '0.6rem 0.8rem',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '0.15rem',
+  },
 }
