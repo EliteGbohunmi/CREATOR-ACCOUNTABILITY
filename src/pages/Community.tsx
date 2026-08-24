@@ -113,7 +113,6 @@ export default function Community() {
 
       const postIds = postsData?.map(p => p.id) || []
 
-      // ✅ FIX: fetch avatar_url for commenters
       const { data: commentsData, error: commentsError } = await supabase
         .from('community_comments')
         .select(`
@@ -315,6 +314,7 @@ export default function Community() {
   }
 
   const handleViewProfile = (userId: string) => {
+    console.log('🔍 handleViewProfile called with userId:', userId)
     if (!userId) return
     setSelectedUserId(userId)
     fetchUserProfile(userId)

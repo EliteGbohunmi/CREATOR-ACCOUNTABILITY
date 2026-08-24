@@ -352,7 +352,10 @@ export default function CommunityDesign({
                 <div style={s.postHead}>
                   <div
                     style={s.clickableArea}
-                    onClick={() => onViewProfile(post.user_id)}
+                    onClick={() => {
+                      console.log('👤 Clicked post author:', post.user_id);
+                      onViewProfile(post.user_id);
+                    }}
                     title="View profile"
                   >
                     <div style={s.avatarRing}>
@@ -470,10 +473,12 @@ export default function CommunityDesign({
 
                       return (
                         <div key={cm.id} style={s.reply}>
-                          {/* Clickable avatar */}
                           <div
                             style={s.replyAvatarRing}
-                            onClick={() => onViewProfile(cm.user_id)}
+                            onClick={() => {
+                              console.log('👤 Clicked reply author:', cm.user_id);
+                              onViewProfile(cm.user_id);
+                            }}
                             title="View profile"
                           >
                             <div style={{ ...s.replyAvatar, overflow: 'hidden', background: commenterAvatar ? 'transparent' : c.sunk }}>
@@ -503,10 +508,12 @@ export default function CommunityDesign({
 
                           <div style={s.replyBody}>
                             <div style={s.replyMeta}>
-                              {/* Clickable name */}
                               <span
                                 style={{ ...s.replyName, cursor: 'pointer' }}
-                                onClick={() => onViewProfile(cm.user_id)}
+                                onClick={() => {
+                                  console.log('👤 Clicked reply name:', cm.user_id);
+                                  onViewProfile(cm.user_id);
+                                }}
                                 title="View profile"
                               >
                                 {commenterName}
@@ -598,7 +605,7 @@ const css = `
   border:1px solid ${c.line}; background:${c.sunk}; color:${c.muted}; font:inherit; font-size:.8rem; cursor:pointer;
   transition: all .18s ease; }
 .cd-mode:hover { color:${c.text}; }
-.cd-mode.is-on { color:#100E0A; background:${c.accent}; border-color:${c.accent capital:}; font-weight:600; }
+.cd-mode.is-on { color:#100E0A; background:${c.accent}; border-color:${c.accent}; font-weight:600; }
 .cd-chip { padding:.3rem .65rem; border-radius:999px; border:1px dashed ${c.line}; background:transparent;
   color:${c.muted}; font:inherit; font-size:.75rem; cursor:pointer; transition: all .18s ease; }
 .cd-chip:hover { color:${c.accent}; border-color:${c.accent}; background:${c.accentSoft}; }
@@ -614,7 +621,7 @@ const css = `
 .cd-filter:hover { color:${c.text}; }
 .cd-filter.is-on { color:${c.accent}; border-color:${c.accent}; background:${c.accentSoft}; font-weight:600; }
 .cd-action { display:inline-flex; align-items:center; gap:.4rem; background:transparent; border:1px solid transparent;
-  color:${c.muted capital:}; font:inherit; font-size:.82rem; padding:.4rem .7rem; border-radius:10px; cursor:pointer;
+  color:${c.muted}; font:inherit; font-size:.82rem; padding:.4rem .7rem; border-radius:10px; cursor:pointer;
   transition: all .18s ease; }
 .cd-action:hover { background:${c.raise}; color:${c.text}; }
 .cd-action.is-on { color:${c.accent}; background:${c.accentSoft}; }
@@ -622,7 +629,7 @@ const css = `
 .cd-ghost:hover { color:${c.accent}; }
 .cd-del { background:transparent; border:1px solid ${c.line}; color:${c.muted}; border-radius:10px; padding:.4rem;
   display:inline-flex; cursor:pointer; transition: all .18s ease; }
-.cd-del:hover { color:${c.danger}; border-color:${c.danger capital:}; background:rgba(229,84,75,.1); }
+.cd-del:hover { color:${c.danger}; border-color:${c.danger}; background:rgba(229,84,75,.1); }
 .cd-del.sm { border:none; padding:.2rem; }
 .cd-linkcard { display:flex; align-items:center; justify-content:space-between; gap:1rem; text-decoration:none;
   border:1px solid ${c.line}; background:${c.sunk}; border-radius:14px; padding:.8rem .9rem; margin-bottom:.9rem;
