@@ -67,6 +67,7 @@ export default function Dashboard() {
   // Real‑time subscription for pending proofs (partner)
   useEffect(() => {
     if (!user || !partner?.id) return
+
     const channel = supabase
       .channel('pending-proofs')
       .on(
@@ -80,7 +81,10 @@ export default function Dashboard() {
         () => fetchAll()
       )
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [user, partner?.id])
 
   const showToast = (msg: string) => {
@@ -147,17 +151,11 @@ export default function Dashboard() {
     const activePartner = p1 || p2
     if (activePartner) {
       const partnerId = activePartner.user1_id === user!.id ? activePartner.user2_id : activePartner.user1_id
-      const partnerName = activePartner.user1_id === user!.id
-        ? activePartner.profiles?.name
-        : activePartner.profiles?.name
-      setPartner({ id: partnerId, name: partnerName })
+      setPartner({ id: partnerId, name: activePartner.profiles?.name })
       const { data: pendingProofs } = await supabase
-        .from('checkin_proofs').select('*, profiles!checkin_proofs_user_id_fkey(name)')
+        .from('checkin_proofs').select('*, profiles(name)')
         .eq('user_id', partnerId).eq('status', 'pending')
       setPendingConfirmations(pendingProofs || [])
-    } else {
-      setPartner(null)
-      setPendingConfirmations([])
     }
 
     setLoading(false)
@@ -168,22 +166,18 @@ export default function Dashboard() {
   }
 
   // ============================================================
-  // submitProof – with onConflict to avoid duplicate errors
+  // submitProof – fixed duplicate key error
   // ============================================================
   const submitProof = async () => {
     const link = proofLink.trim()
 
+    // --- Validate link ---
     if (link) {
       try {
         const url = new URL(link)
         if (!['http:', 'https:'].includes(url.protocol)) {
           showToast('Please enter a valid link starting with http:// or https://')
           return
-        }
-        try {
-          await fetch(link, { method: 'HEAD', mode: 'no-cors' })
-        } catch (_) {
-          showToast('⚠️ Warning: The link might not be reachable. You can still submit.')
         }
       } catch (_) {
         showToast('Please enter a valid URL (e.g., https://instagram.com/p/...)')
@@ -208,7 +202,7 @@ export default function Dashboard() {
       }
     }
 
-    // Insert with onConflict to handle duplicate (user_id, date)
+    // Insert proof – using upsert to avoid duplicate key error
     const { data: inserted, error: insertError } = await supabase
       .from('checkin_proofs')
       .upsert({
@@ -217,21 +211,30 @@ export default function Dashboard() {
         proof_url: proofUrl,
         proof_link: link,
         status: partner ? 'pending' : 'confirmed'
-      }, { onConflict: 'user_id, date' })
+      }, {
+        onConflict: 'user_id, date'  // 👈 prevents duplicate key error
+      })
       .select()
 
     if (insertError) {
-      console.error('❌ Insert error:', insertError)
+      console.error('Insert error:', insertError)
       showToast('❌ Error submitting proof: ' + insertError.message)
       setSubmittingProof(false)
       return
     }
 
     if (partner) {
-      await notifyPartnerCheckin(user!.id)
+      // Notify partner via push/email
+      try {
+        await notifyPartnerCheckin(user!.id)
+      } catch (e) {
+        console.warn('Partner notification failed (404):', e)
+        // It's okay – the partner still sees the proof on their dashboard.
+      }
       showToast('📨 Proof sent to ' + partner.name + ' for confirmation.')
       setTodayPending(true)
     } else {
+      // No partner → auto-confirm
       await confirmStreak()
     }
 
@@ -296,71 +299,33 @@ export default function Dashboard() {
     setUsingRestToken(false)
   }
 
-  // ============================================================
-  // confirmPartnerProof – updates the poster's streak
-  // ============================================================
   const confirmPartnerProof = async (proof: any) => {
-    try {
-      // 1. Award scores
-      await awardScore(proof.user_id, 'POST_CONFIRMED')
-      await awardScore(user!.id, 'PARTNER_BONUS')
+    // 1. Update the proof status
+    await supabase.from('checkin_proofs').update({
+      status: 'confirmed',
+      confirmed_by: user!.id,
+      confirmed_at: new Date().toISOString()
+    }).eq('id', proof.id)
 
-      // 2. Update proof status
-      await supabase.from('checkin_proofs').update({
-        status: 'confirmed',
-        confirmed_by: user!.id,
-        confirmed_at: new Date().toISOString()
-      }).eq('id', proof.id)
-
-      // 3. Update or create the poster's streak
-      const { data: partnerStreak, error: streakError } = await supabase
-        .from('streaks')
-        .select('*')
-        .eq('user_id', proof.user_id)
-        .maybeSingle()
-
-      if (streakError) {
-        console.error('❌ Error fetching partner streak:', streakError)
-        showToast('Error confirming proof.')
-        return
-      }
-
-      if (partnerStreak) {
-        // Existing streak – update it
-        const newStreak = (partnerStreak.current_streak || 0) + 1
-        const bestStreak = Math.max(newStreak, partnerStreak.best_streak || 0)
-        await supabase.from('streaks').update({
-          current_streak: newStreak,
-          best_streak: bestStreak,
-          last_checked_in: proof.date
-        }).eq('user_id', proof.user_id)
-
-        // Award achievements for the poster
-        await checkAndAwardAchievements(proof.user_id)
-        await checkAndAwardToken(proof.user_id)
-
-        // Award streak milestones
-        if (newStreak === 7) await awardScore(proof.user_id, 'STREAK_7')
-        if (newStreak === 30) await awardScore(proof.user_id, 'STREAK_30')
-        if (newStreak === 60) await awardScore(proof.user_id, 'STREAK_60')
-        if (newStreak === 100) await awardScore(proof.user_id, 'STREAK_100')
-      } else {
-        // No streak row – create one
-        await supabase.from('streaks').insert({
-          user_id: proof.user_id,
-          current_streak: 1,
-          best_streak: 1,
-          last_checked_in: proof.date
-        })
-        await checkAndAwardAchievements(proof.user_id)
-      }
-
-      showToast('✅ Confirmed! Streak updated.')
-      await fetchAll()
-    } catch (err: any) {
-      console.error('❌ Confirm error:', err)
-      showToast('❌ Error confirming: ' + err.message)
+    // 2. Update the poster's streak
+    const { data: partnerStreak } = await supabase
+      .from('streaks').select('*').eq('user_id', proof.user_id).single()
+    if (partnerStreak) {
+      const newStreak = (partnerStreak.current_streak || 0) + 1
+      await supabase.from('streaks').update({
+        current_streak: newStreak,
+        best_streak: Math.max(newStreak, partnerStreak.best_streak || 0),
+        last_checked_in: proof.date
+      }).eq('user_id', proof.user_id)
     }
+
+    // 3. Award scores
+    await awardScore(proof.user_id, 'POST_CONFIRMED')
+    await awardScore(user!.id, 'PARTNER_BONUS')
+
+    // 4. Refresh the dashboard
+    await fetchAll()
+    showToast('✅ Confirmed ' + (proof.profiles?.name || 'partner') + '\'s post!')
   }
 
   const rejectPartnerProof = async (proof: any) => {
@@ -651,7 +616,9 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {tasksToday.map(task => <TaskItem key={task.id} task={task} onToggle={fetchAll} />)}
+                  {tasksToday.map(task => (
+                    <TaskItem key={task.id} task={task} onToggle={fetchAll} />
+                  ))}
                 </div>
               )}
             </div>
