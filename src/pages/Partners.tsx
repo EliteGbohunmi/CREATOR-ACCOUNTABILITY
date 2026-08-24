@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { sendNudge } from '../lib/backend'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
-import { Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock, UserMinus, Loader } from 'lucide-react'
+import { Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock, UserMinus, Loader, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const NUDGE_MESSAGES = [
@@ -91,6 +91,11 @@ export default function Partners() {
 
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+
+  // --- Profile modal state ---
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [profileData, setProfileData] = useState<any | null>(null)
+  const [loadingProfile, setLoadingProfile] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -195,6 +200,56 @@ export default function Partners() {
       setLoadingSuggestions(false);
     }
   };
+
+  // --- Fetch profile for modal ---
+  const fetchUserProfile = async (userId: string) => {
+    setLoadingProfile(true)
+    try {
+      // Get profile
+      const { data: profile, error: pErr } = await supabase
+        .from('profiles')
+        .select('id, name, email, created_at, bio')
+        .eq('id', userId)
+        .single()
+      if (pErr) throw pErr
+
+      // Get streak
+      const { data: streak, error: sErr } = await supabase
+        .from('streaks')
+        .select('current_streak, best_streak, last_checked_in')
+        .eq('user_id', userId)
+        .single()
+      if (sErr && sErr.code !== 'PGRST116') throw sErr // ignore "not found"
+
+      // Get partner count
+      const { count: partnerCount, error: pcErr } = await supabase
+        .from('accountability_partners')
+        .select('*', { count: 'exact', head: true })
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      if (pcErr) throw pcErr
+
+      setProfileData({
+        ...profile,
+        streak: streak || { current_streak: 0, best_streak: 0, last_checked_in: null },
+        partnerCount: partnerCount || 0
+      })
+    } catch (err) {
+      toast.error('Failed to load profile')
+      console.error(err)
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
+
+  const openProfile = (userId: string) => {
+    setSelectedUserId(userId)
+    fetchUserProfile(userId)
+  }
+
+  const closeProfile = () => {
+    setSelectedUserId(null)
+    setProfileData(null)
+  }
 
   const searchUsers = async () => {
     if (!searchQuery.trim()) return
@@ -455,22 +510,31 @@ export default function Partners() {
                           <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>{u.email}</div>
                         </div>
                       </div>
-                      {alreadySent ? (
-                        <div style={styles.pendingChip}>
-                          <Clock size={12} color={COLORS.textFaint} />
-                          Pending
-                        </div>
-                      ) : (
-                        <motion.button
-                          whileHover={{ scale: 1.04 }}
-                          whileTap={{ scale: 0.96 }}
-                          style={styles.requestBtn}
-                          onClick={() => sendRequest(u.id)}
-                          disabled={sending === u.id}
+                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                        <button
+                          style={{ ...styles.iconGhostBtn, width: '32px', height: '32px' }}
+                          onClick={() => openProfile(u.id)}
+                          aria-label="View profile"
                         >
-                          {sending === u.id ? '...' : 'Request'}
-                        </motion.button>
-                      )}
+                          <Eye size={14} color={COLORS.textDim} />
+                        </button>
+                        {alreadySent ? (
+                          <div style={styles.pendingChip}>
+                            <Clock size={12} color={COLORS.textFaint} />
+                            Pending
+                          </div>
+                        ) : (
+                          <motion.button
+                            whileHover={{ scale: 1.04 }}
+                            whileTap={{ scale: 0.96 }}
+                            style={styles.requestBtn}
+                            onClick={() => sendRequest(u.id)}
+                            disabled={sending === u.id}
+                          >
+                            {sending === u.id ? '...' : 'Request'}
+                          </motion.button>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -503,22 +567,31 @@ export default function Partners() {
                       {s.email && <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>{s.email}</div>}
                     </div>
                   </div>
-                  {alreadySent ? (
-                    <div style={styles.pendingChip}>
-                      <Clock size={12} color={COLORS.textFaint} />
-                      Pending
-                    </div>
-                  ) : (
-                    <motion.button
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.96 }}
-                      style={styles.requestBtn}
-                      onClick={() => sendRequest(s.id)}
-                      disabled={sending === s.id}
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <button
+                      style={{ ...styles.iconGhostBtn, width: '32px', height: '32px' }}
+                      onClick={() => openProfile(s.id)}
+                      aria-label="View profile"
                     >
-                      {sending === s.id ? '...' : 'Request'}
-                    </motion.button>
-                  )}
+                      <Eye size={14} color={COLORS.textDim} />
+                    </button>
+                    {alreadySent ? (
+                      <div style={styles.pendingChip}>
+                        <Clock size={12} color={COLORS.textFaint} />
+                        Pending
+                      </div>
+                    ) : (
+                      <motion.button
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
+                        style={styles.requestBtn}
+                        onClick={() => sendRequest(s.id)}
+                        disabled={sending === s.id}
+                      >
+                        {sending === s.id ? '...' : 'Request'}
+                      </motion.button>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -637,6 +710,83 @@ export default function Partners() {
           </p>
         </div>
       )}
+
+      {/* --- Profile Modal --- */}
+      <AnimatePresence>
+        {selectedUserId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={styles.modalOverlay}
+            onClick={closeProfile}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={styles.modalCard}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button style={styles.modalClose} onClick={closeProfile}>
+                <X size={20} color={COLORS.textDim} />
+              </button>
+              {loadingProfile ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                  <Loader size={30} color={COLORS.textFaint} className="animate-spin" />
+                </div>
+              ) : profileData ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ ...styles.avatar, width: '64px', height: '64px', borderRadius: '20px', background: getAvatarGradient(profileData.name) }}>
+                      {getInitials(profileData.name)}
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: COLORS.text, margin: 0 }}>{profileData.name}</h2>
+                      <p style={{ color: COLORS.textDim, fontSize: '0.9rem', margin: '0.2rem 0 0' }}>{profileData.email}</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={styles.profileStat}>
+                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Joined</span>
+                      <span style={{ color: COLORS.text, fontWeight: 600 }}>
+                        {new Date(profileData.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div style={styles.profileStat}>
+                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Partners</span>
+                      <span style={{ color: COLORS.text, fontWeight: 600 }}>{profileData.partnerCount}</span>
+                    </div>
+                    <div style={styles.profileStat}>
+                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Current Streak</span>
+                      <span style={{ color: COLORS.gold, fontWeight: 700 }}>
+                        {profileData.streak.current_streak || 0} days
+                      </span>
+                    </div>
+                    <div style={styles.profileStat}>
+                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Best Streak</span>
+                      <span style={{ color: COLORS.text, fontWeight: 600 }}>
+                        {profileData.streak.best_streak || 0} days
+                      </span>
+                    </div>
+                  </div>
+
+                  {profileData.bio && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <p style={{ color: COLORS.textDim, fontSize: '0.9rem', borderTop: `1px solid ${COLORS.border}`, paddingTop: '0.8rem' }}>
+                        {profileData.bio}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p style={{ color: COLORS.textDim }}>No profile data</p>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   )
 }
@@ -776,5 +926,42 @@ const styles: Record<string, any> = {
     marginTop: '1.5rem', background: COLORS.gold, color: COLORS.bg, border: 'none',
     padding: '0.7rem 1.6rem', borderRadius: '11px', fontWeight: 600, cursor: 'pointer',
     fontSize: '0.88rem', boxShadow: '0 6px 18px -6px rgba(245,166,35,0.55)'
+  },
+  // Modal specific
+  modalOverlay: {
+    position: 'fixed', inset: 0,
+    background: 'rgba(0,0,0,0.7)',
+    backdropFilter: 'blur(8px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 1000,
+    padding: '1.5rem'
+  },
+  modalCard: {
+    background: COLORS.surfaceRaised,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '24px',
+    padding: '2rem',
+    maxWidth: '440px',
+    width: '100%',
+    position: 'relative',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
+  },
+  modalClose: {
+    position: 'absolute', top: '0.8rem', right: '0.8rem',
+    background: 'rgba(255,255,255,0.04)',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '10px',
+    width: '34px', height: '34px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer',
+    color: COLORS.textFaint
+  },
+  profileStat: {
+    background: 'rgba(255,255,255,0.04)',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '12px',
+    padding: '0.6rem 0.8rem',
+    display: 'flex', flexDirection: 'column',
+    gap: '0.15rem'
   }
 }
