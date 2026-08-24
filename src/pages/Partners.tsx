@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { sendNudge } from '../lib/backend'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
-import { Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock, UserMinus } from 'lucide-react'
+import { Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock, UserMinus, Loader } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const NUDGE_MESSAGES = [
@@ -90,6 +90,10 @@ export default function Partners() {
   const [sending, setSending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // --- Suggested partners state ---
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
@@ -102,6 +106,13 @@ export default function Partners() {
       setLoading(false)
     }
   }, [user])
+
+  // Fetch suggestions when partners or sent requests change
+  useEffect(() => {
+    if (user) {
+      fetchSuggestions()
+    }
+  }, [user, partners, sent])
 
   const fetchAll = async () => {
     setError(null)
@@ -155,6 +166,49 @@ export default function Partners() {
     setLoading(false)
   }
 
+  // --- Fetch suggested partners (recently active) ---
+  const fetchSuggestions = async () => {
+    if (!user) return
+    setLoadingSuggestions(true)
+    try {
+      // Query profiles with their latest streak check-in
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          name,
+          email,
+          streaks ( last_checked_in )
+        `)
+        .neq('id', user.id)
+        .order('streaks.last_checked_in', { ascending: false, nullsFirst: false })
+        .limit(10)
+
+      if (error) throw error
+
+      // Build list of users to exclude (partners + pending sent/received)
+      const excludedIds = new Set<string>()
+      partners.forEach(p => excludedIds.add(p.partnerId))
+      sent.forEach(s => excludedIds.add(s.receiver_id))
+      requests.forEach(r => excludedIds.add(r.sender_id))
+
+      const filtered = (data || [])
+        .filter(u => !excludedIds.has(u.id))
+        .map(u => ({
+          ...u,
+          // flatten streaks if it's an array (supabase returns array)
+          last_checked_in: u.streaks?.[0]?.last_checked_in || null
+        }))
+
+      setSuggestions(filtered)
+    } catch (err) {
+      console.error('Failed to load suggestions:', err)
+      // silently fail, not critical
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }
+
   const searchUsers = async () => {
     if (!searchQuery.trim()) return
     setSearching(true)
@@ -182,6 +236,8 @@ export default function Partners() {
         status: 'pending'
       })
       await fetchAll()
+      // Refresh suggestions to remove this user
+      await fetchSuggestions()
       setSearchResults([])
       setSearchQuery('')
       toast.success('Request sent')
@@ -199,6 +255,7 @@ export default function Partners() {
         user2_id: user!.id
       })
       await fetchAll()
+      await fetchSuggestions()
       toast.success('Partner added')
     } catch (err) {
       toast.error('Accept failed: ' + (err as Error).message)
@@ -209,6 +266,7 @@ export default function Partners() {
     try {
       await supabase.from('partner_requests').update({ status: 'declined' }).eq('id', requestId)
       await fetchAll()
+      await fetchSuggestions()
     } catch (err) {
       toast.error('Decline failed: ' + (err as Error).message)
     }
@@ -223,6 +281,7 @@ export default function Partners() {
         .or(`user1_id.eq.${partnerId},user2_id.eq.${partnerId}`)
         .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
       await fetchAll()
+      await fetchSuggestions()
       toast.success('Partner removed')
     } catch (err) {
       toast.error('Remove failed: ' + (err as Error).message)
@@ -435,6 +494,58 @@ export default function Partners() {
         </div>
       )}
 
+      {/* --- Suggested Partners --- */}
+      {suggestions.length > 0 && (
+        <div style={{ marginBottom: '2.2rem' }}>
+          <div style={styles.sectionLabel}>
+            <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
+              <Users size={12} color={COLORS.textDim} />
+            </div>
+            Suggested Partners (recently active)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {suggestions.map(s => {
+              const alreadySent = sent.some(req => req.receiver_id === s.id)
+              return (
+                <div key={s.id} style={styles.resultRow}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                    <div style={{ ...styles.avatarSmall, background: getAvatarGradient(s.name) }}>
+                      {getInitials(s.name)}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text }}>{s.name}</div>
+                      {s.email && <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>{s.email}</div>}
+                    </div>
+                  </div>
+                  {alreadySent ? (
+                    <div style={styles.pendingChip}>
+                      <Clock size={12} color={COLORS.textFaint} />
+                      Pending
+                    </div>
+                  ) : (
+                    <motion.button
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                      style={styles.requestBtn}
+                      onClick={() => sendRequest(s.id)}
+                      disabled={sending === s.id}
+                    >
+                      {sending === s.id ? '...' : 'Request'}
+                    </motion.button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {loadingSuggestions && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem 0' }}>
+          <Loader size={20} color={COLORS.textFaint} className="animate-spin" />
+        </div>
+      )}
+
       {!canAddMore && (
         <div style={{ ...styles.card, borderColor: COLORS.goldBorder, background: 'linear-gradient(180deg, #1A1400 0%, #131313 100%)', marginBottom: '2.2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -530,13 +641,13 @@ export default function Partners() {
         </div>
       )}
 
-      {partners.length === 0 && requests.length === 0 && sent.length === 0 && searchResults.length === 0 && (
+      {partners.length === 0 && requests.length === 0 && sent.length === 0 && searchResults.length === 0 && suggestions.length === 0 && !loadingSuggestions && (
         <div style={styles.empty}>
           <div style={styles.emptyIconRing}>
             <Users size={24} color={COLORS.textFaint} />
           </div>
           <p style={{ margin: 0, marginTop: '0.9rem', color: COLORS.textDim, textAlign: 'center', fontSize: '0.9rem', maxWidth: '260px' }}>
-            No partners yet. Search for a creator above and send a request.
+            No partners yet. Search for a creator above or check suggested partners.
           </p>
         </div>
       )}
