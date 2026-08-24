@@ -93,10 +93,10 @@ export default function Dashboard() {
   }
 
   // ============================================================
-  // fetchAll – with alerts for debugging
+  // fetchAll – removed alerts but keeps console logs
   // ============================================================
   const fetchAll = async () => {
-    alert('🔄 fetchAll started');
+    console.log('🔄 fetchAll started');
     const [{ data: prof }, { data: str }, { data: tasks }, { data: proof }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user!.id).single(),
       supabase.from('streaks').select('*').eq('user_id', user!.id).single(),
@@ -150,7 +150,6 @@ export default function Dashboard() {
       .eq('user2_id', user!.id).single();
 
     const activePartner = p1 || p2;
-    alert('🔍 Active partner: ' + (activePartner ? 'found' : 'none'));
     if (activePartner) {
       const partnerId = activePartner.user1_id === user!.id
         ? activePartner.user2_id
@@ -158,10 +157,8 @@ export default function Dashboard() {
       const partnerName = activePartner.user1_id === user!.id
         ? activePartner.profiles?.name
         : activePartner.profiles?.name;
-      alert('👤 Partner ID: ' + partnerId + ', Name: ' + partnerName);
       setPartner({ id: partnerId, name: partnerName });
 
-      // Fetch pending proofs for THIS partner
       const { data: pendingProofs, error: pendingError } = await supabase
         .from('checkin_proofs')
         .select('*, profiles!checkin_proofs_user_id_fkey(name)')
@@ -170,10 +167,8 @@ export default function Dashboard() {
 
       if (pendingError) {
         console.error('❌ Error fetching pending proofs:', pendingError);
-        alert('❌ Error fetching pending proofs: ' + pendingError.message);
       } else {
         console.log('🔍 Pending proofs for partner:', pendingProofs);
-        alert('📦 Pending proofs found: ' + (pendingProofs ? pendingProofs.length : 0));
         setPendingConfirmations(pendingProofs || []);
         if (pendingProofs && pendingProofs.length > 0) {
           showToast('📬 ' + pendingProofs.length + ' pending proof(s) from ' + partnerName);
@@ -182,7 +177,6 @@ export default function Dashboard() {
     } else {
       setPartner(null);
       setPendingConfirmations([]);
-      alert('No active partner found');
     }
 
     setLoading(false);
@@ -193,7 +187,7 @@ export default function Dashboard() {
   }
 
   // ============================================================
-  // submitProof – with alerts
+  // submitProof – fixed duplicate key and upsert
   // ============================================================
   const submitProof = async () => {
     const link = proofLink.trim()
@@ -234,8 +228,7 @@ export default function Dashboard() {
       }
     }
 
-    // Insert proof
-    alert('📝 Inserting proof for user: ' + user!.id + ', partner: ' + (partner ? partner.id : 'none'));
+    // Use upsert with conflict handling on (user_id, date)
     const { data: inserted, error: insertError } = await supabase
       .from('checkin_proofs')
       .upsert({
@@ -244,24 +237,23 @@ export default function Dashboard() {
         proof_url: proofUrl,
         proof_link: link,
         status: partner ? 'pending' : 'confirmed'
-      })
+      }, { onConflict: 'user_id_date' })
       .select();
 
     if (insertError) {
-      alert('❌ Insert error: ' + insertError.message);
+      console.error('❌ Insert error:', insertError);
       showToast('❌ Error submitting proof: ' + insertError.message);
       setSubmittingProof(false);
       return;
     }
-    alert('✅ Proof inserted: ' + JSON.stringify(inserted));
+
+    console.log('✅ Proof inserted/updated:', inserted);
 
     if (partner) {
-      // Notify partner via push/email
       await notifyPartnerCheckin(user!.id);
       showToast('📨 Proof sent to ' + partner.name + ' for confirmation.');
       setTodayPending(true);
     } else {
-      // No partner → auto-confirm
       await confirmStreak();
     }
 
@@ -326,15 +318,28 @@ export default function Dashboard() {
     setUsingRestToken(false)
   }
 
+  // ============================================================
+  // confirmPartnerProof – fixed to update streak and remove pending
+  // ============================================================
   const confirmPartnerProof = async (proof: any) => {
+    // Award points to both
     await awardScore(proof.user_id, 'POST_CONFIRMED')
     await awardScore(user!.id, 'PARTNER_BONUS')
+
+    // Mark proof as confirmed
     await supabase.from('checkin_proofs').update({
-      status: 'confirmed', confirmed_by: user!.id,
+      status: 'confirmed',
+      confirmed_by: user!.id,
       confirmed_at: new Date().toISOString()
     }).eq('id', proof.id)
+
+    // Update partner's streak (the one who posted)
     const { data: partnerStreak } = await supabase
-      .from('streaks').select('*').eq('user_id', proof.user_id).single()
+      .from('streaks')
+      .select('*')
+      .eq('user_id', proof.user_id)
+      .single()
+
     if (partnerStreak) {
       const newStreak = (partnerStreak.current_streak || 0) + 1
       await supabase.from('streaks').update({
@@ -343,11 +348,17 @@ export default function Dashboard() {
         last_checked_in: proof.date
       }).eq('user_id', proof.user_id)
     }
+
+    // Remove this proof from pending list in UI
+    setPendingConfirmations(prev => prev.filter(p => p.id !== proof.id))
+    showToast('✅ Confirmed! Streak updated for ' + (proof.profiles?.name || 'partner'))
     await fetchAll()
   }
 
   const rejectPartnerProof = async (proof: any) => {
     await supabase.from('checkin_proofs').update({ status: 'rejected' }).eq('id', proof.id)
+    setPendingConfirmations(prev => prev.filter(p => p.id !== proof.id))
+    showToast('❌ Proof rejected')
     await fetchAll()
   }
 
@@ -358,9 +369,7 @@ export default function Dashboard() {
     return 'Good evening'
   }
 
-  // --- Manual refresh button ---
   const handleRefresh = () => {
-    alert('🔄 Manual refresh triggered');
     fetchAll();
   };
 
@@ -437,13 +446,13 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* ===== Refresh button (DEBUG) ===== */}
+        {/* Refresh button (debug) */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
           <button
             onClick={handleRefresh}
             style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '0.3rem 0.8rem', color: '#888', fontSize: '0.75rem', cursor: 'pointer' }}
           >
-            🔄 Refresh pending proofs
+            🔄 Refresh
           </button>
         </div>
 
