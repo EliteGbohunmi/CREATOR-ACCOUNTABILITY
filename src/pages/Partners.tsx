@@ -105,9 +105,14 @@ export default function Partners() {
 
   const fetchAll = async () => {
     setError(null)
+    // Fixed: use explicit aliases for the two profile joins to avoid duplicate table references
     const { data: partnersData, error: pErr } = await supabase
       .from('accountability_partners')
-      .select('*, profiles!accountability_partners_user1_id_fkey(id, name), profiles!accountability_partners_user2_id_fkey(id, name)')
+      .select(`
+        *,
+        user1:profiles!accountability_partners_user1_id_fkey(id, name),
+        user2:profiles!accountability_partners_user2_id_fkey(id, name)
+      `)
       .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
 
     if (pErr) throw pErr
@@ -116,7 +121,7 @@ export default function Partners() {
     for (const p of partnersData || []) {
       const isUser1 = p.user1_id === user!.id
       const partnerId = isUser1 ? p.user2_id : p.user1_id
-      const partnerName = isUser1 ? p.profiles?.name : p.profiles?.name
+      const partnerName = isUser1 ? p.user2?.name : p.user1?.name
 
       const { data: streak } = await supabase
         .from('streaks')
