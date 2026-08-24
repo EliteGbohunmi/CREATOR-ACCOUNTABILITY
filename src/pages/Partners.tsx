@@ -166,48 +166,59 @@ export default function Partners() {
     setLoading(false)
   }
 
-  // --- Fetch suggested partners (recently active) ---
+  // --- Fetch suggested partners (recently active) --- FIXED VERSION ---
   const fetchSuggestions = async () => {
-    if (!user) return
-    setLoadingSuggestions(true)
+    if (!user) return;
+    setLoadingSuggestions(true);
     try {
-      // Query profiles with their latest streak check-in
-      const { data, error } = await supabase
+      // Build exclusion set: current user + partners + pending sent/received
+      const excludedIds = new Set<string>();
+      excludedIds.add(user.id);
+      partners.forEach(p => excludedIds.add(p.partnerId));
+      sent.forEach(s => excludedIds.add(s.receiver_id));
+      requests.forEach(r => excludedIds.add(r.sender_id));
+
+      const excludedArray = Array.from(excludedIds);
+
+      // Query all profiles except excluded, fetch their latest streak check-in
+      let query = supabase
         .from('profiles')
         .select(`
           id,
           name,
           email,
           streaks ( last_checked_in )
-        `)
-        .neq('id', user.id)
-        .order('streaks.last_checked_in', { ascending: false, nullsFirst: false })
-        .limit(10)
+        `);
 
-      if (error) throw error
+      if (excludedArray.length > 0) {
+        query = query.not('id', 'in', `(${excludedArray.join(',')})`);
+      }
 
-      // Build list of users to exclude (partners + pending sent/received)
-      const excludedIds = new Set<string>()
-      partners.forEach(p => excludedIds.add(p.partnerId))
-      sent.forEach(s => excludedIds.add(s.receiver_id))
-      requests.forEach(r => excludedIds.add(r.sender_id))
+      const { data, error } = await query;
+      if (error) throw error;
 
-      const filtered = (data || [])
-        .filter(u => !excludedIds.has(u.id))
+      // Flatten streaks and sort by last_checked_in descending (most recent first)
+      const sorted = (data || [])
         .map(u => ({
           ...u,
-          // flatten streaks if it's an array (supabase returns array)
           last_checked_in: u.streaks?.[0]?.last_checked_in || null
         }))
+        .sort((a, b) => {
+          if (!a.last_checked_in && !b.last_checked_in) return 0;
+          if (!a.last_checked_in) return 1;  // nulls last
+          if (!b.last_checked_in) return -1;
+          return new Date(b.last_checked_in).getTime() - new Date(a.last_checked_in).getTime();
+        })
+        .slice(0, 20); // limit to 20 suggestions
 
-      setSuggestions(filtered)
+      setSuggestions(sorted);
     } catch (err) {
-      console.error('Failed to load suggestions:', err)
-      // silently fail, not critical
+      console.error('Failed to load suggestions:', err);
+      // Optionally set an error state to show a fallback message
     } finally {
-      setLoadingSuggestions(false)
+      setLoadingSuggestions(false);
     }
-  }
+  };
 
   const searchUsers = async () => {
     if (!searchQuery.trim()) return
