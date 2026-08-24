@@ -314,6 +314,7 @@ export default function Community() {
   }
 
   const handleViewProfile = (userId: string) => {
+    console.log('🔍 handleViewProfile called for user:', userId) // debug
     if (!userId) return
     setSelectedUserId(userId)
     fetchUserProfile(userId)
@@ -646,7 +647,7 @@ export default function Community() {
   )
 }
 
-// --- Modal styles (inline object) ---
+// --- Modal styles ---
 const modalStyles = {
   overlay: {
     position: 'fixed' as const,

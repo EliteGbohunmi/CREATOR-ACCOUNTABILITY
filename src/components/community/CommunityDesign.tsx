@@ -12,8 +12,6 @@ import {
   Megaphone,
   Users,
   Zap,
-  Filter,
-  SortAsc,
 } from "lucide-react";
 
 export type CommunityPost = {
@@ -26,7 +24,7 @@ export type CommunityPost = {
   platform: string | null;
   engagement_type: 'comment' | 'like' | 'share' | 'watch' | null;
   engaged_by: string[];
-  profiles?: { name: string; email?: string; streak_days?: number } | null;
+  profiles?: { name: string; email?: string; streak_days?: number; avatar_url?: string | null } | null;
   comments: {
     id: string;
     content: string;
@@ -61,6 +59,8 @@ interface Props {
   onToggleEngagement: (postId: string) => void;
   onReply: (postId: string, content: string) => void;
   onDeleteReply: (postId: string, commentId: string) => void;
+  // NEW: profile view callback
+  onViewProfile: (userId: string) => void;
 }
 
 const PLATFORMS = ['X', 'TikTok', 'YouTube', 'Instagram', 'LinkedIn', 'Substack'];
@@ -129,6 +129,7 @@ export default function CommunityDesign({
   onToggleEngagement,
   onReply,
   onDeleteReply,
+  onViewProfile,
 }: Props) {
   const [mode, setMode] = useState<'say_hi' | 'boost'>('say_hi');
   const [content, setContent] = useState('');
@@ -344,24 +345,58 @@ export default function CommunityDesign({
             const open = replyOpen[post.id] || false;
             const repliesToShow = showAllReplies[post.id] ? post.comments : post.comments.slice(0, 2);
 
+            const avatarUrl = post.profiles?.avatar_url;
+            const name = post.profiles?.name || 'Anonymous';
+
             return (
               <article key={post.id} style={s.post} className="cd-card cd-post">
                 <div style={s.postHead}>
-                  <div style={s.avatarRing}>
-                    <div style={s.avatar}>{getInitials(post.profiles?.name)}</div>
-                  </div>
-                  <div style={s.who}>
-                    <div style={s.nameRow}>
-                      <span style={s.name}>{post.profiles?.name || 'Anonymous'}</span>
-                      {isOwner && <span style={s.youTag}>you</span>}
-                      {isBoost && <span style={s.boostTag}>boost</span>}
+                  {/* --- CLICKABLE AREA (avatar + name + time) --- */}
+                  <div
+                    style={s.clickableArea}
+                    onClick={() => onViewProfile(post.user_id)}
+                    title="View profile"
+                  >
+                    <div style={s.avatarRing}>
+                      <div style={{ ...s.avatar, overflow: 'hidden', background: avatarUrl ? 'transparent' : c.sunk }}>
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              // fallback to initials
+                              e.currentTarget.style.display = 'none';
+                              const parent = e.currentTarget.parentElement!;
+                              parent.textContent = getInitials(name);
+                              parent.style.background = c.sunk;
+                              parent.style.color = c.accent;
+                              parent.style.fontWeight = '700';
+                              parent.style.fontSize = '0.82rem';
+                              parent.style.display = 'flex';
+                              parent.style.alignItems = 'center';
+                              parent.style.justifyContent = 'center';
+                            }}
+                          />
+                        ) : (
+                          getInitials(name)
+                        )}
+                      </div>
                     </div>
-                    <span style={s.time}>{formatTime(post.created_at)}</span>
+                    <div style={s.who}>
+                      <div style={s.nameRow}>
+                        <span style={s.name}>{name}</span>
+                        {isOwner && <span style={s.youTag}>you</span>}
+                        {isBoost && <span style={s.boostTag}>boost</span>}
+                      </div>
+                      <span style={s.time}>{formatTime(post.created_at)}</span>
+                    </div>
                   </div>
+                  {/* --- DELETE BUTTON (owner only) --- */}
                   {isOwner && (
                     <button
                       className="cd-del"
-                      onClick={() => onDeletePost(post.id)}
+                      onClick={(e) => { e.stopPropagation(); onDeletePost(post.id); }}
                       aria-label="Delete post"
                     >
                       <Trash2 size={14} />
@@ -673,7 +708,16 @@ const s = {
   emptyText: { margin: 0, color: c.muted, fontSize: ".88rem" },
   feed: { display: "grid", gap: "1rem" },
   post: { padding: "1.1rem" },
-  postHead: { display: "flex", alignItems: "center", gap: ".8rem", marginBottom: ".85rem" },
+  postHead: { display: 'flex', alignItems: 'center', gap: '.8rem', marginBottom: '.85rem' },
+  clickableArea: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '.8rem',
+    flex: 1,
+    minWidth: 0,
+    cursor: 'pointer',
+    transition: 'opacity 0.2s ease',
+  },
   avatarRing: {
     padding: 2,
     borderRadius: "50%",
