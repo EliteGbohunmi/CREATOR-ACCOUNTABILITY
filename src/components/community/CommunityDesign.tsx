@@ -30,7 +30,7 @@ export type CommunityPost = {
     content: string;
     user_id: string;
     created_at: string;
-    profiles?: { name: string } | null;
+    profiles?: { name: string; avatar_url?: string | null } | null;
   }[];
   likes: { user_id: string }[];
   boosts: { user_id: string }[];
@@ -59,7 +59,6 @@ interface Props {
   onToggleEngagement: (postId: string) => void;
   onReply: (postId: string, content: string) => void;
   onDeleteReply: (postId: string, commentId: string) => void;
-  // NEW: profile view callback
   onViewProfile: (userId: string) => void;
 }
 
@@ -351,7 +350,6 @@ export default function CommunityDesign({
             return (
               <article key={post.id} style={s.post} className="cd-card cd-post">
                 <div style={s.postHead}>
-                  {/* --- CLICKABLE AREA (avatar + name + time) --- */}
                   <div
                     style={s.clickableArea}
                     onClick={() => onViewProfile(post.user_id)}
@@ -365,7 +363,6 @@ export default function CommunityDesign({
                             alt={name}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             onError={(e) => {
-                              // fallback to initials
                               e.currentTarget.style.display = 'none';
                               const parent = e.currentTarget.parentElement!;
                               parent.textContent = getInitials(name);
@@ -392,7 +389,6 @@ export default function CommunityDesign({
                       <span style={s.time}>{formatTime(post.created_at)}</span>
                     </div>
                   </div>
-                  {/* --- DELETE BUTTON (owner only) --- */}
                   {isOwner && (
                     <button
                       className="cd-del"
@@ -468,27 +464,69 @@ export default function CommunityDesign({
 
                 {open && (
                   <div style={s.thread}>
-                    {repliesToShow.map((cm) => (
-                      <div key={cm.id} style={s.reply}>
-                        <div style={s.replyDot} />
-                        <div style={s.replyBody}>
-                          <div style={s.replyMeta}>
-                            <span style={s.replyName}>{cm.user_id === currentUserId ? 'You' : cm.profiles?.name || 'Anonymous'}</span>
-                            <span style={s.replyTime}>{formatTime(cm.created_at)}</span>
-                          </div>
-                          <p style={s.replyText}>{cm.content}</p>
-                        </div>
-                        {cm.user_id === currentUserId && (
-                          <button
-                            className="cd-del sm"
-                            onClick={() => onDeleteReply(post.id, cm.id)}
-                            aria-label="Delete reply"
+                    {repliesToShow.map((cm) => {
+                      const commenterName = cm.user_id === currentUserId ? 'You' : cm.profiles?.name || 'Anonymous';
+                      const commenterAvatar = cm.profiles?.avatar_url;
+
+                      return (
+                        <div key={cm.id} style={s.reply}>
+                          {/* Clickable avatar */}
+                          <div
+                            style={s.replyAvatarRing}
+                            onClick={() => onViewProfile(cm.user_id)}
+                            title="View profile"
                           >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                            <div style={{ ...s.replyAvatar, overflow: 'hidden', background: commenterAvatar ? 'transparent' : c.sunk }}>
+                              {commenterAvatar ? (
+                                <img
+                                  src={commenterAvatar}
+                                  alt={commenterName}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const parent = e.currentTarget.parentElement!;
+                                    parent.textContent = getInitials(commenterName);
+                                    parent.style.background = c.sunk;
+                                    parent.style.color = c.accent;
+                                    parent.style.fontWeight = '700';
+                                    parent.style.fontSize = '0.7rem';
+                                    parent.style.display = 'flex';
+                                    parent.style.alignItems = 'center';
+                                    parent.style.justifyContent = 'center';
+                                  }}
+                                />
+                              ) : (
+                                getInitials(commenterName)
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={s.replyBody}>
+                            <div style={s.replyMeta}>
+                              {/* Clickable name */}
+                              <span
+                                style={{ ...s.replyName, cursor: 'pointer' }}
+                                onClick={() => onViewProfile(cm.user_id)}
+                                title="View profile"
+                              >
+                                {commenterName}
+                              </span>
+                              <span style={s.replyTime}>{formatTime(cm.created_at)}</span>
+                            </div>
+                            <p style={s.replyText}>{cm.content}</p>
+                          </div>
+                          {cm.user_id === currentUserId && (
+                            <button
+                              className="cd-del sm"
+                              onClick={() => onDeleteReply(post.id, cm.id)}
+                              aria-label="Delete reply"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                     {post.comments.length > 2 && (
                       <button
                         className="cd-ghost"
@@ -560,7 +598,7 @@ const css = `
   border:1px solid ${c.line}; background:${c.sunk}; color:${c.muted}; font:inherit; font-size:.8rem; cursor:pointer;
   transition: all .18s ease; }
 .cd-mode:hover { color:${c.text}; }
-.cd-mode.is-on { color:#100E0A; background:${c.accent}; border-color:${c.accent}; font-weight:600; }
+.cd-mode.is-on { color:#100E0A; background:${c.accent}; border-color:${c.accent capital:}; font-weight:600; }
 .cd-chip { padding:.3rem .65rem; border-radius:999px; border:1px dashed ${c.line}; background:transparent;
   color:${c.muted}; font:inherit; font-size:.75rem; cursor:pointer; transition: all .18s ease; }
 .cd-chip:hover { color:${c.accent}; border-color:${c.accent}; background:${c.accentSoft}; }
@@ -576,7 +614,7 @@ const css = `
 .cd-filter:hover { color:${c.text}; }
 .cd-filter.is-on { color:${c.accent}; border-color:${c.accent}; background:${c.accentSoft}; font-weight:600; }
 .cd-action { display:inline-flex; align-items:center; gap:.4rem; background:transparent; border:1px solid transparent;
-  color:${c.muted}; font:inherit; font-size:.82rem; padding:.4rem .7rem; border-radius:10px; cursor:pointer;
+  color:${c.muted capital:}; font:inherit; font-size:.82rem; padding:.4rem .7rem; border-radius:10px; cursor:pointer;
   transition: all .18s ease; }
 .cd-action:hover { background:${c.raise}; color:${c.text}; }
 .cd-action.is-on { color:${c.accent}; background:${c.accentSoft}; }
@@ -584,7 +622,7 @@ const css = `
 .cd-ghost:hover { color:${c.accent}; }
 .cd-del { background:transparent; border:1px solid ${c.line}; color:${c.muted}; border-radius:10px; padding:.4rem;
   display:inline-flex; cursor:pointer; transition: all .18s ease; }
-.cd-del:hover { color:${c.danger}; border-color:${c.danger}; background:rgba(229,84,75,.1); }
+.cd-del:hover { color:${c.danger}; border-color:${c.danger capital:}; background:rgba(229,84,75,.1); }
 .cd-del.sm { border:none; padding:.2rem; }
 .cd-linkcard { display:flex; align-items:center; justify-content:space-between; gap:1rem; text-decoration:none;
   border:1px solid ${c.line}; background:${c.sunk}; border-radius:14px; padding:.8rem .9rem; margin-bottom:.9rem;
@@ -801,18 +839,34 @@ const s = {
     marginLeft: ".2rem",
   },
   thread: { marginTop: ".9rem", display: "grid", gap: ".6rem" },
-  reply: { display: "flex", alignItems: "flex-start", gap: ".6rem" },
-  replyDot: {
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    background: c.line,
-    marginTop: ".55rem",
+  reply: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '.6rem',
+  },
+  replyAvatarRing: {
+    padding: 1,
+    borderRadius: '50%',
+    background: `linear-gradient(135deg, ${c.accent}, #7A3A12)`,
     flexShrink: 0,
+    cursor: 'pointer',
+    marginTop: '2px',
+  },
+  replyAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: '50%',
+    background: c.sunk,
+    color: c.accent,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.6rem',
+    fontWeight: 700,
   },
   replyBody: { flex: 1, minWidth: 0 },
   replyMeta: { display: "flex", gap: ".5rem", alignItems: "baseline" },
-  replyName: { fontSize: ".82rem", fontWeight: 600 },
+  replyName: { fontSize: ".82rem", fontWeight: 600, color: c.text },
   replyTime: { fontSize: ".68rem", color: c.muted },
   replyText: { margin: ".15rem 0 0", fontSize: ".87rem", lineHeight: 1.55, color: "#C9C6C1", wordBreak: "break-word" },
   replyRow: { display: "flex", gap: ".5rem", alignItems: "center", marginTop: ".2rem" },
