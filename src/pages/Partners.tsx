@@ -116,7 +116,6 @@ export default function Partners() {
 
   const fetchAll = async () => {
     setError(null)
-    // Fixed: use explicit aliases for the two profile joins to avoid duplicate table references
     const { data: partnersData, error: pErr } = await supabase
       .from('accountability_partners')
       .select(`
@@ -166,12 +165,12 @@ export default function Partners() {
     setLoading(false)
   }
 
-  // --- Fetch suggested partners (recently active) --- FIXED VERSION ---
+  // --- Fetch suggested partners: max 6 active (last 7 days) ---
   const fetchSuggestions = async () => {
     if (!user) return;
     setLoadingSuggestions(true);
     try {
-      // Build exclusion set: current user + partners + pending sent/received
+      // Build exclusion set
       const excludedIds = new Set<string>();
       excludedIds.add(user.id);
       partners.forEach(p => excludedIds.add(p.partnerId));
@@ -180,7 +179,7 @@ export default function Partners() {
 
       const excludedArray = Array.from(excludedIds);
 
-      // Query all profiles except excluded, fetch their latest streak check-in
+      // Query all profiles except excluded, fetch their streaks
       let query = supabase
         .from('profiles')
         .select(`
@@ -197,24 +196,26 @@ export default function Partners() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Flatten streaks and sort by last_checked_in descending (most recent first)
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      // Flatten, filter active (checked in within last 7 days), sort by most recent, take 6
       const sorted = (data || [])
         .map(u => ({
           ...u,
           last_checked_in: u.streaks?.[0]?.last_checked_in || null
         }))
+        .filter(u => u.last_checked_in && new Date(u.last_checked_in) >= sevenDaysAgo)
         .sort((a, b) => {
-          if (!a.last_checked_in && !b.last_checked_in) return 0;
-          if (!a.last_checked_in) return 1;  // nulls last
+          if (!a.last_checked_in) return 1;
           if (!b.last_checked_in) return -1;
           return new Date(b.last_checked_in).getTime() - new Date(a.last_checked_in).getTime();
         })
-        .slice(0, 20); // limit to 20 suggestions
+        .slice(0, 6); // max 6 suggestions
 
       setSuggestions(sorted);
     } catch (err) {
       console.error('Failed to load suggestions:', err);
-      // Optionally set an error state to show a fallback message
     } finally {
       setLoadingSuggestions(false);
     }
@@ -247,7 +248,6 @@ export default function Partners() {
         status: 'pending'
       })
       await fetchAll()
-      // Refresh suggestions to remove this user
       await fetchSuggestions()
       setSearchResults([])
       setSearchQuery('')
@@ -512,7 +512,7 @@ export default function Partners() {
             <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
               <Users size={12} color={COLORS.textDim} />
             </div>
-            Suggested Partners (recently active)
+            Suggested Partners (active this week)
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {suggestions.map(s => {
