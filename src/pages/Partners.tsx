@@ -156,8 +156,8 @@ export default function Partners() {
       .from('accountability_partners')
       .select(`
         *,
-        user1:profiles!accountability_partners_user1_id_fkey(id, name),
-        user2:profiles!accountability_partners_user2_id_fkey(id, name)
+        user1:profiles!accountability_partners_user1_id_fkey(id, name, avatar_url),
+        user2:profiles!accountability_partners_user2_id_fkey(id, name, avatar_url)
       `)
       .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
 
@@ -167,7 +167,9 @@ export default function Partners() {
     for (const p of partnersData || []) {
       const isUser1 = p.user1_id === user!.id
       const partnerId = isUser1 ? p.user2_id : p.user1_id
-      const partnerName = isUser1 ? p.user2?.name : p.user1?.name
+      const partnerProfile = isUser1 ? p.user2 : p.user1
+      const partnerName = partnerProfile?.name
+      const partnerAvatar = partnerProfile?.avatar_url
 
       const { data: streak } = await supabase
         .from('streaks')
@@ -179,6 +181,7 @@ export default function Partners() {
         ...p,
         partnerId,
         partnerName,
+        partnerAvatar,
         streak
       })
     }
@@ -441,11 +444,9 @@ export default function Partners() {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.85rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
-                        <div style={{ ...styles.avatar, background: getAvatarGradient(p.partnerName) }}>
-                          {getInitials(p.partnerName)}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0, flex: 1 }}>
+                        {renderAvatar(p.partnerAvatar, p.partnerName, 'small')}
+                        <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={styles.partnerName}>{p.partnerName}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.3rem', flexWrap: 'wrap' }}>
                             <span style={styles.streakChip}>
@@ -464,6 +465,13 @@ export default function Partners() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
+                        <button
+                          style={{ ...styles.iconGhostBtn, width: '32px', height: '32px' }}
+                          onClick={() => openProfile(p.partnerId)}
+                          aria-label="View profile"
+                        >
+                          <Eye size={14} color={COLORS.textDim} />
+                        </button>
                         {!checkedIn && (
                           <motion.button
                             whileHover={{ scale: 1.04 }}
