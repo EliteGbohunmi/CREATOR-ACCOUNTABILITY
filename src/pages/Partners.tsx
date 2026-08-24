@@ -375,418 +375,419 @@ export default function Partners() {
 
   return (
     <Layout>
-      <div style={{ marginBottom: '2.2rem' }}>
-        <div style={styles.eyebrow}>
-          <span style={styles.eyebrowDot} />
-          Accountability
-        </div>
-        <h1 style={styles.title}>Partners</h1>
-        <p style={styles.subtitle}>Stay accountable with other creators. Max {maxPartners} partners.</p>
-      </div>
-
-      {partners.length > 0 && (
+      <div style={{ paddingBottom: '100px' }}>
         <div style={{ marginBottom: '2.2rem' }}>
-          <div style={styles.sectionLabel}>
-            <div style={{ ...styles.iconChipSmall, background: COLORS.goldSoft }}>
-              <Users size={12} color={COLORS.gold} />
-            </div>
-            Your Partners ({partners.length}/{maxPartners})
+          <div style={styles.eyebrow}>
+            <span style={styles.eyebrowDot} />
+            Accountability
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {partners.map(p => {
-              const checkedIn = partnerCheckedIn(p.streak)
-              return (
-                <motion.div
-                  key={p.id}
-                  whileHover={{ y: -2 }}
-                  transition={{ duration: 0.18 }}
-                  style={{
-                    ...styles.card,
-                    borderColor: checkedIn ? COLORS.greenBorder : COLORS.redBorder,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
-                      <div style={{ ...styles.avatar, background: getAvatarGradient(p.partnerName) }}>
-                        {getInitials(p.partnerName)}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={styles.partnerName}>{p.partnerName}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.3rem', flexWrap: 'wrap' }}>
-                          <span style={styles.streakChip}>
-                            <Flame size={12} color={COLORS.gold} />
-                            {p.streak?.current_streak || 0} day{(p.streak?.current_streak || 0) === 1 ? '' : 's'}
-                          </span>
-                          <span style={{
-                            ...styles.statusChip,
-                            color: checkedIn ? COLORS.green : COLORS.red,
-                            background: checkedIn ? COLORS.greenSoft : COLORS.redSoft,
-                            border: `1px solid ${checkedIn ? COLORS.greenBorder : COLORS.redBorder}`,
-                          }}>
-                            {checkedIn ? 'Posted today' : 'Missed today'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-                      {!checkedIn && (
-                        <motion.button
-                          whileHover={{ scale: 1.04 }}
-                          whileTap={{ scale: 0.96 }}
-                          style={styles.nudgeBtn}
-                          onClick={async () => {
-                            try {
-                              await sendNudge(user!.id, p.partnerId)
-                              const message = getRandomNudgeMessage(p.partnerName)
-                              await navigator.clipboard.writeText(message)
-                              toast.success('✅ Nudge sent to ' + p.partnerName)
-                            } catch (err: any) {
-                              toast.error('❌ Failed: ' + (err.message || 'Unknown error'))
-                            }
-                          }}
-                        >
-                          Copy Nudge
-                        </motion.button>
-                      )}
-                      <button
-                        style={styles.iconGhostBtn}
-                        onClick={() => removePartner(p.partnerId)}
-                        aria-label="Remove partner"
-                      >
-                        <UserMinus size={16} color={COLORS.textFaint} />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
+          <h1 style={styles.title}>Partners</h1>
+          <p style={styles.subtitle}>Stay accountable with other creators. Max {maxPartners} partners.</p>
         </div>
-      )}
 
-      {canAddMore && (
-        <div style={{ ...styles.card, marginBottom: '2.2rem' }}>
-          <div style={styles.sectionLabel}>
-            <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
-              <UserPlus size={12} color={COLORS.textDim} />
+        {partners.length > 0 && (
+          <div style={{ marginBottom: '2.2rem' }}>
+            <div style={styles.sectionLabel}>
+              <div style={{ ...styles.iconChipSmall, background: COLORS.goldSoft }}>
+                <Users size={12} color={COLORS.gold} />
+              </div>
+              Your Partners ({partners.length}/{maxPartners})
             </div>
-            Find a New Partner
-          </div>
-          <div style={{ display: 'flex', gap: '0.6rem' }}>
-            <input
-              style={{ ...styles.input, flex: 1 }}
-              placeholder="Search by name..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && searchUsers()}
-            />
-            <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              style={styles.searchBtn}
-              onClick={searchUsers}
-              disabled={searching}
-            >
-              <Search size={16} color={COLORS.bg} />
-            </motion.button>
-          </div>
-          <AnimatePresence>
-            {searchResults.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.9rem' }}
-              >
-                {searchResults.map(u => {
-                  const alreadySent = sent.some(s => s.receiver_id === u.id)
-                  return (
-                    <div key={u.id} style={styles.resultRow}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                        <div style={{ ...styles.avatarSmall, background: getAvatarGradient(u.name) }}>
-                          {getInitials(u.name)}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {partners.map(p => {
+                const checkedIn = partnerCheckedIn(p.streak)
+                return (
+                  <motion.div
+                    key={p.id}
+                    whileHover={{ y: -2 }}
+                    transition={{ duration: 0.18 }}
+                    style={{
+                      ...styles.card,
+                      borderColor: checkedIn ? COLORS.greenBorder : COLORS.redBorder,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.85rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
+                        <div style={{ ...styles.avatar, background: getAvatarGradient(p.partnerName) }}>
+                          {getInitials(p.partnerName)}
                         </div>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text }}>{u.name}</div>
-                          <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>{u.email}</div>
+                          <div style={styles.partnerName}>{p.partnerName}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.3rem', flexWrap: 'wrap' }}>
+                            <span style={styles.streakChip}>
+                              <Flame size={12} color={COLORS.gold} />
+                              {p.streak?.current_streak || 0} day{(p.streak?.current_streak || 0) === 1 ? '' : 's'}
+                            </span>
+                            <span style={{
+                              ...styles.statusChip,
+                              color: checkedIn ? COLORS.green : COLORS.red,
+                              background: checkedIn ? COLORS.greenSoft : COLORS.redSoft,
+                              border: `1px solid ${checkedIn ? COLORS.greenBorder : COLORS.redBorder}`,
+                            }}>
+                              {checkedIn ? 'Posted today' : 'Missed today'}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                        <button
-                          style={{ ...styles.iconGhostBtn, width: '32px', height: '32px' }}
-                          onClick={() => openProfile(u.id)}
-                          aria-label="View profile"
-                        >
-                          <Eye size={14} color={COLORS.textDim} />
-                        </button>
-                        {alreadySent ? (
-                          <div style={styles.pendingChip}>
-                            <Clock size={12} color={COLORS.textFaint} />
-                            Pending
-                          </div>
-                        ) : (
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
+                        {!checkedIn && (
                           <motion.button
                             whileHover={{ scale: 1.04 }}
                             whileTap={{ scale: 0.96 }}
-                            style={styles.requestBtn}
-                            onClick={() => sendRequest(u.id)}
-                            disabled={sending === u.id}
+                            style={styles.nudgeBtn}
+                            onClick={async () => {
+                              try {
+                                await sendNudge(user!.id, p.partnerId)
+                                const message = getRandomNudgeMessage(p.partnerName)
+                                await navigator.clipboard.writeText(message)
+                                toast.success('✅ Nudge sent to ' + p.partnerName)
+                              } catch (err: any) {
+                                toast.error('❌ Failed: ' + (err.message || 'Unknown error'))
+                              }
+                            }}
                           >
-                            {sending === u.id ? '...' : 'Request'}
+                            Copy Nudge
                           </motion.button>
                         )}
+                        <button
+                          style={styles.iconGhostBtn}
+                          onClick={() => removePartner(p.partnerId)}
+                          aria-label="Remove partner"
+                        >
+                          <UserMinus size={16} color={COLORS.textFaint} />
+                        </button>
                       </div>
                     </div>
-                  )
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* --- Suggested Partners --- */}
-      {suggestions.length > 0 && (
-        <div style={{ marginBottom: '2.2rem' }}>
-          <div style={styles.sectionLabel}>
-            <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
-              <Users size={12} color={COLORS.textDim} />
+                  </motion.div>
+                )
+              })}
             </div>
-            Suggested Partners (newest)
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {suggestions.map(s => {
-              const alreadySent = sent.some(req => req.receiver_id === s.id)
-              return (
-                <div key={s.id} style={styles.resultRow}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                    <div style={{ ...styles.avatarSmall, background: getAvatarGradient(s.name) }}>
-                      {getInitials(s.name)}
+        )}
+
+        {canAddMore && (
+          <div style={{ ...styles.card, marginBottom: '2.2rem' }}>
+            <div style={styles.sectionLabel}>
+              <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
+                <UserPlus size={12} color={COLORS.textDim} />
+              </div>
+              Find a New Partner
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem' }}>
+              <input
+                style={{ ...styles.input, flex: 1 }}
+                placeholder="Search by name..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && searchUsers()}
+              />
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                style={styles.searchBtn}
+                onClick={searchUsers}
+                disabled={searching}
+              >
+                <Search size={16} color={COLORS.bg} />
+              </motion.button>
+            </div>
+            <AnimatePresence>
+              {searchResults.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.9rem' }}
+                >
+                  {searchResults.map(u => {
+                    const alreadySent = sent.some(s => s.receiver_id === u.id)
+                    return (
+                      <div key={u.id} style={styles.resultRow}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
+                          <div style={{ ...styles.avatarSmall, background: getAvatarGradient(u.name), flexShrink: 0 }}>
+                            {getInitials(u.name)}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
+                            <div style={{ color: COLORS.textFaint, fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexShrink: 0 }}>
+                          <button
+                            style={{ ...styles.iconGhostBtn, width: '32px', height: '32px' }}
+                            onClick={() => openProfile(u.id)}
+                            aria-label="View profile"
+                          >
+                            <Eye size={14} color={COLORS.textDim} />
+                          </button>
+                          {alreadySent ? (
+                            <div style={styles.pendingChip}>
+                              <Clock size={12} color={COLORS.textFaint} />
+                              Pending
+                            </div>
+                          ) : (
+                            <motion.button
+                              whileHover={{ scale: 1.04 }}
+                              whileTap={{ scale: 0.96 }}
+                              style={styles.requestBtn}
+                              onClick={() => sendRequest(u.id)}
+                              disabled={sending === u.id}
+                            >
+                              {sending === u.id ? '...' : 'Request'}
+                            </motion.button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* --- Suggested Partners --- */}
+        {suggestions.length > 0 && (
+          <div style={{ marginBottom: '2.2rem' }}>
+            <div style={styles.sectionLabel}>
+              <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
+                <Users size={12} color={COLORS.textDim} />
+              </div>
+              Suggested Partners (newest)
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {suggestions.map(s => {
+                const alreadySent = sent.some(req => req.receiver_id === s.id)
+                return (
+                  <div key={s.id} style={styles.resultRow}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
+                      <div style={{ ...styles.avatarSmall, background: getAvatarGradient(s.name), flexShrink: 0 }}>
+                        {getInitials(s.name)}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+                        {s.email && <div style={{ color: COLORS.textFaint, fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.email}</div>}
+                      </div>
                     </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text }}>{s.name}</div>
-                      {s.email && <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>{s.email}</div>}
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexShrink: 0 }}>
+                      <button
+                        style={{ ...styles.iconGhostBtn, width: '32px', height: '32px' }}
+                        onClick={() => openProfile(s.id)}
+                        aria-label="View profile"
+                      >
+                        <Eye size={14} color={COLORS.textDim} />
+                      </button>
+                      {alreadySent ? (
+                        <div style={styles.pendingChip}>
+                          <Clock size={12} color={COLORS.textFaint} />
+                          Pending
+                        </div>
+                      ) : (
+                        <motion.button
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.96 }}
+                          style={styles.requestBtn}
+                          onClick={() => sendRequest(s.id)}
+                          disabled={sending === s.id}
+                        >
+                          {sending === s.id ? '...' : 'Request'}
+                        </motion.button>
+                      )}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                    <button
-                      style={{ ...styles.iconGhostBtn, width: '32px', height: '32px' }}
-                      onClick={() => openProfile(s.id)}
-                      aria-label="View profile"
-                    >
-                      <Eye size={14} color={COLORS.textDim} />
-                    </button>
-                    {alreadySent ? (
-                      <div style={styles.pendingChip}>
-                        <Clock size={12} color={COLORS.textFaint} />
-                        Pending
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {loadingSuggestions && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem 0' }}>
+            <Loader size={20} color={COLORS.textFaint} className="animate-spin" />
+          </div>
+        )}
+
+        {!canAddMore && (
+          <div style={{ ...styles.card, borderColor: COLORS.goldBorder, background: 'linear-gradient(180deg, #1A1400 0%, #131313 100%)', marginBottom: '2.2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <Check size={16} color={COLORS.gold} />
+              <p style={{ color: COLORS.gold, fontSize: '0.88rem', margin: 0 }}>
+                You've reached the maximum of {maxPartners} partners. Remove one to add another.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {requests.length > 0 && (
+          <div style={{ marginBottom: '2.2rem' }}>
+            <div style={styles.sectionLabel}>
+              <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
+                <Clock size={12} color={COLORS.textDim} />
+              </div>
+              Incoming Requests
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {requests.map(r => (
+                <div key={r.id} style={styles.card}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                      <div style={{ ...styles.avatarSmall, background: getAvatarGradient(r.profiles?.name) }}>
+                        {getInitials(r.profiles?.name)}
                       </div>
-                    ) : (
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, marginBottom: '0.15rem' }}>
+                          {r.profiles?.name}
+                        </div>
+                        <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>wants to be your accountability partner</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                       <motion.button
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.96 }}
-                        style={styles.requestBtn}
-                        onClick={() => sendRequest(s.id)}
-                        disabled={sending === s.id}
+                        whileHover={{ scale: 1.06 }}
+                        whileTap={{ scale: 0.94 }}
+                        style={styles.acceptBtn}
+                        onClick={() => acceptRequest(r.id, r.sender_id)}
+                        aria-label="Accept request"
                       >
-                        {sending === s.id ? '...' : 'Request'}
+                        <Check size={15} color={COLORS.bg} />
                       </motion.button>
-                    )}
+                      <motion.button
+                        whileHover={{ scale: 1.06 }}
+                        whileTap={{ scale: 0.94 }}
+                        style={styles.declineBtn}
+                        onClick={() => declineRequest(r.id)}
+                        aria-label="Decline request"
+                      >
+                        <X size={15} color={COLORS.red} />
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {loadingSuggestions && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem 0' }}>
-          <Loader size={20} color={COLORS.textFaint} className="animate-spin" />
-        </div>
-      )}
+        {sent.length > 0 && (
+          <div>
+            <div style={styles.sectionLabel}>
+              <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
+                <Clock size={12} color={COLORS.textDim} />
+              </div>
+              Sent Requests
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {sent.map(r => (
+                <div key={r.id} style={styles.card}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                      <div style={{ ...styles.avatarSmall, background: getAvatarGradient(r.profiles?.name) }}>
+                        {getInitials(r.profiles?.name)}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, marginBottom: '0.15rem' }}>
+                          {r.profiles?.name}
+                        </div>
+                        <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>Request pending</div>
+                      </div>
+                    </div>
+                    <div style={styles.pendingChip}>
+                      <Clock size={12} color={COLORS.textFaint} />
+                      Waiting
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-      {!canAddMore && (
-        <div style={{ ...styles.card, borderColor: COLORS.goldBorder, background: 'linear-gradient(180deg, #1A1400 0%, #131313 100%)', marginBottom: '2.2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <Check size={16} color={COLORS.gold} />
-            <p style={{ color: COLORS.gold, fontSize: '0.88rem', margin: 0 }}>
-              You've reached the maximum of {maxPartners} partners. Remove one to add another.
+        {partners.length === 0 && requests.length === 0 && sent.length === 0 && searchResults.length === 0 && suggestions.length === 0 && !loadingSuggestions && (
+          <div style={styles.empty}>
+            <div style={styles.emptyIconRing}>
+              <Users size={24} color={COLORS.textFaint} />
+            </div>
+            <p style={{ margin: 0, marginTop: '0.9rem', color: COLORS.textDim, textAlign: 'center', fontSize: '0.9rem', maxWidth: '260px' }}>
+              No partners yet. Search for a creator above or check suggested partners.
             </p>
           </div>
-        </div>
-      )}
+        )}
 
-      {requests.length > 0 && (
-        <div style={{ marginBottom: '2.2rem' }}>
-          <div style={styles.sectionLabel}>
-            <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
-              <Clock size={12} color={COLORS.textDim} />
-            </div>
-            Incoming Requests
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            {requests.map(r => (
-              <div key={r.id} style={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                    <div style={{ ...styles.avatarSmall, background: getAvatarGradient(r.profiles?.name) }}>
-                      {getInitials(r.profiles?.name)}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, marginBottom: '0.15rem' }}>
-                        {r.profiles?.name}
-                      </div>
-                      <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>wants to be your accountability partner</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                    <motion.button
-                      whileHover={{ scale: 1.06 }}
-                      whileTap={{ scale: 0.94 }}
-                      style={styles.acceptBtn}
-                      onClick={() => acceptRequest(r.id, r.sender_id)}
-                      aria-label="Accept request"
-                    >
-                      <Check size={15} color={COLORS.bg} />
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.06 }}
-                      whileTap={{ scale: 0.94 }}
-                      style={styles.declineBtn}
-                      onClick={() => declineRequest(r.id)}
-                      aria-label="Decline request"
-                    >
-                      <X size={15} color={COLORS.red} />
-                    </motion.button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {sent.length > 0 && (
-        <div>
-          <div style={styles.sectionLabel}>
-            <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
-              <Clock size={12} color={COLORS.textDim} />
-            </div>
-            Sent Requests
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            {sent.map(r => (
-              <div key={r.id} style={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                    <div style={{ ...styles.avatarSmall, background: getAvatarGradient(r.profiles?.name) }}>
-                      {getInitials(r.profiles?.name)}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, marginBottom: '0.15rem' }}>
-                        {r.profiles?.name}
-                      </div>
-                      <div style={{ color: COLORS.textFaint, fontSize: '0.78rem' }}>Request pending</div>
-                    </div>
-                  </div>
-                  <div style={styles.pendingChip}>
-                    <Clock size={12} color={COLORS.textFaint} />
-                    Waiting
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {partners.length === 0 && requests.length === 0 && sent.length === 0 && searchResults.length === 0 && suggestions.length === 0 && !loadingSuggestions && (
-        <div style={styles.empty}>
-          <div style={styles.emptyIconRing}>
-            <Users size={24} color={COLORS.textFaint} />
-          </div>
-          <p style={{ margin: 0, marginTop: '0.9rem', color: COLORS.textDim, textAlign: 'center', fontSize: '0.9rem', maxWidth: '260px' }}>
-            No partners yet. Search for a creator above or check suggested partners.
-          </p>
-        </div>
-      )}
-
-      {/* --- Profile Modal --- */}
-      <AnimatePresence>
-        {selectedUserId && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={styles.modalOverlay}
-            onClick={closeProfile}
-          >
+        {/* --- Profile Modal --- */}
+        <AnimatePresence>
+          {selectedUserId && (
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              style={styles.modalCard}
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={styles.modalOverlay}
+              onClick={closeProfile}
             >
-              <button style={styles.modalClose} onClick={closeProfile}>
-                <X size={20} color={COLORS.textDim} />
-              </button>
-              {loadingProfile ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-                  <Loader size={30} color={COLORS.textFaint} className="animate-spin" />
-                </div>
-              ) : profileData ? (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <div style={{ ...styles.avatar, width: '64px', height: '64px', borderRadius: '20px', background: getAvatarGradient(profileData.name) }}>
-                      {getInitials(profileData.name)}
-                    </div>
-                    <div>
-                      <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: COLORS.text, margin: 0 }}>{profileData.name}</h2>
-                      <p style={{ color: COLORS.textDim, fontSize: '0.9rem', margin: '0.2rem 0 0' }}>{profileData.email}</p>
-                    </div>
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                style={styles.modalCard}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button style={styles.modalClose} onClick={closeProfile}>
+                  <X size={20} color={COLORS.textDim} />
+                </button>
+                {loadingProfile ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                    <Loader size={30} color={COLORS.textFaint} className="animate-spin" />
                   </div>
+                ) : profileData ? (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                      <div style={{ ...styles.avatar, width: '64px', height: '64px', borderRadius: '20px', background: getAvatarGradient(profileData.name) }}>
+                        {getInitials(profileData.name)}
+                      </div>
+                      <div>
+                        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: COLORS.text, margin: 0 }}>{profileData.name}</h2>
+                        <p style={{ color: COLORS.textDim, fontSize: '0.9rem', margin: '0.2rem 0 0' }}>{profileData.email}</p>
+                      </div>
+                    </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                    <div style={styles.profileStat}>
-                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Joined</span>
-                      <span style={{ color: COLORS.text, fontWeight: 600 }}>
-                        {new Date(profileData.created_at).toLocaleDateString()}
-                      </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                      <div style={styles.profileStat}>
+                        <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Joined</span>
+                        <span style={{ color: COLORS.text, fontWeight: 600 }}>
+                          {new Date(profileData.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div style={styles.profileStat}>
+                        <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Partners</span>
+                        <span style={{ color: COLORS.text, fontWeight: 600 }}>{profileData.partnerCount}</span>
+                      </div>
+                      <div style={styles.profileStat}>
+                        <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Current Streak</span>
+                        <span style={{ color: COLORS.gold, fontWeight: 700 }}>
+                          {profileData.streak.current_streak || 0} days
+                        </span>
+                      </div>
+                      <div style={styles.profileStat}>
+                        <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Best Streak</span>
+                        <span style={{ color: COLORS.text, fontWeight: 600 }}>
+                          {profileData.streak.best_streak || 0} days
+                        </span>
+                      </div>
                     </div>
-                    <div style={styles.profileStat}>
-                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Partners</span>
-                      <span style={{ color: COLORS.text, fontWeight: 600 }}>{profileData.partnerCount}</span>
-                    </div>
-                    <div style={styles.profileStat}>
-                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Current Streak</span>
-                      <span style={{ color: COLORS.gold, fontWeight: 700 }}>
-                        {profileData.streak.current_streak || 0} days
-                      </span>
-                    </div>
-                    <div style={styles.profileStat}>
-                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Best Streak</span>
-                      <span style={{ color: COLORS.text, fontWeight: 600 }}>
-                        {profileData.streak.best_streak || 0} days
-                      </span>
-                    </div>
-                  </div>
 
-                  {profileData.bio && (
                     <div style={{ marginTop: '0.5rem' }}>
-                      <p style={{ color: COLORS.textDim, fontSize: '0.9rem', borderTop: `1px solid ${COLORS.border}`, paddingTop: '0.8rem' }}>
-                        {profileData.bio}
+                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>About</span>
+                      <p style={{ color: COLORS.textDim, fontSize: '0.9rem', marginTop: '0.3rem', borderTop: `1px solid ${COLORS.border}`, paddingTop: '0.8rem' }}>
+                        {profileData.bio || 'This creator hasn\'t added a bio yet.'}
                       </p>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <p style={{ color: COLORS.textDim }}>No profile data</p>
-              )}
+                  </div>
+                ) : (
+                  <p style={{ color: COLORS.textDim }}>No profile data</p>
+                )}
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </div>
     </Layout>
   )
 }
