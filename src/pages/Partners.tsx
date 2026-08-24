@@ -77,6 +77,40 @@ function getAvatarGradient(name?: string) {
   return `linear-gradient(135deg, ${a}, ${b})`
 }
 
+// Avatar render helper – uses image if available
+function renderAvatar(avatarUrl: string | null, name: string, size: 'small' | 'large' = 'small') {
+  const sizeStyle = size === 'large' 
+    ? { width: '64px', height: '64px', borderRadius: '20px' }
+    : { width: '36px', height: '36px', borderRadius: '11px' }
+  const common = {
+    flexShrink: 0,
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: getAvatarGradient(name),
+    color: '#0A0A0A',
+    fontWeight: 700,
+    fontSize: size === 'large' ? '1.3rem' : '0.8rem',
+    fontFamily: 'Space Grotesk',
+    letterSpacing: '-0.01em',
+    boxShadow: '0 4px 14px -4px rgba(0,0,0,0.5)',
+    ...sizeStyle
+  }
+  if (avatarUrl) {
+    return (
+      <div style={{ ...common, background: 'transparent' }}>
+        <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </div>
+    )
+  }
+  return (
+    <div style={common}>
+      {getInitials(name)}
+    </div>
+  )
+}
+
 export default function Partners() {
   const { user } = useAuth()
   const [partners, setPartners] = useState<any[]>([])
@@ -167,7 +201,7 @@ export default function Partners() {
     setLoading(false)
   }
 
-  // --- Suggested partners: newest first, max 6 ---
+  // --- Suggested partners: newest first, max 6, with avatar ---
   const fetchSuggestions = async () => {
     if (!user) return;
     setLoadingSuggestions(true);
@@ -182,7 +216,7 @@ export default function Partners() {
 
       let query = supabase
         .from('profiles')
-        .select('id, name, email, created_at')
+        .select('id, name, email, created_at, avatar_url')
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -205,10 +239,10 @@ export default function Partners() {
   const fetchUserProfile = async (userId: string) => {
     setLoadingProfile(true)
     try {
-      // Get profile
+      // Get profile with avatar_url
       const { data: profile, error: pErr } = await supabase
         .from('profiles')
-        .select('id, name, email, created_at, bio')
+        .select('id, name, email, created_at, bio, avatar_url')
         .eq('id', userId)
         .single()
       if (pErr) throw pErr
@@ -257,7 +291,7 @@ export default function Partners() {
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('id, name, email')
+        .select('id, name, email, avatar_url')
         .ilike('name', `%${searchQuery}%`)
         .neq('id', user!.id)
         .limit(10)
@@ -503,9 +537,7 @@ export default function Partners() {
                     return (
                       <div key={u.id} style={styles.resultRow}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
-                          <div style={{ ...styles.avatarSmall, background: getAvatarGradient(u.name), flexShrink: 0 }}>
-                            {getInitials(u.name)}
-                          </div>
+                          {renderAvatar(u.avatar_url, u.name, 'small')}
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
                             <div style={{ color: COLORS.textFaint, fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
@@ -560,9 +592,7 @@ export default function Partners() {
                 return (
                   <div key={s.id} style={styles.resultRow}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
-                      <div style={{ ...styles.avatarSmall, background: getAvatarGradient(s.name), flexShrink: 0 }}>
-                        {getInitials(s.name)}
-                      </div>
+                      {renderAvatar(s.avatar_url, s.name, 'small')}
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: '0.9rem', color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
                         {s.email && <div style={{ color: COLORS.textFaint, fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.email}</div>}
@@ -739,9 +769,7 @@ export default function Partners() {
                 ) : profileData ? (
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                      <div style={{ ...styles.avatar, width: '64px', height: '64px', borderRadius: '20px', background: getAvatarGradient(profileData.name) }}>
-                        {getInitials(profileData.name)}
-                      </div>
+                      {renderAvatar(profileData.avatar_url, profileData.name, 'large')}
                       <div>
                         <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: COLORS.text, margin: 0 }}>{profileData.name}</h2>
                         <p style={{ color: COLORS.textDim, fontSize: '0.9rem', margin: '0.2rem 0 0' }}>{profileData.email}</p>
