@@ -13,7 +13,23 @@ import { checkAndAwardAchievements } from '../lib/achievements'
 import { checkAndAwardToken, useRestToken } from '../lib/restTokens'
 import { awardScore, getScoreLabel } from '../lib/creatorScore'
 import { notifyPartnerCheckin } from '../lib/backend'
-import { Flame, CheckCircle2, Circle, Calendar, TrendingUp, User, Upload, X, Clock, Coffee, Zap, BookMarked, Star } from 'lucide-react'
+import {
+  Flame,
+  CheckCircle2,
+  Circle,
+  Calendar,
+  TrendingUp,
+  User,
+  Upload,
+  X,
+  Clock,
+  Coffee,
+  Zap,
+  BookMarked,
+  Star,
+  Link2,
+  Check,
+} from 'lucide-react'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -47,6 +63,29 @@ export default function Dashboard() {
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => { if (user) fetchAll() }, [user])
+
+  // Real‑time subscription for pending proofs (partner)
+  useEffect(() => {
+    if (!user || !partner?.id) return
+
+    const channel = supabase
+      .channel('pending-proofs')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'checkin_proofs',
+          filter: `user_id=eq.${partner.id}`,
+        },
+        () => fetchAll()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user, partner?.id])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -127,10 +166,25 @@ export default function Dashboard() {
   }
 
   const submitProof = async () => {
-    if (!proofLink.trim() && !proofFile) {
+    const link = proofLink.trim()
+    if (link) {
+      try {
+        const url = new URL(link)
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          showToast('Please enter a valid link starting with http:// or https://')
+          return
+        }
+      } catch (_) {
+        showToast('Please enter a valid URL (e.g., https://instagram.com/p/...)')
+        return
+      }
+    }
+
+    if (!link && !proofFile) {
       showToast('Please provide a post link or screenshot.')
       return
     }
+
     setSubmittingProof(true)
     let proofUrl = ''
     if (proofFile) {
@@ -144,7 +198,7 @@ export default function Dashboard() {
     }
     await supabase.from('checkin_proofs').upsert({
       user_id: user!.id, date: today,
-      proof_url: proofUrl, proof_link: proofLink,
+      proof_url: proofUrl, proof_link: link,
       status: partner ? 'pending' : 'confirmed'
     })
     if (!partner) await confirmStreak()
@@ -329,8 +383,9 @@ export default function Dashboard() {
                       </span>
                     </div>
                     {proof.proof_link && (
-                      <a href={proof.proof_link} target="_blank" rel="noreferrer" style={{ color: '#888', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem', wordBreak: 'break-all' }}>
-                        🔗 {proof.proof_link}
+                      <a href={proof.proof_link} target="_blank" rel="noreferrer" style={{ color: '#888', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem', wordBreak: 'break-all' }}>
+                        <Link2 size={14} />
+                        {proof.proof_link}
                       </a>
                     )}
                     {proof.proof_url && (
@@ -400,8 +455,8 @@ export default function Dashboard() {
               {weeklyTarget < 7 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: '#0A0A0A', borderRadius: '8px' }}>
                   <span style={{ color: '#555', fontSize: '0.75rem' }}>This week</span>
-                  <span style={{ color: weekPosts >= weeklyTarget ? '#4CAF50' : '#F5A623', fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '0.85rem' }}>
-                    {weekPosts}/{weeklyTarget} posts {weekPosts >= weeklyTarget ? '✓' : ''}
+                  <span style={{ color: weekPosts >= weeklyTarget ? '#4CAF50' : '#F5A623', fontFamily: 'Space Grotesk', fontWeight: '700', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    {weekPosts}/{weeklyTarget} posts {weekPosts >= weeklyTarget && <Check size={14} color="#4CAF50" />}
                   </span>
                 </div>
               )}
@@ -417,7 +472,13 @@ export default function Dashboard() {
               {todayDone ? (
                 <div style={styles.checkedIn}>
                   <CheckCircle2 size={18} color="#4CAF50" />
-                  {celebrated ? '🔥 Streak extended! Keep going.' : 'Checked in for today'}
+                  {celebrated ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Flame size={16} color="#F5A623" /> Streak extended! Keep going.
+                    </span>
+                  ) : (
+                    'Checked in for today'
+                  )}
                 </div>
               ) : todayPending ? (
                 <div style={{ ...styles.checkedIn, borderColor: '#F5A62340', color: '#F5A623' }}>
@@ -459,7 +520,12 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <div>
                       <label style={styles.label}>Post Link (optional)</label>
-                      <input style={{ ...styles.input, marginTop: '0.3rem' }} placeholder="https://instagram.com/p/..." value={proofLink} onChange={e => setProofLink(e.target.value)} />
+                      <input
+                        style={{ ...styles.input, marginTop: '0.3rem' }}
+                        placeholder="https://instagram.com/p/..."
+                        value={proofLink}
+                        onChange={e => setProofLink(e.target.value)}
+                      />
                     </div>
                     <div>
                       <label style={styles.label}>Screenshot (optional)</label>
