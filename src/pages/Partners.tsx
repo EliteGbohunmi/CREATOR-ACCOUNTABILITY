@@ -35,7 +35,7 @@ function getRandomNudgeMessage(partnerName: string): string {
   return raw.replace(/{partner}/g, partnerName);
 }
 
-// Brand tokens — same palette as the rest of the app, tuned for depth
+// Brand tokens
 const COLORS = {
   bg: '#0A0A0A',
   surface: '#111111',
@@ -57,7 +57,6 @@ const COLORS = {
   redBorder: 'rgba(229,62,62,0.28)',
 }
 
-// Presentational only — deterministic avatar tint per name, doesn't touch app state
 const AVATAR_GRADIENTS = [
   ['#F5A623', '#D9821A'],
   ['#6FA8F5', '#3D7DD9'],
@@ -90,7 +89,6 @@ export default function Partners() {
   const [sending, setSending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // --- Suggested partners state ---
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
@@ -107,7 +105,6 @@ export default function Partners() {
     }
   }, [user])
 
-  // Fetch suggestions when partners or sent requests change
   useEffect(() => {
     if (user) {
       fetchSuggestions()
@@ -165,12 +162,11 @@ export default function Partners() {
     setLoading(false)
   }
 
-  // --- Fetch suggested partners: max 6 active (last 7 days) ---
+  // --- Suggested partners: newest first, max 6 ---
   const fetchSuggestions = async () => {
     if (!user) return;
     setLoadingSuggestions(true);
     try {
-      // Build exclusion set
       const excludedIds = new Set<string>();
       excludedIds.add(user.id);
       partners.forEach(p => excludedIds.add(p.partnerId));
@@ -179,15 +175,11 @@ export default function Partners() {
 
       const excludedArray = Array.from(excludedIds);
 
-      // Query all profiles except excluded, fetch their streaks
       let query = supabase
         .from('profiles')
-        .select(`
-          id,
-          name,
-          email,
-          streaks ( last_checked_in )
-        `);
+        .select('id, name, email, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20);
 
       if (excludedArray.length > 0) {
         query = query.not('id', 'in', `(${excludedArray.join(',')})`);
@@ -196,24 +188,7 @@ export default function Partners() {
       const { data, error } = await query;
       if (error) throw error;
 
-      const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-      // Flatten, filter active (checked in within last 7 days), sort by most recent, take 6
-      const sorted = (data || [])
-        .map(u => ({
-          ...u,
-          last_checked_in: u.streaks?.[0]?.last_checked_in || null
-        }))
-        .filter(u => u.last_checked_in && new Date(u.last_checked_in) >= sevenDaysAgo)
-        .sort((a, b) => {
-          if (!a.last_checked_in) return 1;
-          if (!b.last_checked_in) return -1;
-          return new Date(b.last_checked_in).getTime() - new Date(a.last_checked_in).getTime();
-        })
-        .slice(0, 6); // max 6 suggestions
-
-      setSuggestions(sorted);
+      setSuggestions((data || []).slice(0, 6));
     } catch (err) {
       console.error('Failed to load suggestions:', err);
     } finally {
@@ -512,7 +487,7 @@ export default function Partners() {
             <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
               <Users size={12} color={COLORS.textDim} />
             </div>
-            Suggested Partners (active this week)
+            Suggested Partners (newest)
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {suggestions.map(s => {
