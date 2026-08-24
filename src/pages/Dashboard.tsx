@@ -142,11 +142,11 @@ export default function Dashboard() {
     const { data: p1 } = await supabase
       .from('accountability_partners')
       .select('*, profiles!accountability_partners_user2_id_fkey(id, name)')
-      .eq('user1_id', user!.id).single()
+      .eq('user1_id', user!.id).maybeSingle()
     const { data: p2 } = await supabase
       .from('accountability_partners')
       .select('*, profiles!accountability_partners_user1_id_fkey(id, name)')
-      .eq('user2_id', user!.id).single()
+      .eq('user2_id', user!.id).maybeSingle()
 
     const activePartner = p1 || p2
     if (activePartner) {
@@ -190,52 +190,59 @@ export default function Dashboard() {
     }
 
     setSubmittingProof(true)
-    let proofUrl = ''
-    if (proofFile) {
-      const ext = proofFile.name.split('.').pop()
-      const path = `${user!.id}/${today}.${ext}`
-      const { error } = await supabase.storage.from('checkin-proofs').upload(path, proofFile, { upsert: true })
-      if (!error) {
-        const { data } = supabase.storage.from('checkin-proofs').getPublicUrl(path)
-        proofUrl = data.publicUrl
+    try {
+      let proofUrl = ''
+      if (proofFile) {
+        const ext = proofFile.name.split('.').pop()
+        const path = `${user!.id}/${today}.${ext}`
+        const { error } = await supabase.storage.from('checkin-proofs').upload(path, proofFile, { upsert: true })
+        if (!error) {
+          const { data } = supabase.storage.from('checkin-proofs').getPublicUrl(path)
+          proofUrl = data.publicUrl
+        }
       }
-    }
 
-    // Use upsert with onConflict to avoid duplicate key error
-    const { error: insertError } = await supabase
-      .from('checkin_proofs')
-      .upsert(
-        {
-          user_id: user!.id,
-          date: today,
-          proof_url: proofUrl,
-          proof_link: link,
-          status: partner ? 'pending' : 'confirmed'
-        },
-        { onConflict: 'user_id, date' }
-      )
+      // Use upsert with onConflict to avoid duplicate key error
+      const { error: insertError } = await supabase
+        .from('checkin_proofs')
+        .upsert(
+          {
+            user_id: user!.id,
+            date: today,
+            proof_url: proofUrl,
+            proof_link: link,
+            status: partner ? 'pending' : 'confirmed'
+          },
+          { onConflict: 'user_id, date' }
+        )
 
-    if (insertError) {
-      showToast('❌ Error submitting proof: ' + insertError.message)
+      if (insertError) {
+        showToast('❌ Error submitting proof: ' + insertError.message)
+        return
+      }
+
+      if (partner) {
+        try {
+          await notifyPartnerCheckin(user!.id)
+        } catch (notifyErr) {
+          console.error('notifyPartnerCheckin failed:', notifyErr)
+          // Don't block the check-in flow on a notification failure
+        }
+        showToast('📨 Proof sent to ' + partner.name + ' for confirmation.')
+        setTodayPending(true)
+        // Mark today's proof as pending – partner will confirm later
+      } else {
+        // No partner – auto‑confirm
+        await confirmStreak()
+      }
+
+      setShowProofForm(false)
+      setProofLink('')
+      setProofFile(null)
+      await fetchAll()
+    } finally {
       setSubmittingProof(false)
-      return
     }
-
-    if (partner) {
-      await notifyPartnerCheckin(user!.id)
-      showToast('📨 Proof sent to ' + partner.name + ' for confirmation.')
-      setTodayPending(true)
-      // Mark today's proof as pending – partner will confirm later
-    } else {
-      // No partner – auto‑confirm
-      await confirmStreak()
-    }
-
-    setShowProofForm(false)
-    setProofLink('')
-    setProofFile(null)
-    setSubmittingProof(false)
-    await fetchAll()
   }
 
   const confirmStreak = async () => {
@@ -284,37 +291,51 @@ export default function Dashboard() {
 
   const confirmPartnerProof = async (proof: any) => {
     // Update the proof status
-    await supabase.from('checkin_proofs').update({
+    const { error: proofErr } = await supabase.from('checkin_proofs').update({
       status: 'confirmed',
       confirmed_by: user!.id,
       confirmed_at: new Date().toISOString()
     }).eq('id', proof.id)
+
+    if (proofErr) {
+      showToast('❌ Could not confirm: ' + proofErr.message)
+      return
+    }
 
     // Award points to the poster
     await awardScore(proof.user_id, 'POST_CONFIRMED')
     await awardScore(user!.id, 'PARTNER_BONUS')
 
     // Update the poster's streak
-    const { data: partnerStreak } = await supabase
+    const { data: partnerStreak, error: streakFetchErr } = await supabase
       .from('streaks').select('*').eq('user_id', proof.user_id).single()
-    if (partnerStreak) {
-      const newStreak = (partnerStreak.current_streak || 0) + 1
-      await supabase.from('streaks').update({
-        current_streak: newStreak,
-        best_streak: Math.max(newStreak, partnerStreak.best_streak || 0),
-        last_checked_in: proof.date,
-        on_rest_day: false
-      }).eq('user_id', proof.user_id)
 
-      // Also update challenges for the poster
-      const { data: userChallenges } = await supabase
-        .from('user_challenges').select('*, challenges(*)')
-        .eq('user_id', proof.user_id).is('left_at', null)
-      if (userChallenges) {
-        for (const uc of userChallenges) {
-          if (uc.progress < uc.challenges.days) {
-            await supabase.from('user_challenges').update({ progress: uc.progress + 1 }).eq('id', uc.id)
-          }
+    if (streakFetchErr || !partnerStreak) {
+      showToast('❌ Could not load streak for ' + (proof.profiles?.name || 'partner'))
+      return
+    }
+
+    const newStreak = (partnerStreak.current_streak || 0) + 1
+    const { error: streakErr } = await supabase.from('streaks').update({
+      current_streak: newStreak,
+      best_streak: Math.max(newStreak, partnerStreak.best_streak || 0),
+      last_checked_in: proof.date,
+      on_rest_day: false
+    }).eq('user_id', proof.user_id)
+
+    if (streakErr) {
+      showToast('❌ Could not update streak: ' + streakErr.message)
+      return
+    }
+
+    // Also update challenges for the poster
+    const { data: userChallenges } = await supabase
+      .from('user_challenges').select('*, challenges(*)')
+      .eq('user_id', proof.user_id).is('left_at', null)
+    if (userChallenges) {
+      for (const uc of userChallenges) {
+        if (uc.progress < uc.challenges.days) {
+          await supabase.from('user_challenges').update({ progress: uc.progress + 1 }).eq('id', uc.id)
         }
       }
     }
