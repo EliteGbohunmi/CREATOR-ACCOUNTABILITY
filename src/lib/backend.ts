@@ -16,11 +16,11 @@ export async function registerPushSubscription(userId: string, subscription: Pus
   if (!res.ok) throw new Error(`Failed to save push subscription (${res.status})`);
 }
 
-export async function notifyPartnerCheckin(userId: string) {
+export async function notifyPartnerCheckin(userId: string, partnerId?: string) {
   const res = await fetch(`${BASE_URL}/api/streaks/checkin-notify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: userId })
+    body: JSON.stringify({ user_id: userId, partner_id: partnerId })
   });
   if (!res.ok) throw new Error(`Check-in notification failed (${res.status})`);
 }

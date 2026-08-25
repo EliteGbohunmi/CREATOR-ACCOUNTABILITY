@@ -45,8 +45,9 @@ export default function Dashboard() {
   const [showProofForm, setShowProofForm] = useState(false)
   const [proofLink, setProofLink] = useState('')
   const [proofFile, setProofFile] = useState<File | null>(null)
-  const [partner, setPartner] = useState<any>(null)
+  const [partners, setPartners] = useState<any[]>([])
   const [pendingConfirmations, setPendingConfirmations] = useState<any[]>([])
+  const [confirmingProofId, setConfirmingProofId] = useState<string | null>(null)
   const [submittingProof, setSubmittingProof] = useState(false)
   const [restTokens, setRestTokens] = useState(0)
   const [usingRestToken, setUsingRestToken] = useState(false)
@@ -64,28 +65,31 @@ export default function Dashboard() {
 
   useEffect(() => { if (user) fetchAll() }, [user])
 
-  // Real‑time subscription for pending proofs (partner)
+  // Real‑time subscription for pending proofs (any partner)
   useEffect(() => {
-    if (!user || !partner?.id) return
+    if (!user || partners.length === 0) return
 
+    const partnerIds = partners.map(p => p.id)
     const channel = supabase
       .channel('pending-proofs')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'checkin_proofs',
-          filter: `user_id=eq.${partner.id}`,
         },
-        () => fetchAll()
+        (payload: any) => {
+          const row = payload.new || payload.old
+          if (row && partnerIds.includes(row.user_id)) fetchAll()
+        }
       )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user, partner?.id])
+  }, [user, partners.map(p => p.id).join(',')])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -139,26 +143,27 @@ export default function Dashboard() {
       showToast(`You have ${prof?.rest_tokens} rest token(s) available tonight.`)
     }
 
-    const { data: p1 } = await supabase
+    const { data: allPartnerRows } = await supabase
       .from('accountability_partners')
-      .select('*, profiles!accountability_partners_user2_id_fkey(id, name)')
-      .eq('user1_id', user!.id).maybeSingle()
-    const { data: p2 } = await supabase
-      .from('accountability_partners')
-      .select('*, profiles!accountability_partners_user1_id_fkey(id, name)')
-      .eq('user2_id', user!.id).maybeSingle()
+      .select('*, p1:profiles!accountability_partners_user1_id_fkey(id, name), p2:profiles!accountability_partners_user2_id_fkey(id, name)')
+      .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
 
-    const activePartner = p1 || p2
-    if (activePartner) {
-      const partnerId = activePartner.user1_id === user!.id ? activePartner.user2_id : activePartner.user1_id
-      const partnerName = activePartner.user1_id === user!.id ? activePartner.profiles?.name : activePartner.profiles?.name
-      setPartner({ id: partnerId, name: partnerName })
+    const resolvedPartners = (allPartnerRows || []).map((row: any) => {
+      const isUser1 = row.user1_id === user!.id
+      return { id: isUser1 ? row.user2_id : row.user1_id, name: isUser1 ? row.p2?.name : row.p1?.name }
+    })
+    setPartners(resolvedPartners)
+
+    if (resolvedPartners.length > 0) {
+      const partnerIds = resolvedPartners.map(p => p.id)
       const { data: pendingProofs } = await supabase
         .from('checkin_proofs')
         .select('*, profiles!checkin_proofs_user_id_fkey(name)')
-        .eq('user_id', partnerId)
+        .in('user_id', partnerIds)
         .eq('status', 'pending')
       setPendingConfirmations(pendingProofs || [])
+    } else {
+      setPendingConfirmations([])
     }
 
     setLoading(false)
@@ -211,7 +216,7 @@ export default function Dashboard() {
             date: today,
             proof_url: proofUrl,
             proof_link: link,
-            status: partner ? 'pending' : 'confirmed'
+            status: partners.length > 0 ? 'pending' : 'confirmed'
           },
           { onConflict: 'user_id, date' }
         )
@@ -221,18 +226,18 @@ export default function Dashboard() {
         return
       }
 
-      if (partner) {
+      if (partners.length > 0) {
         try {
-          await notifyPartnerCheckin(user!.id)
+          await Promise.allSettled(partners.map(p => notifyPartnerCheckin(user!.id, p.id)))
         } catch (notifyErr) {
           console.error('notifyPartnerCheckin failed:', notifyErr)
           // Don't block the check-in flow on a notification failure
         }
-        showToast('📨 Proof sent to ' + partner.name + ' for confirmation.')
+        showToast('📨 Sent to ' + partners.length + ' partner' + (partners.length > 1 ? 's' : '') + ' for confirmation.')
         setTodayPending(true)
-        // Mark today's proof as pending – partner will confirm later
+        // Mark today's proof as pending – first partner to confirm will trigger the streak
       } else {
-        // No partner – auto‑confirm
+        // No partners – auto‑confirm
         await confirmStreak()
       }
 
@@ -248,12 +253,13 @@ export default function Dashboard() {
   const confirmStreak = async () => {
     const newStreak = (streak?.current_streak || 0) + 1
     const bestStreak = Math.max(newStreak, streak?.best_streak || 0)
-    await supabase.from('streaks').update({
+    await supabase.from('streaks').upsert({
+      user_id: user!.id,
       current_streak: newStreak,
       best_streak: bestStreak,
       last_checked_in: today,
       on_rest_day: false
-    }).eq('user_id', user!.id)
+    }, { onConflict: 'user_id' })
 
     // Update challenges
     const { data: userChallenges } = await supabase
@@ -278,7 +284,7 @@ export default function Dashboard() {
     if (newAchievements.length > 0) setCurrentMilestone(newAchievements[0])
     await checkAndAwardToken(user!.id)
 
-    if (partner) {
+    if (partners.length > 0) {
       await awardScore(user!.id, 'POST_CONFIRMED')
     } else {
       await awardScore(user!.id, 'SELF_CHECKIN')
@@ -290,59 +296,79 @@ export default function Dashboard() {
   }
 
   const confirmPartnerProof = async (proof: any) => {
-    // Update the proof status
-    const { error: proofErr } = await supabase.from('checkin_proofs').update({
-      status: 'confirmed',
-      confirmed_by: user!.id,
-      confirmed_at: new Date().toISOString()
-    }).eq('id', proof.id)
+    if (confirmingProofId === proof.id) return // already in flight — ignore repeat clicks
+    setConfirmingProofId(proof.id)
+    try {
+      // Atomic guard: only succeeds if this proof is still 'pending'.
+      // If another partner already confirmed it, this update affects 0 rows.
+      const { data: updated, error: proofErr } = await supabase
+        .from('checkin_proofs')
+        .update({
+          status: 'confirmed',
+          confirmed_by: user!.id,
+          confirmed_at: new Date().toISOString()
+        })
+        .eq('id', proof.id)
+        .eq('status', 'pending')
+        .select()
 
-    if (proofErr) {
-      showToast('❌ Could not confirm: ' + proofErr.message)
-      return
-    }
+      if (proofErr) {
+        showToast('❌ Could not confirm: ' + proofErr.message)
+        return
+      }
 
-    // Award points to the poster
-    await awardScore(proof.user_id, 'POST_CONFIRMED')
-    await awardScore(user!.id, 'PARTNER_BONUS')
+      if (!updated || updated.length === 0) {
+        showToast('Already confirmed by another partner.')
+        await fetchAll()
+        return
+      }
 
-    // Update the poster's streak
-    const { data: partnerStreak, error: streakFetchErr } = await supabase
-      .from('streaks').select('*').eq('user_id', proof.user_id).single()
+      // Award points to the poster
+      await awardScore(proof.user_id, 'POST_CONFIRMED')
+      await awardScore(user!.id, 'PARTNER_BONUS')
 
-    if (streakFetchErr || !partnerStreak) {
-      showToast('❌ Could not load streak for ' + (proof.profiles?.name || 'partner'))
-      return
-    }
+      // Update the poster's streak
+      const { data: partnerStreak, error: streakFetchErr } = await supabase
+        .from('streaks').select('*').eq('user_id', proof.user_id).maybeSingle()
 
-    const newStreak = (partnerStreak.current_streak || 0) + 1
-    const { error: streakErr } = await supabase.from('streaks').update({
-      current_streak: newStreak,
-      best_streak: Math.max(newStreak, partnerStreak.best_streak || 0),
-      last_checked_in: proof.date,
-      on_rest_day: false
-    }).eq('user_id', proof.user_id)
+      if (streakFetchErr) {
+        showToast('❌ Could not load streak for ' + (proof.profiles?.name || 'partner'))
+        return
+      }
 
-    if (streakErr) {
-      showToast('❌ Could not update streak: ' + streakErr.message)
-      return
-    }
+      const newStreak = (partnerStreak?.current_streak || 0) + 1
+      const { error: streakErr } = await supabase.from('streaks').upsert({
+        user_id: proof.user_id,
+        current_streak: newStreak,
+        best_streak: Math.max(newStreak, partnerStreak?.best_streak || 0),
+        last_checked_in: proof.date,
+        on_rest_day: false
+      }, { onConflict: 'user_id' })
 
-    // Also update challenges for the poster
-    const { data: userChallenges } = await supabase
-      .from('user_challenges').select('*, challenges(*)')
-      .eq('user_id', proof.user_id).is('left_at', null)
-    if (userChallenges) {
-      for (const uc of userChallenges) {
-        if (uc.progress < uc.challenges.days) {
-          await supabase.from('user_challenges').update({ progress: uc.progress + 1 }).eq('id', uc.id)
+      if (streakErr) {
+        showToast('❌ Could not update streak: ' + streakErr.message)
+        return
+      }
+
+      // Also update challenges for the poster
+      const { data: userChallenges } = await supabase
+        .from('user_challenges').select('*, challenges(*)')
+        .eq('user_id', proof.user_id).is('left_at', null)
+      if (userChallenges) {
+        for (const uc of userChallenges) {
+          if (uc.progress < uc.challenges.days) {
+            await supabase.from('user_challenges').update({ progress: uc.progress + 1 }).eq('id', uc.id)
+          }
         }
       }
-    }
 
-    // Refresh everything
-    await fetchAll()
-    showToast('✅ Confirmed ' + proof.profiles?.name + '\'s post!')
+      // Refresh everything — this also removes the proof from any other
+      // partner's pendingConfirmations list, since it's no longer 'pending'
+      await fetchAll()
+      showToast('✅ Confirmed ' + proof.profiles?.name + '\'s post!')
+    } finally {
+      setConfirmingProofId(null)
+    }
   }
 
   const rejectPartnerProof = async (proof: any) => {
@@ -472,10 +498,18 @@ export default function Dashboard() {
                       <p style={{ color: '#555', fontSize: '0.82rem', marginBottom: '0.75rem' }}>No proof provided — honor system.</p>
                     )}
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button style={styles.confirmBtn} onClick={() => confirmPartnerProof(proof)}>
-                        <CheckCircle2 size={15} color="#0A0A0A" /> Confirm Posted
+                      <button
+                        style={{ ...styles.confirmBtn, opacity: confirmingProofId === proof.id ? 0.6 : 1 }}
+                        onClick={() => confirmPartnerProof(proof)}
+                        disabled={confirmingProofId === proof.id}
+                      >
+                        <CheckCircle2 size={15} color="#0A0A0A" /> {confirmingProofId === proof.id ? 'Confirming...' : 'Confirm Posted'}
                       </button>
-                      <button style={styles.rejectBtn} onClick={() => rejectPartnerProof(proof)}>
+                      <button
+                        style={{ ...styles.rejectBtn, opacity: confirmingProofId === proof.id ? 0.6 : 1 }}
+                        onClick={() => rejectPartnerProof(proof)}
+                        disabled={confirmingProofId === proof.id}
+                      >
                         <X size={15} color="#E53E3E" /> Reject
                       </button>
                     </div>
@@ -558,7 +592,7 @@ export default function Dashboard() {
               ) : todayPending ? (
                 <div style={{ ...styles.checkedIn, borderColor: '#F5A62340', color: '#F5A623' }}>
                   <Clock size={18} color="#F5A623" />
-                  Waiting for {partner?.name || 'partner'} to confirm
+                  Waiting for {partners.length > 1 ? 'a partner' : partners[0]?.name || 'your partner'} to confirm
                 </div>
               ) : todayRest ? (
                 <div style={{ ...styles.checkedIn, borderColor: '#33337A40', color: '#888' }}>
@@ -590,7 +624,11 @@ export default function Dashboard() {
                     </button>
                   </div>
                   <p style={{ color: '#555', fontSize: '0.82rem', marginBottom: '0.75rem' }}>
-                    {partner ? `${partner.name} will confirm your post before your streak counts.` : 'No partner — your check-in will be confirmed automatically.'}
+                    {partners.length > 0
+                      ? (partners.length === 1
+                          ? `${partners[0].name} will confirm your post before your streak counts.`
+                          : `Any of your ${partners.length} partners can confirm your post before your streak counts.`)
+                      : 'No partner — your check-in will be confirmed automatically.'}
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <div>
@@ -611,7 +649,7 @@ export default function Dashboard() {
                       <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setProofFile(e.target.files?.[0] || null)} />
                     </div>
                     <button style={styles.submitBtn} onClick={submitProof} disabled={submittingProof}>
-                      {submittingProof ? 'Submitting...' : partner ? 'Submit for Confirmation' : 'Confirm Check-in'}
+                      {submittingProof ? 'Submitting...' : partners.length > 0 ? 'Submit for Confirmation' : 'Confirm Check-in'}
                     </button>
                   </div>
                 </motion.div>
