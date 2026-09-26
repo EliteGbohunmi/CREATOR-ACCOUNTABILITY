@@ -45,6 +45,11 @@ const landingCSS = `
     border-radius: 16px;
     overflow: hidden;
   }
+  .compare-cards {
+    display: none;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 
   @media (max-width: 900px) {
     .hero { padding: 120px 0 72px; }
@@ -52,7 +57,8 @@ const landingCSS = `
     .logos-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; }
     .day-grid { grid-template-columns: 1fr; }
     .tokens-grid { grid-template-columns: 1fr; gap: 32px; }
-    .compare-table { grid-template-columns: 1fr; }
+    .compare-table { display: none; }
+    .compare-cards { display: grid; }
   }
 
   @media (max-width: 640px) {
@@ -180,7 +186,7 @@ const compareRows = [
   { feature: 'Idea capture, always on', streak: true, notion: true, alone: 'partial' },
   { feature: 'Zero setup required', streak: true, notion: false, alone: true },
   { feature: 'Free forever', streak: true, notion: false, alone: true },
-]
+] as const
 
 // ---------- Page ----------
 export default function Landing() {
@@ -380,7 +386,7 @@ function ProofBar() {
   )
 }
 
-// ---------- NEW: Platform logos strip ----------
+// ---------- Platform logos strip ----------
 function PlatformStrip() {
   return (
     <section style={s.platformSection}>
@@ -488,7 +494,7 @@ function HowItWorks() {
   )
 }
 
-// ---------- NEW: Day in the life ----------
+// ---------- Day in the life ----------
 function DayInLife() {
   return (
     <Section>
@@ -504,7 +510,6 @@ function DayInLife() {
             <div style={d.accent ? s.dayTimeAccent : s.dayTime}>{d.time}</div>
             <div style={s.dayLabel}>{d.label}</div>
             <div style={s.dayDesc}>{d.desc}</div>
-            {/* connector dot */}
             <div style={d.accent ? s.dayDotAccent : s.dayDot} aria-hidden />
           </motion.div>
         ))}
@@ -547,7 +552,7 @@ function FeatureArt({ kind }: { kind: string }) {
   )
 }
 
-// ---------- NEW: Rest tokens explainer ----------
+// ---------- Rest tokens ----------
 function RestTokens() {
   return (
     <Section>
@@ -592,22 +597,15 @@ function TokenIllustration() {
           <stop offset="100%" stopColor="#FF7A47" stopOpacity="0" />
         </radialGradient>
       </defs>
-
-      {/* Glow */}
       <circle cx="200" cy="160" r="140" fill="url(#tokenGlow)" />
-
-      {/* Main token */}
       <g transform="translate(200, 160)">
         <circle r="70" fill={c.accentSoft} stroke="url(#tokenGrad)" strokeWidth="2" />
         <circle r="58" fill="none" stroke={c.accentBorder} strokeWidth="1" strokeDasharray="4 6" />
-        {/* Center flame */}
         <g transform="translate(-14, -18) scale(1.6)">
           <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" fill="none" stroke="url(#tokenGrad)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </g>
         <text y="26" fill={c.accent} fontSize="14" fontWeight="700" textAnchor="middle" fontFamily="Space Grotesk, Inter" letterSpacing="1.5">TOKEN</text>
       </g>
-
-      {/* Small orbiting tokens */}
       <g transform="translate(90, 80)">
         <circle r="26" fill={c.surface} stroke={c.accentBorder} strokeWidth="1.5" />
         <text y="5" fill={c.accent} fontSize="12" fontWeight="700" textAnchor="middle" fontFamily="Space Grotesk, Inter">+1</text>
@@ -616,8 +614,6 @@ function TokenIllustration() {
         <circle r="26" fill={c.surface} stroke={c.accentBorder} strokeWidth="1.5" />
         <text y="5" fill={c.accent} fontSize="12" fontWeight="700" textAnchor="middle" fontFamily="Space Grotesk, Inter">+1</text>
       </g>
-
-      {/* Progress bar below */}
       <g transform="translate(60, 285)">
         <rect width="280" height="8" rx="4" fill={c.border} />
         <rect width="200" height="8" rx="4" fill="url(#tokenGrad)" />
@@ -653,7 +649,7 @@ function Testimonials() {
   )
 }
 
-// ---------- NEW: Comparison ----------
+// ---------- Comparison ----------
 function Comparison() {
   const renderCell = (val: boolean | 'partial') => {
     if (val === true) {
@@ -678,6 +674,12 @@ function Comparison() {
     )
   }
 
+  const columns: { key: 'streak' | 'notion' | 'alone'; label: string; highlight: boolean }[] = [
+    { key: 'streak', label: 'Streak', highlight: true },
+    { key: 'notion', label: 'Notion / templates', highlight: false },
+    { key: 'alone', label: 'Going it alone', highlight: false },
+  ]
+
   return (
     <Section>
       <SectionHeader
@@ -686,6 +688,8 @@ function Comparison() {
         body="Everyone has a Notion template, a Twitter thread, and good intentions. Only one of these actually keeps you posting."
         align="center"
       />
+
+      {/* Desktop: 4-column table */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -693,22 +697,46 @@ function Comparison() {
         transition={{ duration: 0.6 }}
         className="compare-table"
       >
-        {/* Header row */}
         <div style={{ ...s.compareCell, ...s.compareHeader, borderBottom: `1px solid ${c.border}` }}>What you get</div>
         <div style={{ ...s.compareCell, ...s.compareHeaderBrand, borderBottom: `1px solid ${c.border}` }}>Streak</div>
         <div style={{ ...s.compareCell, ...s.compareHeader, borderBottom: `1px solid ${c.border}` }}>Notion / templates</div>
         <div style={{ ...s.compareCell, ...s.compareHeader, borderBottom: `1px solid ${c.border}` }}>Going it alone</div>
 
-        {/* Rows */}
         {compareRows.map((row, i) => (
           <CompareRow key={i} row={row} isLast={i === compareRows.length - 1} renderCell={renderCell} />
         ))}
       </motion.div>
+
+      {/* Mobile: 3 stacked product cards */}
+      <div className="compare-cards">
+        {columns.map((col) => (
+          <motion.div
+            key={col.key}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={VIEWPORT}
+            transition={{ duration: 0.5 }}
+            style={col.highlight ? s.compareCardHighlight : s.compareCard}
+          >
+            <div style={col.highlight ? s.compareCardTitleHighlight : s.compareCardTitle}>
+              {col.label}
+            </div>
+            <div style={s.compareCardList}>
+              {compareRows.map((row, j) => (
+                <div key={j} style={s.compareCardRow}>
+                  <div style={s.compareCardFeature}>{row.feature}</div>
+                  <div style={s.compareCardIcon}>{renderCell(row[col.key])}</div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
     </Section>
   )
 }
 
-function CompareRow({ row, isLast, renderCell }: { row: typeof compareRows[0]; isLast: boolean; renderCell: (v: boolean | 'partial') => React.ReactNode }) {
+function CompareRow({ row, isLast, renderCell }: { row: typeof compareRows[number]; isLast: boolean; renderCell: (v: boolean | 'partial') => React.ReactNode }) {
   const border = isLast ? 'none' : `1px solid ${c.border}`
   return (
     <>
@@ -864,7 +892,6 @@ const s: Record<string, React.CSSProperties> = {
   proofNum: { fontFamily: '"Space Grotesk", Inter, sans-serif', fontWeight: 800, fontSize: 24, color: c.accent, marginBottom: 4 },
   proofLabel: { color: c.inkSoft, fontSize: 13 },
 
-  // Platform strip
   platformSection: { padding: '40px 0', position: 'relative', zIndex: 1 },
   platformLabel: { textAlign: 'center', color: c.inkFaint, fontSize: 12, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 32px' },
   logosGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 24, alignItems: 'center' },
@@ -891,7 +918,6 @@ const s: Record<string, React.CSSProperties> = {
   ghostNumber: { position: 'absolute', top: -28, right: 8, fontFamily: '"Space Grotesk", Inter, sans-serif', fontWeight: 800, fontSize: 140, lineHeight: 1, color: c.ink, opacity: 0.05, letterSpacing: '-0.06em', pointerEvents: 'none', userSelect: 'none' },
   stepLabel: { fontFamily: '"Space Grotesk", Inter, sans-serif', fontWeight: 800, fontSize: 14, color: c.accent, letterSpacing: '.1em', marginBottom: 16 },
 
-  // Day in the life
   dayCard: { position: 'relative', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 16, padding: '28px 24px 28px 28px', overflow: 'hidden' },
   dayCardAccent: { position: 'relative', background: c.surface, border: `1px solid ${c.accentBorder}`, borderRadius: 16, padding: '28px 24px 28px 28px', overflow: 'hidden' },
   dayTime: { fontFamily: '"Space Grotesk", Inter, sans-serif', fontSize: 13, fontWeight: 700, color: c.inkFaint, letterSpacing: '.08em', marginBottom: 14 },
@@ -903,7 +929,6 @@ const s: Record<string, React.CSSProperties> = {
 
   featureTag: { display: 'inline-block', background: 'rgba(255,255,255,0.06)', color: c.inkSoft, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: '.05em', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 16 },
 
-  // Rest tokens
   tokenRules: { display: 'flex', flexDirection: 'column', gap: 16, marginTop: 32 },
   tokenRule: { display: 'flex', alignItems: 'baseline', gap: 14 },
   tokenRuleNum: { fontFamily: '"Space Grotesk", Inter, sans-serif', fontWeight: 800, fontSize: 28, color: c.accent, minWidth: 48, letterSpacing: '-0.02em' },
@@ -917,10 +942,20 @@ const s: Record<string, React.CSSProperties> = {
   personName: { fontWeight: 600, fontSize: 14, color: c.ink },
   personRole: { color: c.inkSoft, fontSize: 12 },
 
-  // Comparison table
+  // Comparison table — desktop
   compareCell: { padding: '20px 22px', fontSize: 14, color: c.inkSoft, display: 'flex', alignItems: 'center', gap: 10, background: c.surface },
   compareHeader: { fontFamily: '"Space Grotesk", Inter, sans-serif', fontSize: 13, fontWeight: 700, color: c.inkFaint, textTransform: 'uppercase', letterSpacing: '.08em', background: c.surfaceAlt },
   compareHeaderBrand: { fontFamily: '"Space Grotesk", Inter, sans-serif', fontSize: 14, fontWeight: 800, color: c.accent, textTransform: 'uppercase', letterSpacing: '.08em', background: 'rgba(255,122,71,0.08)', borderLeft: `1px solid ${c.accentBorder}`, borderRight: `1px solid ${c.accentBorder}` },
+
+  // Comparison cards — mobile
+  compareCard: { background: c.surface, border: `1px solid ${c.border}`, borderRadius: 16, padding: '20px 22px' },
+  compareCardHighlight: { background: c.surface, border: `1px solid ${c.accentBorder}`, borderRadius: 16, padding: '20px 22px' },
+  compareCardTitle: { fontFamily: '"Space Grotesk", Inter, sans-serif', fontSize: 15, fontWeight: 700, color: c.ink, letterSpacing: '-0.01em', marginBottom: 16 },
+  compareCardTitleHighlight: { fontFamily: '"Space Grotesk", Inter, sans-serif', fontSize: 15, fontWeight: 800, color: c.accent, letterSpacing: '-0.01em', marginBottom: 16 },
+  compareCardList: { display: 'flex', flexDirection: 'column', gap: 12 },
+  compareCardRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
+  compareCardFeature: { fontSize: 14, color: c.inkSoft, lineHeight: 1.4 },
+  compareCardIcon: { display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, width: 24 },
 
   pricing: { background: '#FAFAF7', color: '#0F2544', position: 'relative', zIndex: 1 },
   pricingTitle: { fontFamily: '"Space Grotesk", Inter, sans-serif', fontWeight: 700, fontSize: 'clamp(26px, 4.5vw, 48px)', color: '#0F2544', letterSpacing: '-0.025em', lineHeight: 1.1, margin: '0 0 16px' },
