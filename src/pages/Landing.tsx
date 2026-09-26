@@ -1,8 +1,51 @@
-// src/Landing.tsx
+// src/pages/Landing.tsx
 import { Link } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { useState } from 'react'
 import { ArrowRight, ChevronDown } from 'lucide-react'
+
+// ---------- Scoped responsive CSS (lives with the component) ----------
+const landingCSS = `
+  .streak-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+  .hero { padding: 160px 0 96px; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 64px;
+    align-items: center;
+  }
+
+  @media (max-width: 900px) {
+    .hero { padding: 120px 0 72px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 48px; }
+  }
+
+  @media (max-width: 640px) {
+    .streak-container { padding-left: 20px; padding-right: 20px; }
+    .hero { padding: 104px 0 56px; }
+    .hero-grid { gap: 36px; }
+    .hero-ctas { flex-direction: column; align-items: stretch; gap: 10px !important; }
+    .cta-full-sm { justify-content: center; width: 100%; }
+    .streak-section { padding-top: 64px !important; padding-bottom: 64px !important; }
+    .pricing { padding: 72px 0 !important; }
+    .proof-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 20px !important; }
+    .problem-row { grid-template-columns: 1fr !important; padding: 20px 22px !important; gap: 16px !important; }
+    .problem-art { display: none !important; }
+    .preview-card { padding: 16px !important; }
+  }
+
+  @media (max-width: 420px) {
+    .streak-container { padding-left: 16px; padding-right: 16px; }
+    .hero { padding: 96px 0 48px; }
+    .hide-sm { display: none; }
+  }
+`
 
 // ---------- Design Tokens ----------
 const c = {
@@ -42,8 +85,6 @@ const wordInner: Variants = {
   hidden: { y: '110%' },
   show: { y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
 }
-
-// Slide in from left/right, slide back out when scrolled past
 const slideInLeft: Variants = {
   hidden: { opacity: 0, x: -40 },
   show: { opacity: 1, x: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
@@ -51,10 +92,6 @@ const slideInLeft: Variants = {
 const slideInRight: Variants = {
   hidden: { opacity: 0, x: 40 },
   show: { opacity: 1, x: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
-}
-const slideOutUp: Variants = {
-  hidden: { opacity: 0, y: -20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
 }
 
 // ---------- Static data ----------
@@ -104,6 +141,7 @@ const proof = [
 export default function Landing() {
   return (
     <div style={s.page}>
+      <style>{landingCSS}</style>
       <div style={s.bg} aria-hidden />
       <Nav />
       <Hero />
@@ -189,6 +227,7 @@ function Hero() {
           </div>
 
           <motion.div
+            className="preview-card"
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.5, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -212,7 +251,7 @@ function Word({ children, accent }: { children: React.ReactNode; accent?: boolea
   )
 }
 
-// ---------- Hero illustration (SVG dashboard mockup) ----------
+// ---------- Hero illustration ----------
 function HeroIllustration() {
   return (
     <div style={{ position: 'relative' }}>
@@ -232,11 +271,9 @@ function HeroIllustration() {
           </linearGradient>
         </defs>
 
-        {/* Progress header */}
         <text x="0" y="18" fill={c.inkSoft} fontSize="10" fontWeight="600" letterSpacing="1.2">TODAY</text>
         <text x="0" y="44" fill={c.ink} fontSize="22" fontFamily="Space Grotesk, Inter" fontWeight="700">Day 47</text>
 
-        {/* Big flame + streak number */}
         <g transform="translate(240, 8)">
           <circle cx="55" cy="55" r="55" fill={c.accentSoft} stroke="url(#flameGrad)" strokeWidth="1.5" />
           <g transform="translate(35, 30) scale(1.6)">
@@ -245,7 +282,6 @@ function HeroIllustration() {
           </g>
         </g>
 
-        {/* Bar chart - last 7 days */}
         <g transform="translate(0, 90)">
           {[40, 55, 30, 70, 60, 85, 45].map((h, i) => (
             <rect
@@ -262,7 +298,6 @@ function HeroIllustration() {
           <line x1="0" y1="86" x2="400" y2="86" stroke={c.border} strokeWidth="1" />
         </g>
 
-        {/* Trend line overlay */}
         <path
           d="M 26 160 L 82 148 L 138 168 L 194 132 L 250 140 L 306 118 L 362 150"
           fill="none"
@@ -272,7 +307,6 @@ function HeroIllustration() {
           strokeLinejoin="round"
         />
 
-        {/* Partner badge */}
         <g transform="translate(0, 210)">
           <rect x="0" y="0" width="180" height="48" rx="12" fill={c.successSoft} stroke={c.successBorder} />
           <circle cx="24" cy="24" r="12" fill={c.success} opacity="0.25" />
@@ -281,7 +315,6 @@ function HeroIllustration() {
           <text x="46" y="36" fill={c.inkSoft} fontSize="10">Today at 9:14 AM</text>
         </g>
 
-        {/* Rest tokens */}
         <g transform="translate(200, 210)">
           <rect x="0" y="0" width="200" height="48" rx="12" fill={c.accentSoft} stroke={c.accentBorder} />
           <circle cx="24" cy="24" r="12" fill={c.accent} opacity="0.25" />
@@ -290,7 +323,6 @@ function HeroIllustration() {
           <text x="46" y="36" fill={c.inkSoft} fontSize="10">Next in 12 days</text>
         </g>
 
-        {/* Week dots */}
         <g transform="translate(0, 285)">
           {['M','T','W','T','F','S','S'].map((d, i) => (
             <g key={i} transform={`translate(${i * 56 + 26}, 0)`}>
@@ -332,7 +364,7 @@ function ProofBar() {
   )
 }
 
-// ---------- Problem (single column list, art on the right) ----------
+// ---------- Problem ----------
 function Problem() {
   return (
     <Section>
@@ -366,7 +398,6 @@ function Problem() {
   )
 }
 
-// ---------- Small SVG art for problem rows ----------
 function ProblemArt({ kind }: { kind: string }) {
   const stroke = c.danger
   const strokeSoft = 'rgba(255,128,128,0.35)'
@@ -388,14 +419,12 @@ function ProblemArt({ kind }: { kind: string }) {
           <line x1="0" y1="0" x2="10" y2="4" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
         </g>
       )}
-
       {kind === 'spark' && (
         <g transform="translate(60, 40)">
           <path d="M 0 -22 L 4 -6 L 20 0 L 4 6 L 0 22 L -4 6 L -20 0 L -4 -6 Z" fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" />
           <circle r="3" fill={stroke} />
         </g>
       )}
-
       {kind === 'people' && (
         <g transform="translate(60, 40)">
           <circle cx="-12" cy="-6" r="8" fill="none" stroke={stroke} strokeWidth="2" />
@@ -404,7 +433,6 @@ function ProblemArt({ kind }: { kind: string }) {
           <path d="M 2 14 C 2 4 6 0 14 0 C 22 0 26 4 26 14" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" opacity="0.5" />
         </g>
       )}
-
       {kind === 'shield' && (
         <g transform="translate(60, 40)">
           <path d="M 0 -22 C 8 -22 16 -18 20 -14 L 20 6 C 20 16 12 22 0 26 C -12 22 -20 16 -20 6 L -20 -14 C -16 -18 -8 -22 0 -22 Z" fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" />
@@ -415,7 +443,7 @@ function ProblemArt({ kind }: { kind: string }) {
   )
 }
 
-// ---------- How it works (ghost numeral watermark) ----------
+// ---------- How it works ----------
 function HowItWorks() {
   return (
     <Section alt>
@@ -461,7 +489,6 @@ function Features() {
   )
 }
 
-// Small SVG illustration for feature card header
 function FeatureArt({ kind }: { kind: string }) {
   const stroke = c.accent
   const soft = 'rgba(255,122,71,0.18)'
@@ -659,7 +686,7 @@ function Footer() {
 // ---------- Shared ----------
 function Container({ children, style, className }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
   return (
-    <div className={`streak-container ${className ?? ''}`} style={{ maxWidth: 1200, margin: '0 auto', width: '100%', ...style }}>
+    <div className={`streak-container ${className ?? ''}`} style={style}>
       {children}
     </div>
   )
@@ -714,8 +741,8 @@ const s: Record<string, React.CSSProperties> = {
     padding: '9px 16px', borderRadius: 10, textDecoration: 'none',
   },
 
-  hero: { padding: '160px 0 96px', position: 'relative', zIndex: 1 },
-  heroGrid: { display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 0.85fr)', gap: 64, alignItems: 'center' },
+  hero: { position: 'relative', zIndex: 1 },
+  heroGrid: { alignItems: 'center' },
   eyebrow: {
     display: 'inline-flex', alignItems: 'center', gap: 8,
     color: c.accent, fontSize: 13, fontWeight: 600,
@@ -724,7 +751,7 @@ const s: Record<string, React.CSSProperties> = {
   eyebrowDot: { width: 6, height: 6, borderRadius: '50%', background: c.accent, display: 'inline-block' },
   heroTitle: {
     fontFamily: '"Space Grotesk", Inter, sans-serif', fontWeight: 800,
-    fontSize: 'clamp(38px, 8vw, 84px)', lineHeight: 1.05,
+    fontSize: 'clamp(34px, 8vw, 84px)', lineHeight: 1.05,
     letterSpacing: '-0.035em', color: c.ink, margin: '0 0 24px',
   },
   wordMask: { display: 'inline-block', overflow: 'hidden', verticalAlign: 'top', paddingBottom: '0.12em' },
@@ -759,14 +786,13 @@ const s: Record<string, React.CSSProperties> = {
   sectionTag: { display: 'inline-block', color: c.accent, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 14 },
   h2: {
     fontFamily: '"Space Grotesk", Inter, sans-serif', fontWeight: 700,
-    fontSize: 'clamp(26px, 3.5vw, 40px)', color: c.ink, lineHeight: 1.15,
+    fontSize: 'clamp(24px, 3.5vw, 40px)', color: c.ink, lineHeight: 1.15,
     letterSpacing: '-0.02em', margin: '0 0 16px',
   },
   bodyText: { color: c.inkSoft, fontSize: 17, lineHeight: 1.7, maxWidth: 560, margin: 0 },
 
-  grid3: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 },
+  grid3: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 },
 
-  // Problem row
   problemRow: {
     display: 'grid',
     gridTemplateColumns: '1fr auto',
@@ -784,12 +810,10 @@ const s: Record<string, React.CSSProperties> = {
   },
   problemFix: { color: c.inkSoft, fontSize: 15, lineHeight: 1.6 },
 
-  // Regular card (features, testimonials)
   card: { background: c.surface, border: `1px solid ${c.border}`, borderRadius: 16, padding: 28 },
   cardTitle: { fontWeight: 600, fontSize: 17, color: c.ink, marginBottom: 8 },
   cardBody: { color: c.inkSoft, fontSize: 15, lineHeight: 1.6 },
 
-  // Step card with ghost numeral
   stepCard: {
     position: 'relative',
     background: c.surface,
@@ -840,10 +864,10 @@ const s: Record<string, React.CSSProperties> = {
   personName: { fontWeight: 600, fontSize: 14, color: c.ink },
   personRole: { color: c.inkSoft, fontSize: 12 },
 
-  pricing: { padding: '112px 0', background: '#FAFAF7', color: '#0F2544', position: 'relative', zIndex: 1 },
+  pricing: { background: '#FAFAF7', color: '#0F2544', position: 'relative', zIndex: 1 },
   pricingTitle: {
     fontFamily: '"Space Grotesk", Inter, sans-serif', fontWeight: 700,
-    fontSize: 'clamp(28px, 4.5vw, 48px)', color: '#0F2544',
+    fontSize: 'clamp(26px, 4.5vw, 48px)', color: '#0F2544',
     letterSpacing: '-0.025em', lineHeight: 1.1, margin: '0 0 16px',
   },
   pricingBody: { color: '#5A6B85', fontSize: 17, lineHeight: 1.7, maxWidth: 480, margin: '0 auto 40px' },
