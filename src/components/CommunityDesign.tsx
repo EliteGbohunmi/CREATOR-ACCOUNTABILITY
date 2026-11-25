@@ -369,7 +369,7 @@ export default function CommunityDesign({
                               e.currentTarget.parentElement!.textContent = getInitials(name);
                               e.currentTarget.parentElement!.style.background = c.sunk;
                               e.currentTarget.parentElement!.style.color = c.accent;
-                              e.currentTarget.parentElement!.style.fontWeight = 700;
+                              e.currentTarget.parentElement!.style.fontWeight = '700';
                               e.currentTarget.parentElement!.style.fontSize = '0.82rem';
                               e.currentTarget.parentElement!.style.display = 'flex';
                               e.currentTarget.parentElement!.style.alignItems = 'center';
@@ -719,9 +719,6 @@ const s = {
     minWidth: 0,
     cursor: 'pointer',
     transition: 'opacity 0.2s ease',
-    ':hover': {
-      opacity: 0.8,
-    },
   },
   avatarRing: {
     padding: 2,

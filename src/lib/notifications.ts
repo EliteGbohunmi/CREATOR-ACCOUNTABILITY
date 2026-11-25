@@ -40,3 +40,31 @@ export async function markAllRead(email: string): Promise<void> {
     })
   } catch {}
 }
+
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (!('Notification' in window)) return false
+  if (Notification.permission === 'granted') return true
+  if (Notification.permission === 'denied') return false
+  const result = await Notification.requestPermission()
+  return result === 'granted'
+}
+
+export async function fireReminder(title: string, body: string): Promise<void> {
+  if (!('Notification' in window)) return
+  if (Notification.permission !== 'granted') return
+  new Notification(title, { body, icon: '/app-icon.png' })
+}
+
+export function saveReminderTime(hour: number, minute: number): void {
+  localStorage.setItem('reminder_time', JSON.stringify({ hour, minute }))
+}
+
+export function getSavedReminderTime(): { hour: number; minute: number } | null {
+  const raw = localStorage.getItem('reminder_time')
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
