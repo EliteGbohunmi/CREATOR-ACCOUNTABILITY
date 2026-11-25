@@ -1,4 +1,4 @@
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined) || ''
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'https://streak-backend-ar7h.onrender.com'
 
 export type AppNotification = {
   id: string
