@@ -49,14 +49,12 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      // If app is open, focus + navigate it
       for (const client of list) {
         if (client.url.startsWith(self.location.origin) && 'focus' in client) {
           client.navigate(absoluteUrl);
           return client.focus();
         }
       }
-      // If app is closed, open within scope (Chrome will use PWA if installed)
       return clients.openWindow(absoluteUrl);
     })
   );
