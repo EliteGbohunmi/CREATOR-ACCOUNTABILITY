@@ -18,6 +18,7 @@ import Feed from './pages/Feed'
 import Partners from './pages/Partners'
 import Leaderboard from './pages/Leaderboard'
 import Community from './pages/Community'
+import Notifications from './pages/Notifications'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -101,6 +102,7 @@ function AppRoutes() {
       <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
       <Route path="/partners" element={<ProtectedRoute><Partners /></ProtectedRoute>} />
       <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
     </Routes>
   )
 }
