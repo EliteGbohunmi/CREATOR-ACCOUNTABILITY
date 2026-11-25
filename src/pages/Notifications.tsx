@@ -120,7 +120,7 @@ export default function Notifications() {
                 {!n.read_at && <span style={styles.unreadDot} />}
                 <div style={styles.cardTop}>
                   <span style={styles.cardTitle}>{n.title || 'Notification'}</span>
-                  <span style={styles.cardTime}>{timeAgo(n.created_at)}</span>
+                  <span style={styles.cardTime}>{timeAgo(n.sent_at)}</span>
                 </div>
                 {n.body && <div style={styles.cardBody}>{n.body}</div>}
               </button>

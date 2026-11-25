@@ -7,7 +7,7 @@ export type AppNotification = {
   type: string
   action: string | null
   read_at: string | null
-  created_at: string
+  sent_at: string
   delivered: boolean
 }
 
