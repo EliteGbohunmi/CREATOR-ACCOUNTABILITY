@@ -16,11 +16,16 @@ export default function Notifications() {
     if (!user?.email) return
     let mounted = true
     const load = async () => {
-      const res = await fetchNotifications(user.email!)
-      if (!mounted) return
-      setItems(res.notifications)
-      setUnread(res.unread)
-      setLoading(false)
+      try {
+        const res = await fetchNotifications(user.email!)
+        if (!mounted) return
+        setItems(res.notifications)
+        setUnread(res.unread)
+      } catch (err) {
+        console.error('Failed to load notifications:', err)
+      } finally {
+        if (mounted) setLoading(false)
+      }
     }
     load()
     return () => { mounted = false }
