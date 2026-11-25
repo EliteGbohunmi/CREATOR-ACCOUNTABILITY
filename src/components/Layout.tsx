@@ -150,11 +150,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main style={{
         ...styles.main,
         marginLeft: isMobile ? '0' : '230px',
-        paddingTop: isMobile ? '4.5rem' : '4.5rem',
+        paddingTop: 0,
         paddingLeft: isMobile ? '1rem' : '2rem',
         paddingRight: isMobile ? '1rem' : '2rem',
         paddingBottom: isMobile ? '100px' : '2rem',
       }}>
+        
+        {/* HEADER SPACER — prevents content from going under the fixed header */}
+        <div style={{ height: '64px' }} aria-hidden />
         {children}
         {!isMobile && <div style={{ height: '20px' }} />}
       </main>
