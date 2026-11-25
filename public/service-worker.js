@@ -29,7 +29,7 @@ self.addEventListener('notificationclick', (event) => {
 
   if (action === 'accept' && data.proofId && data.partnerEmail) {
     event.waitUntil(
-      fetch(`${API_URL}/api/proof/accept`, {
+      fetch(API_URL + '/api/proof/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proofId: data.proofId, partnerEmail: data.partnerEmail })
@@ -42,7 +42,7 @@ self.addEventListener('notificationclick', (event) => {
   if (actionType === 'checkin' || action === 'checkin') {
     targetUrl = '/dashboard?proof=open';
   } else if (action === 'view' && data.proofId) {
-    targetUrl = `/dashboard?proof=${data.proofId}&view=1`;
+    targetUrl = '/dashboard?proof=' + data.proofId + '&view=1';
   }
 
   event.waitUntil(
