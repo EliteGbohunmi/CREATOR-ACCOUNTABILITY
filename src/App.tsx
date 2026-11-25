@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/AuthContext'
+import { setupPushNotifications } from './lib/push'
 import NotificationModal from './components/NotificationModal'   // default import
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -31,6 +32,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     navigator.serviceWorker.addEventListener('message', handler)
     return () => navigator.serviceWorker.removeEventListener('message', handler)
   }, [])
+
+  useEffect(() => {
+    if (user) setupPushNotifications(user.id)
+  }, [user])
 
   if (loading) return (
     <div style={{
