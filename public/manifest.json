@@ -3,6 +3,7 @@
   "short_name": "Creator",
   "description": "Stay accountable. Keep your streak alive.",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0A0A0A",
   "theme_color": "#F5A623",

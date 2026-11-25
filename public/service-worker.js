@@ -47,13 +47,17 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      // First: find any open client on our origin, navigate + focus it
       for (const client of list) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           client.navigate(targetUrl);
           return client.focus();
         }
       }
-      return clients.openWindow(targetUrl);
+      // Second: if PWA is installed, open it via its scope
+      if (clients.openWindow) {
+        return clients.openWindow(self.registration.scope + targetUrl.replace(/^\//, ''));
+      }
     })
   );
 });
