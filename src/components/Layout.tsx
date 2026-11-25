@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import NotificationBell from './NotificationBell'
 import {
   LayoutDashboard, CalendarDays, Trophy, BarChart2, Settings,
   Flame, LogOut, Users, Award, BookMarked, UserCheck, Grid, X,
@@ -45,6 +46,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={styles.wrapper}>
+      <div style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 150 }}>
+        <NotificationBell />
+      </div>
       {!isMobile && (
         <aside style={styles.sidebar}>
           <div style={styles.brand}>
