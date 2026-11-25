@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { supabase } from '../lib/supabase'
 import NotificationBell from './NotificationBell'
 import {
   LayoutDashboard, CalendarDays, Trophy, BarChart2, Settings,
   Flame, LogOut, Users, Award, BookMarked, UserCheck, Grid, X,
-  MessageCircle   // NEW
+  MessageCircle, Star, User
 } from 'lucide-react'
 
 const mainNav = [
@@ -22,10 +23,24 @@ const moreNav = [
   { path: '/achievements', label: 'Achievements', icon: Award },
   { path: '/vault', label: 'Content Vault', icon: BookMarked },
   { path: '/partners', label: 'Partners', icon: UserCheck },
-  { path: '/community', label: 'Community', icon: MessageCircle },   // NEW
+  { path: '/community', label: 'Community', icon: MessageCircle },
 ]
 
 const allNav = [...mainNav, ...moreNav]
+
+const ROUTE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/planner': 'Planner',
+  '/challenges': 'Challenges',
+  '/leaderboard': 'Leaderboard',
+  '/settings': 'Settings',
+  '/feed': 'Feed',
+  '/analytics': 'Analytics',
+  '/achievements': 'Achievements',
+  '/vault': 'Content Vault',
+  '/partners': 'Partners',
+  '/community': 'Community',
+}
 
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(window.matchMedia(query).matches)
@@ -40,15 +55,33 @@ function useMediaQuery(query: string): boolean {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const [showMore, setShowMore] = useState(false)
+  const [profile, setProfile] = useState<{ name: string | null; avatar_url: string | null; creator_score: number } | null>(null)
   const isMobile = useMediaQuery('(max-width: 768px)')
+  const pageTitle = ROUTE_TITLES[location.pathname] || 'Streak'
+
+  useEffect(() => {
+    if (!user) return
+    let mounted = true
+    supabase
+      .from('profiles')
+      .select('name, avatar_url, creator_score')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (mounted && data) {
+          setProfile({ name: data.name, avatar_url: data.avatar_url, creator_score: data.creator_score ?? 0 })
+        }
+      })
+    return () => { mounted = false }
+  }, [user])
+
+  const score = profile?.creator_score ?? 0
+  const initials = (profile?.name || 'C').trim().charAt(0).toUpperCase()
 
   return (
     <div style={styles.wrapper}>
-      <div style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 150 }}>
-        <NotificationBell />
-      </div>
       {!isMobile && (
         <aside style={styles.sidebar}>
           <div style={styles.brand}>
@@ -81,10 +114,46 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </aside>
       )}
 
+      {/* Top header */}
+      <header style={{
+        ...styles.header,
+        left: isMobile ? 0 : '230px',
+      }}>
+        <div style={styles.headerLeft}>
+          {isMobile && (
+            <div style={styles.mobileBrand}>
+              <Flame size={18} color="#F5A623" />
+              <span>Streak</span>
+            </div>
+          )}
+          {!isMobile && (
+            <span style={styles.pageTitle}>{pageTitle}</span>
+          )}
+        </div>
+
+        <div style={styles.headerRight}>
+          <Link to="/score" style={styles.scorePill}>
+            <Star size={11} color="#F5A623" />
+            <span style={styles.scoreNum}>{score}</span>
+          </Link>
+          <NotificationBell />
+          <Link to="/settings" style={styles.avatarBtn}>
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="" style={styles.avatarImg} />
+            ) : (
+              <span style={styles.avatarInitial}>{initials}</span>
+            )}
+          </Link>
+        </div>
+      </header>
+
       <main style={{
         ...styles.main,
         marginLeft: isMobile ? '0' : '230px',
-        padding: isMobile ? '1.5rem 1rem 100px' : '2rem 2rem 2rem',
+        paddingTop: isMobile ? '4.5rem' : '4.5rem',
+        paddingLeft: isMobile ? '1rem' : '2rem',
+        paddingRight: isMobile ? '1rem' : '2rem',
+        paddingBottom: isMobile ? '100px' : '2rem',
       }}>
         {children}
         {!isMobile && <div style={{ height: '20px' }} />}
@@ -207,8 +276,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sidebar: {
     width: '230px',
-    background: '#111111',
-    borderRight: '1px solid #1E1E1E',
+    background: '#0F0F0F',
+    borderRight: '1px solid #1A1A1A',
     padding: '1.5rem 1rem',
     display: 'flex',
     flexDirection: 'column',
@@ -217,7 +286,8 @@ const styles: Record<string, React.CSSProperties> = {
     top: 0,
     left: 0,
     height: '100vh',
-    overflowY: 'auto'
+    overflowY: 'auto',
+    zIndex: 60
   },
   brand: {
     display: 'flex',
@@ -257,12 +327,94 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '0.6rem',
     background: 'none',
-    border: '1px solid #1E1E1E',
+    border: '1px solid #1A1A1A',
     borderRadius: '10px',
     color: '#555',
     padding: '0.65rem 0.85rem',
     fontSize: '0.85rem',
     cursor: 'pointer'
+  },
+  header: {
+    position: 'fixed',
+    top: 0,
+    right: 0,
+    height: '64px',
+    background: 'rgba(10,10,10,0.92)',
+    backdropFilter: 'blur(12px)',
+    borderBottom: '1px solid #1A1A1A',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 1.25rem',
+    zIndex: 55
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    minWidth: 0
+  },
+  pageTitle: {
+    fontFamily: 'Space Grotesk',
+    fontWeight: '700',
+    fontSize: '1.05rem',
+    color: '#F0EDE8',
+    letterSpacing: '-0.01em'
+  },
+  mobileBrand: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    fontFamily: 'Space Grotesk',
+    fontWeight: '700',
+    fontSize: '1rem',
+    color: '#F0EDE8'
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.6rem'
+  },
+  scorePill: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    background: '#1A1400',
+    border: '1px solid rgba(245,166,35,0.18)',
+    borderRadius: '20px',
+    padding: '0.4rem 0.7rem',
+    textDecoration: 'none',
+    height: '30px'
+  },
+  scoreNum: {
+    color: '#F5A623',
+    fontSize: '0.75rem',
+    fontWeight: '700',
+    fontFamily: 'Space Grotesk'
+  },
+  avatarBtn: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    background: '#1A1A1A',
+    border: '1px solid #2A2A2A',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    textDecoration: 'none',
+    flexShrink: 0
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
+  },
+  avatarInitial: {
+    color: '#F5A623',
+    fontWeight: '700',
+    fontSize: '0.85rem',
+    fontFamily: 'Space Grotesk'
   },
   main: {
     flex: 1,

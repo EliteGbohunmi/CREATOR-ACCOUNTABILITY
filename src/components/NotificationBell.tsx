@@ -32,10 +32,6 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleOpen = () => {
-    setOpen(!open)
-  }
-
   const handleItemClick = async (n: AppNotification) => {
     if (!n.read_at) {
       await markRead(n.id)
@@ -67,8 +63,8 @@ export default function NotificationBell() {
 
   return (
     <div ref={ref} style={styles.wrapper}>
-      <button style={styles.bell} onClick={handleOpen} aria-label="Notifications">
-        <Bell size={20} color="#F0EDE8" />
+      <button style={styles.bell} onClick={() => setOpen(!open)} aria-label="Notifications">
+        <Bell size={19} color="#F0EDE8" strokeWidth={1.8} />
         {unread > 0 && (
           <span style={styles.badge}>{unread > 99 ? '99+' : unread}</span>
         )}
@@ -91,7 +87,7 @@ export default function NotificationBell() {
                   key={n.id}
                   style={{
                     ...styles.item,
-                    background: n.read_at ? 'transparent' : '#1A1400'
+                    background: n.read_at ? 'transparent' : 'rgba(245,166,35,0.04)'
                   }}
                   onClick={() => handleItemClick(n)}
                 >
@@ -114,10 +110,10 @@ const styles: Record<string, React.CSSProperties> = {
   wrapper: { position: 'relative' },
   bell: {
     position: 'relative',
-    width: '42px',
-    height: '42px',
-    borderRadius: '12px',
-    background: '#111111',
+    width: '38px',
+    height: '38px',
+    borderRadius: '11px',
+    background: 'rgba(255,255,255,0.03)',
     border: '1px solid #1E1E1E',
     display: 'flex',
     alignItems: 'center',
@@ -127,10 +123,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   badge: {
     position: 'absolute',
-    top: '-4px',
-    right: '-4px',
-    minWidth: '18px',
-    height: '18px',
+    top: '-3px',
+    right: '-3px',
+    minWidth: '17px',
+    height: '17px',
     borderRadius: '9px',
     background: '#F5A623',
     color: '#0A0A0A',
@@ -140,20 +136,21 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '0 4px',
-    fontFamily: 'Space Grotesk'
+    fontFamily: 'Space Grotesk',
+    boxShadow: '0 0 0 2px #0A0A0A'
   },
   panel: {
     position: 'absolute',
-    top: '50px',
+    top: '46px',
     right: 0,
     width: '340px',
-    maxWidth: 'calc(100vw - 32px)',
-    maxHeight: '480px',
-    background: '#111111',
+    maxWidth: 'calc(100vw - 24px)',
+    maxHeight: '460px',
+    background: '#0F0F0F',
     border: '1px solid #1E1E1E',
     borderRadius: '14px',
-    boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
-    zIndex: 200,
+    boxShadow: '0 16px 48px rgba(0,0,0,0.85)',
+    zIndex: 300,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden'
@@ -162,21 +159,21 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '0.85rem 1rem',
+    padding: '0.9rem 1rem',
     borderBottom: '1px solid #1E1E1E'
   },
   panelTitle: {
     color: '#F0EDE8',
     fontFamily: 'Space Grotesk',
     fontWeight: '700',
-    fontSize: '0.95rem'
+    fontSize: '0.92rem'
   },
   markAll: {
     background: 'none',
     border: 'none',
     color: '#F5A623',
-    fontSize: '0.75rem',
-    fontWeight: '500',
+    fontSize: '0.72rem',
+    fontWeight: '600',
     cursor: 'pointer',
     padding: 0
   },
@@ -193,13 +190,13 @@ const styles: Record<string, React.CSSProperties> = {
   item: {
     width: '100%',
     border: 'none',
-    borderBottom: '1px solid #1A1A1A',
+    borderBottom: '1px solid #161616',
     padding: '0.85rem 1rem',
     textAlign: 'left',
     cursor: 'pointer',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.3rem'
+    gap: '0.25rem'
   },
   itemTop: {
     display: 'flex',
@@ -209,17 +206,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   itemTitle: {
     color: '#F0EDE8',
-    fontSize: '0.85rem',
+    fontSize: '0.83rem',
     fontWeight: '600'
   },
   itemTime: {
     color: '#555',
-    fontSize: '0.7rem',
+    fontSize: '0.68rem',
     flexShrink: 0
   },
   itemBody: {
-    color: '#888',
-    fontSize: '0.8rem',
-    lineHeight: 1.4
+    color: '#7A7A7A',
+    fontSize: '0.78rem',
+    lineHeight: 1.45
   }
 }
