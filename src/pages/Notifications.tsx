@@ -26,6 +26,8 @@ export default function Notifications() {
     return () => { mounted = false }
   }, [user?.email])
 
+  console.log("[Notifications] rendering", items.length, "items")
+
   const handleItemClick = async (n: AppNotification) => {
     if (!n.read_at) {
       await markRead(n.id)
@@ -96,13 +98,13 @@ export default function Notifications() {
 
         {/* List */}
         {items.length === 0 ? (
-          <div style={styles.empty}>
-            <Bell size={32} color="#2A2A2A" />
-            <p style={{ color: '#666', fontSize: '0.9rem', marginTop: '0.75rem' }}>
-              No notifications yet
-            </p>
-            <p style={{ color: '#444', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-              We'll let you know when something happens
+          <div style={styles.emptyState}>
+            <div style={styles.emptyIconWrap}>
+              <CheckCircle2 size={36} color="#4CAF50" strokeWidth={2} />
+            </div>
+            <h2 style={styles.emptyTitle}>You're all caught up</h2>
+            <p style={styles.emptySub}>
+              No notifications right now. We'll let you know when your partner nudges you, your streak is at risk, or something new ships.
             </p>
           </div>
         ) : (
@@ -113,8 +115,9 @@ export default function Notifications() {
                 onClick={() => handleItemClick(n)}
                 style={{
                   ...styles.card,
-                  borderColor: n.read_at ? '#1A1A1A' : 'rgba(245,166,35,0.22)',
-                  background: n.read_at ? '#0F0F0F' : 'rgba(245,166,35,0.04)'
+                  borderColor: n.read_at ? '#222222' : 'rgba(245,166,35,0.22)',
+                  background: n.read_at ? '#151515' : 'rgba(245,166,35,0.04)',
+                  opacity: n.read_at ? 0.75 : 1
                 }}
               >
                 {!n.read_at && <span style={styles.unreadDot} />}
@@ -179,15 +182,40 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     flexShrink: 0
   },
-  empty: {
-    background: '#0F0F0F',
-    border: '1px dashed #1E1E1E',
-    borderRadius: '14px',
-    padding: '3rem 1rem',
+  emptyState: {
+    background: 'linear-gradient(180deg, #0F0F0F 0%, #0A0A0A 100%)',
+    border: '1px solid #1A1A1A',
+    borderRadius: '18px',
+    padding: '3.5rem 2rem',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    textAlign: 'center'
+  },
+  emptyIconWrap: {
+    width: '72px',
+    height: '72px',
+    borderRadius: '20px',
+    background: 'rgba(76,175,80,0.08)',
+    border: '1px solid rgba(76,175,80,0.18)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: '1.25rem'
+  },
+  emptyTitle: {
+    fontFamily: 'Space Grotesk',
+    fontSize: '1.15rem',
+    fontWeight: '700',
+    color: '#F0EDE8',
+    marginBottom: '0.5rem'
+  },
+  emptySub: {
+    color: '#666',
+    fontSize: '0.85rem',
+    lineHeight: 1.55,
+    maxWidth: '360px'
   },
   card: {
     position: 'relative',
