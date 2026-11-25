@@ -59,7 +59,7 @@ const styles: Record<string, React.CSSProperties> = {
     height: '17px',
     borderRadius: '9px',
     background: '#E53E3E',
-    color: '#0A0A0A',
+    color: '#FFFFFF',
     fontSize: '10px',
     fontWeight: '700',
     display: 'flex',
