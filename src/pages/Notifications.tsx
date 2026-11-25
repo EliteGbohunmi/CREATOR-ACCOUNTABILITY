@@ -26,8 +26,6 @@ export default function Notifications() {
     return () => { mounted = false }
   }, [user?.email])
 
-  console.log("[Notifications] rendering", items.length, "items")
-
   const handleItemClick = async (n: AppNotification) => {
     if (!n.read_at) {
       await markRead(n.id)
@@ -70,14 +68,9 @@ export default function Notifications() {
   return (
     <Layout>
       <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-        {/* Page header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button
-              onClick={() => navigate(-1)}
-              style={styles.backBtn}
-              aria-label="Back"
-            >
+            <button onClick={() => navigate(-1)} style={styles.backBtn} aria-label="Back">
               <ArrowLeft size={18} color="#F0EDE8" />
             </button>
             <div>
@@ -96,7 +89,6 @@ export default function Notifications() {
           )}
         </div>
 
-        {/* List */}
         {items.length === 0 ? (
           <div style={styles.emptyState}>
             <div style={styles.emptyIconWrap}>
@@ -115,8 +107,8 @@ export default function Notifications() {
                 onClick={() => handleItemClick(n)}
                 style={{
                   ...styles.card,
-                  borderColor: n.read_at ? '#222222' : 'rgba(245,166,35,0.22)',
-                  background: n.read_at ? '#151515' : 'rgba(245,166,35,0.04)',
+                  borderColor: n.read_at ? '#222222' : 'rgba(229,62,62,0.25)',
+                  background: n.read_at ? '#151515' : 'rgba(229,62,62,0.04)',
                   opacity: n.read_at ? 0.75 : 1
                 }}
               >
@@ -236,7 +228,7 @@ const styles: Record<string, React.CSSProperties> = {
     transform: 'translateY(-50%)',
     width: '3px',
     height: '24px',
-    background: '#F5A623',
+    background: '#E53E3E',
     borderRadius: '0 3px 3px 0'
   },
   cardTop: {
