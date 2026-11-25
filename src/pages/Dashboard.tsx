@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react'
 
 export default function Dashboard() {
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const [profile, setProfile] = useState<any>(null)
   const [streak, setStreak] = useState<any>(null)
@@ -64,6 +66,12 @@ export default function Dashboard() {
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => { if (user) fetchAll() }, [user])
+
+  useEffect(() => {
+    if (searchParams.get('proof') === 'open') {
+      setShowProofForm(true)
+    }
+  }, [searchParams])
 
   // Real‑time subscription for pending proofs (any partner)
   useEffect(() => {
