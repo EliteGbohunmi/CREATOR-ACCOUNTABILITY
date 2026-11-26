@@ -253,17 +253,15 @@ END:VCALENDAR`
   return (
     <Layout>
       <div style={{ maxWidth: '720px', margin: '0 auto', paddingBottom: '140px' }}>
-        {/* Header */}
-        <div style={styles.header}>
+        <div style={{ marginBottom: '1.5rem' }}>
           <p style={styles.eyebrow}>Account</p>
           <h1 style={styles.title}>Settings</h1>
           <p style={styles.subtitle}>Tune your profile, reminders, and how the world sees you.</p>
         </div>
 
-        {/* Profile hero */}
-        <div style={styles.profileHero}>
-          <div style={styles.profileGlow} />
-          <div style={styles.profileTop}>
+        <div className="card-hero" style={{ padding: '1.25rem', marginBottom: '1.1rem' }}>
+          <div className="card-glow" />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={styles.avatarWrap} onClick={() => fileRef.current?.click()}>
               {avatarUrl
                 ? <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="avatar" />
@@ -281,15 +279,15 @@ END:VCALENDAR`
             </div>
 
             <button
-              style={styles.editBtn}
+              className="btn btn-subtle"
+              style={{ padding: '0.5rem 0.85rem', fontSize: '0.78rem', flexShrink: 0 }}
               onClick={() => setActiveSection(activeSection === 'profile' ? null : 'profile')}
             >
               <PenTool size={13} color="#F5A623" /> Edit
             </button>
           </div>
 
-          {/* mini stats */}
-          <div style={styles.profileStats}>
+          <div className="profile-stats" style={{ position: 'relative' }}>
             <div style={styles.statCell}>
               <div style={styles.statValue}>{currentStreak}</div>
               <div style={styles.statLabel}>Day streak</div>
@@ -307,20 +305,20 @@ END:VCALENDAR`
           </div>
         </div>
 
-        {/* Profile edit */}
         {activeSection === 'profile' && (
-          <div style={styles.expandedCard}>
+          <div className="card" style={{ padding: '1.1rem', marginBottom: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             <div style={styles.cardTitle}><UserCircle size={14} color="#F5A623" /> Edit profile</div>
             <div style={styles.field}>
               <label style={styles.label}>Display name</label>
-              <input style={styles.input} value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
+              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
             </div>
             <div style={styles.field}>
               <label style={styles.label}>Username</label>
               <div style={{ position: 'relative' }}>
                 <span style={styles.inputPrefix}>@</span>
                 <input
-                  style={{ ...styles.input, paddingLeft: '2rem' }}
+                  className="input"
+                  style={{ paddingLeft: '2rem' }}
                   value={username}
                   onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
                   placeholder="username"
@@ -333,7 +331,8 @@ END:VCALENDAR`
                 <span style={styles.counter}>{bio.length}/160</span>
               </div>
               <textarea
-                style={{ ...styles.input, minHeight: '80px', resize: 'vertical' as const }}
+                className="input"
+                style={{ minHeight: '80px' }}
                 value={bio}
                 onChange={e => setBio(e.target.value.slice(0, 160))}
                 placeholder="Tell other creators about yourself…"
@@ -341,16 +340,15 @@ END:VCALENDAR`
             </div>
             {saveError && <div style={styles.errorBox}><AlertCircle size={13} color="#E53E3E" /><span>{saveError}</span></div>}
             <div style={{ display: 'flex', gap: '0.6rem' }}>
-              <button style={styles.saveBtn} onClick={save} disabled={saving}>
+              <button className="btn btn-primary" onClick={save} disabled={saving}>
                 {saved ? <><Check size={15} /> Saved</> : saving ? 'Saving…' : 'Save changes'}
               </button>
-              <button style={styles.cancelBtn} onClick={() => { setActiveSection(null); setSaveError('') }}>Cancel</button>
+              <button className="btn btn-ghost" onClick={() => { setActiveSection(null); setSaveError('') }}>Cancel</button>
             </div>
           </div>
         )}
 
-        {/* SECTION: Reminders */}
-        <div style={styles.group}>
+        <div className="card" style={{ overflow: 'hidden', marginBottom: '0.9rem' }}>
           <div style={styles.groupHeader}>
             <div style={styles.groupIcon}><Bell size={14} color="#F5A623" /></div>
             <div>
@@ -359,7 +357,7 @@ END:VCALENDAR`
             </div>
           </div>
 
-          <div style={styles.row} onClick={() => setActiveSection(activeSection === 'reminders' ? null : 'reminders')}>
+          <div className="row" onClick={() => setActiveSection(activeSection === 'reminders' ? null : 'reminders')}>
             <span style={styles.rowLabel}>Reminder time</span>
             <div style={styles.rowRight}>
               <span style={{ ...styles.rowValue, color: reminderSet ? '#4CAF50' : '#777' }}>
@@ -376,13 +374,8 @@ END:VCALENDAR`
                 {currentStreak > 0 && <span style={{ color: '#F5A623' }}> 🔥 {currentStreak}-day streak on the line.</span>}
               </p>
               <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'stretch' }}>
-                <input
-                  style={{ ...styles.input, flex: 1 }}
-                  type="time"
-                  value={reminderTime}
-                  onChange={e => setReminderTime(e.target.value)}
-                />
-                <button style={{ ...styles.saveBtn, alignSelf: 'auto' }} onClick={setReminder}>Open .ics</button>
+                <input className="input" style={{ flex: 1 }} type="time" value={reminderTime} onChange={e => setReminderTime(e.target.value)} />
+                <button className="btn btn-primary" style={{ alignSelf: 'auto' }} onClick={setReminder}>Open .ics</button>
               </div>
               {reminderSet && (
                 <div style={styles.successBox}>
@@ -390,8 +383,8 @@ END:VCALENDAR`
                   <div style={styles.successHelp}>Tab opened with the file. If it didn't download, copy below.</div>
                   {icsContent && (
                     <>
-                      <button style={styles.smallBtn} onClick={copyICS}><Copy size={12} /> Copy ICS</button>
-                      <textarea value={icsContent} readOnly style={styles.codeArea} />
+                      <button className="btn btn-subtle" style={{ padding: '0.45rem 0.8rem', fontSize: '0.75rem', marginTop: '0.5rem' }} onClick={copyICS}><Copy size={12} /> Copy ICS</button>
+                      <textarea value={icsContent} readOnly className="input" style={{ marginTop: '0.55rem', fontSize: '0.7rem', minHeight: '70px', fontFamily: 'monospace' }} />
                     </>
                   )}
                 </div>
@@ -400,8 +393,7 @@ END:VCALENDAR`
           )}
         </div>
 
-        {/* SECTION: Preferences */}
-        <div style={styles.group}>
+        <div className="card" style={{ overflow: 'hidden', marginBottom: '0.9rem' }}>
           <div style={styles.groupHeader}>
             <div style={styles.groupIcon}><Sliders size={14} color="#F5A623" /></div>
             <div>
@@ -410,7 +402,7 @@ END:VCALENDAR`
             </div>
           </div>
 
-          <div style={styles.row} onClick={() => setActiveSection(activeSection === 'preferences' ? null : 'preferences')}>
+          <div className="row" onClick={() => setActiveSection(activeSection === 'preferences' ? null : 'preferences')}>
             <span style={styles.rowLabel}>App preferences</span>
             <div style={styles.rowRight}>
               <span style={styles.rowValue}>{defaultPlatform || 'None'}</span>
@@ -422,7 +414,7 @@ END:VCALENDAR`
             <div style={styles.expandedInner}>
               <div style={styles.field}>
                 <label style={styles.label}><Target size={11} color="#F5A623" /> Default platform</label>
-                <select style={styles.input} value={defaultPlatform} onChange={e => setDefaultPlatform(e.target.value)}>
+                <select className="input" value={defaultPlatform} onChange={e => setDefaultPlatform(e.target.value)}>
                   <option value="">None</option>
                   {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
@@ -430,11 +422,11 @@ END:VCALENDAR`
 
               <div style={styles.field}>
                 <label style={styles.label}><Calendar size={11} color="#F5A623" /> Weekly posting target</label>
-                <div style={styles.targetRow}>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                   {[1, 2, 3, 4, 5, 6, 7].map(n => (
                     <button
                       key={n}
-                      style={{ ...styles.targetChip, ...(weeklyTarget === n ? styles.targetChipActive : {}) }}
+                      className={`chip chip-square ${weeklyTarget === n ? 'chip-active' : ''}`}
                       onClick={() => setWeeklyTarget(n)}
                     >
                       {n}
@@ -448,11 +440,11 @@ END:VCALENDAR`
 
               <div style={styles.field}>
                 <label style={styles.label}><Clock size={11} color="#F5A623" /> Week starts on</label>
-                <div style={styles.segment}>
+                <div className="segment">
                   {['monday', 'sunday'].map(d => (
                     <button
                       key={d}
-                      style={{ ...styles.segmentBtn, ...(weekStart === d ? styles.segmentBtnActive : {}) }}
+                      className={`segment-btn ${weekStart === d ? 'segment-btn-active' : ''}`}
                       onClick={() => setWeekStart(d)}
                     >
                       {d.charAt(0).toUpperCase() + d.slice(1)}
@@ -462,15 +454,14 @@ END:VCALENDAR`
               </div>
 
               {saveError && <div style={styles.errorBox}><AlertCircle size={13} color="#E53E3E" /><span>{saveError}</span></div>}
-              <button style={styles.saveBtn} onClick={save} disabled={saving}>
+              <button className="btn btn-primary" onClick={save} disabled={saving}>
                 {saved ? <><Check size={15} /> Saved</> : 'Save preferences'}
               </button>
             </div>
           )}
         </div>
 
-        {/* SECTION: Privacy */}
-        <div style={styles.group}>
+        <div className="card" style={{ overflow: 'hidden', marginBottom: '0.9rem' }}>
           <div style={styles.groupHeader}>
             <div style={styles.groupIcon}><Shield size={14} color="#F5A623" /></div>
             <div>
@@ -479,7 +470,7 @@ END:VCALENDAR`
             </div>
           </div>
 
-          <div style={styles.toggleRow} onClick={togglePublic}>
+          <button className="row" style={{ width: '100%', background: 'transparent', border: 'none', textAlign: 'left' }} onClick={togglePublic}>
             <div style={styles.toggleLeft}>
               {isPublic ? <Eye size={16} color="#666" /> : <EyeOff size={16} color="#666" />}
               <div>
@@ -487,14 +478,14 @@ END:VCALENDAR`
                 <div style={styles.toggleSub}>Others can find and follow you</div>
               </div>
             </div>
-            <div style={{ ...styles.switch, background: isPublic ? '#F5A623' : '#2A2A2A' }}>
-              <div style={{ ...styles.switchDot, transform: isPublic ? 'translateX(20px)' : 'translateX(2px)' }} />
+            <div className="switch" style={{ background: isPublic ? '#F5A623' : '#2A2A2A' }}>
+              <div className="switch-dot" style={{ transform: isPublic ? 'translateX(20px)' : 'translateX(2px)' }} />
             </div>
-          </div>
+          </button>
 
           <div style={{ height: '1px', background: '#1A1A1A' }} />
 
-          <div style={styles.toggleRow} onClick={toggleStreak}>
+          <button className="row" style={{ width: '100%', background: 'transparent', border: 'none', textAlign: 'left' }} onClick={toggleStreak}>
             <div style={styles.toggleLeft}>
               <Award size={16} color="#666" />
               <div>
@@ -502,14 +493,13 @@ END:VCALENDAR`
                 <div style={styles.toggleSub}>Hide your number while competing</div>
               </div>
             </div>
-            <div style={{ ...styles.switch, background: showStreak ? '#F5A623' : '#2A2A2A' }}>
-              <div style={{ ...styles.switchDot, transform: showStreak ? 'translateX(20px)' : 'translateX(2px)' }} />
+            <div className="switch" style={{ background: showStreak ? '#F5A623' : '#2A2A2A' }}>
+              <div className="switch-dot" style={{ transform: showStreak ? 'translateX(20px)' : 'translateX(2px)' }} />
             </div>
-          </div>
+          </button>
         </div>
 
-        {/* SECTION: AI Persona */}
-        <div style={styles.group}>
+        <div className="card" style={{ overflow: 'hidden', marginBottom: '0.9rem' }}>
           <div style={styles.groupHeader}>
             <div style={styles.groupIcon}><Sparkles size={14} color="#F5A623" /></div>
             <div>
@@ -518,7 +508,7 @@ END:VCALENDAR`
             </div>
           </div>
 
-          <div style={styles.row} onClick={() => setActiveSection(activeSection === 'persona' ? null : 'persona')}>
+          <div className="row" onClick={() => setActiveSection(activeSection === 'persona' ? null : 'persona')}>
             <span style={styles.rowLabel}>Content voice</span>
             <div style={styles.rowRight}>
               <span style={{ ...styles.rowValue, color: aiPersona ? '#4CAF50' : '#777' }}>
@@ -536,24 +526,25 @@ END:VCALENDAR`
                     <div style={styles.step}><span style={styles.stepNum}>1</span><span>Copy the prompt below</span></div>
                     <div style={styles.step}><span style={styles.stepNum}>2</span><span>Paste into ChatGPT / Claude, then paste the reply here</span></div>
                   </div>
-                  <button style={styles.smallBtn} onClick={() => setShowPersonaTemplate(!showPersonaTemplate)}>
+                  <button className="btn btn-subtle" style={{ alignSelf: 'flex-start', padding: '0.45rem 0.8rem', fontSize: '0.75rem' }} onClick={() => setShowPersonaTemplate(!showPersonaTemplate)}>
                     <Info size={12} /> {showPersonaTemplate ? 'Hide prompt' : 'Show prompt'}
                   </button>
                   {showPersonaTemplate && (
                     <div style={styles.promptBox}>
-                      <button style={styles.copyPromptBtn} onClick={() => { navigator.clipboard.writeText(PERSONA_TEMPLATE); alert('Template copied!') }}>
+                      <button className="btn btn-primary" style={{ position: 'absolute', top: '0.55rem', right: '0.55rem', padding: '0.3rem 0.65rem', fontSize: '0.7rem', zIndex: 1 }} onClick={() => { navigator.clipboard.writeText(PERSONA_TEMPLATE); alert('Template copied!') }}>
                         <Copy size={11} /> Copy
                       </button>
                       <pre style={styles.promptPre}>{PERSONA_TEMPLATE}</pre>
                     </div>
                   )}
                   <textarea
-                    style={{ ...styles.input, minHeight: '120px', resize: 'vertical' }}
+                    className="input"
+                    style={{ minHeight: '120px' }}
                     placeholder="Paste your AI's response here…"
                     value={aiPersona}
                     onChange={e => setAiPersona(e.target.value)}
                   />
-                  <button style={styles.saveBtn} onClick={savePersona} disabled={saving}>
+                  <button className="btn btn-primary" onClick={savePersona} disabled={saving}>
                     {saving ? 'Saving…' : 'Save persona'}
                   </button>
                 </>
@@ -566,10 +557,10 @@ END:VCALENDAR`
                     <pre style={styles.personaPre}>{aiPersona.slice(0, 300)}{aiPersona.length > 300 ? '…' : ''}</pre>
                   </div>
                   <div style={{ display: 'flex', gap: '0.6rem' }}>
-                    <button style={{ ...styles.dangerBtn }} onClick={() => { setAiPersona(''); savePersona() }}>
+                    <button className="btn btn-danger" onClick={() => { setAiPersona(''); savePersona() }}>
                       Remove persona
                     </button>
-                    <button style={styles.cancelBtn} onClick={() => setActiveSection(null)}>Done</button>
+                    <button className="btn btn-ghost" onClick={() => setActiveSection(null)}>Done</button>
                   </div>
                 </>
               )}
@@ -577,10 +568,9 @@ END:VCALENDAR`
           )}
         </div>
 
-        {/* SECTION: Plan */}
-        <div style={styles.planCard}>
-          <div style={styles.planGlow} />
-          <div style={styles.planTop}>
+        <div className="card-hero" style={{ padding: '1.1rem', marginBottom: '0.9rem' }}>
+          <div className="card-glow" />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
             <div style={styles.planIcon}><Crown size={18} color="#0A0A0A" /></div>
             <div style={{ flex: 1 }}>
               <div style={styles.planTitle}>{isPro ? 'Pro Plan' : 'Free Plan'}</div>
@@ -590,24 +580,22 @@ END:VCALENDAR`
           </div>
           {!isPro && (
             <>
-              <div style={styles.planDivider} />
-              <div style={styles.planFeatures}>
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0.9rem 0', position: 'relative' }} />
+              <div className="feature-grid" style={{ position: 'relative', marginBottom: '0.9rem' }}>
                 <div style={styles.planFeature}><Zap size={12} color="#F5A623" /> Unlimited challenges</div>
                 <div style={styles.planFeature}><Award size={12} color="#F5A623" /> Unlimited leaves</div>
                 <div style={styles.planFeature}><Shield size={12} color="#F5A623" /> Streak freeze</div>
                 <div style={styles.planFeature}><Fingerprint size={12} color="#F5A623" /> Pro badge + analytics</div>
               </div>
-              <button style={styles.upgradeBtn}>
+              <button className="btn btn-primary" style={{ width: '100%', position: 'relative' }}>
                 <Crown size={15} color="#0A0A0A" /> Upgrade to Pro — $5/mo <ArrowUpRight size={14} color="#0A0A0A" />
               </button>
             </>
           )}
         </div>
 
-        {/* Sign out */}
-        <button style={styles.signOutRow} onClick={signOut}>
-          <LogOut size={16} color="#E53E3E" />
-          <span>Sign out</span>
+        <button className="btn btn-danger" style={{ width: '100%', gap: '0.5rem', marginTop: '0.4rem' }} onClick={signOut}>
+          <LogOut size={16} color="#E53E3E" /> Sign out
         </button>
 
         <p style={styles.footerNote}>Creator Accountability · v1.0</p>
@@ -617,90 +605,53 @@ END:VCALENDAR`
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  header: { marginBottom: '1.5rem' },
   eyebrow: { color: '#5C5C5C', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: '0.25rem', fontWeight: 700 },
   title: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1.9rem', letterSpacing: '-0.03em', background: 'linear-gradient(135deg, #F5F1EA 50%, #F5A623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1.1 },
   subtitle: { color: '#7A7A7A', fontSize: '0.85rem', marginTop: '0.4rem' },
-
-  profileHero: { position: 'relative', overflow: 'hidden', background: 'linear-gradient(160deg, #1A1408 0%, #121212 55%, #0A0A0A 100%)', border: '1px solid #2A2318', borderRadius: '24px', padding: '1.25rem', marginBottom: '1.1rem', boxShadow: '0 30px 70px -40px rgba(0,0,0,0.9)' },
-  profileGlow: { position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(245,166,35,0.2), transparent 55%)', pointerEvents: 'none' },
-  profileTop: { position: 'relative', display: 'flex', alignItems: 'center', gap: '1rem' },
   avatarWrap: { width: '68px', height: '68px', borderRadius: '20px', background: '#1A1A1A', border: '1px solid #2A2A2A', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, cursor: 'pointer', position: 'relative' },
   avatarInitials: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1.4rem', color: '#F5A623' },
   avatarOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent 50%)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0.35rem' },
   displayName: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1.15rem', color: '#F5F1EA', letterSpacing: '-0.01em' },
   username: { color: '#F5A623', fontSize: '0.8rem', fontWeight: 600, marginTop: '0.1rem' },
   email: { color: '#6B6B6B', fontSize: '0.72rem', marginTop: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  editBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.3)', color: '#F5A623', borderRadius: '10px', padding: '0.5rem 0.85rem', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', flexShrink: 0 },
-  profileStats: { position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem', background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: '0.7rem 0.5rem' },
   statCell: { flex: 1, textAlign: 'center' },
   statValue: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1.15rem', color: '#F5F1EA', lineHeight: 1 },
   statLabel: { fontSize: '0.62rem', color: '#7A7A7A', textTransform: 'uppercase', letterSpacing: '0.09em', marginTop: '0.3rem', fontWeight: 600 },
   statDivider: { width: '1px', height: '24px', background: 'rgba(255,255,255,0.08)' },
-
-  group: { background: 'linear-gradient(180deg, #161616, #0A0A0A)', border: '1px solid #262626', borderRadius: '18px', overflow: 'hidden', marginBottom: '0.9rem', boxShadow: '0 10px 30px -20px rgba(0,0,0,0.7)' },
   groupHeader: { display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.95rem 1.1rem 0.4rem' },
   groupIcon: { width: '30px', height: '30px', borderRadius: '10px', background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   groupTitle: { fontSize: '0.88rem', fontWeight: 700, color: '#F5F1EA' },
   groupSub: { fontSize: '0.72rem', color: '#6B6B6B', marginTop: '0.1rem' },
-  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1.1rem', cursor: 'pointer' },
   rowLabel: { color: '#DADADA', fontSize: '0.88rem', fontWeight: 500 },
   rowRight: { display: 'flex', alignItems: 'center', gap: '0.55rem' },
   rowValue: { color: '#8A8A8A', fontSize: '0.8rem', fontWeight: 600 },
-  expandedCard: { background: 'linear-gradient(180deg, #161616, #0A0A0A)', border: '1px solid #262626', borderRadius: '18px', padding: '1.1rem', marginBottom: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' },
   cardTitle: { display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700, color: '#F5F1EA', textTransform: 'uppercase', letterSpacing: '0.06em' },
   expandedInner: { padding: '0.6rem 1.1rem 1.1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', borderTop: '1px solid #1A1A1A' },
   field: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
   labelRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   label: { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#8A8A8A', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 },
   counter: { color: '#5C5C5C', fontSize: '0.66rem', fontWeight: 600 },
-  input: { background: '#0A0A0A', border: '1px solid #262626', borderRadius: '11px', padding: '0.75rem 0.9rem', color: '#F5F1EA', fontSize: '0.9rem', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'Inter' },
   inputPrefix: { position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#6B6B6B', fontSize: '0.9rem' },
   errorBox: { display: 'flex', alignItems: 'center', gap: '0.45rem', background: 'rgba(229,62,62,0.08)', border: '1px solid rgba(229,62,62,0.25)', color: '#E53E3E', fontSize: '0.78rem', padding: '0.6rem 0.8rem', borderRadius: '10px' },
-  saveBtn: { background: 'linear-gradient(135deg, #F5A623, #E1921D)', color: '#0A0A0A', border: 'none', borderRadius: '11px', padding: '0.7rem 1.3rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 8px 20px -10px rgba(245,166,35,0.6)' },
-  cancelBtn: { background: 'transparent', border: '1px solid #262626', borderRadius: '11px', padding: '0.7rem 1.3rem', color: '#8A8A8A', cursor: 'pointer', fontSize: '0.85rem' },
-  dangerBtn: { background: 'rgba(229,62,62,0.1)', border: '1px solid rgba(229,62,62,0.35)', color: '#E53E3E', borderRadius: '11px', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 },
   helpText: { color: '#7A7A7A', fontSize: '0.75rem', lineHeight: 1.5, margin: 0 },
-  targetRow: { display: 'flex', gap: '0.4rem', flexWrap: 'wrap' },
-  targetChip: { width: '42px', height: '42px', borderRadius: '11px', background: 'transparent', color: '#8A8A8A', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', border: '1px solid #262626' },
-  targetChipActive: { background: 'linear-gradient(135deg, #F5A623, #E1921D)', color: '#0A0A0A', border: '1px solid #F5A623', boxShadow: '0 6px 14px -8px rgba(245,166,35,0.6)' },
-  segment: { display: 'flex', gap: '0.35rem' },
-  segmentBtn: { flex: 1, background: 'transparent', border: '1px solid #262626', color: '#8A8A8A', borderRadius: '10px', padding: '0.6rem', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' },
-  segmentBtnActive: { background: 'rgba(245,166,35,0.14)', border: '1px solid rgba(245,166,35,0.4)', color: '#F5A623' },
   successBox: { background: 'rgba(76,175,80,0.08)', border: '1px solid rgba(76,175,80,0.3)', borderRadius: '12px', padding: '0.75rem 0.9rem', marginTop: '0.4rem' },
   successLine: { color: '#4CAF50', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 },
   successHelp: { color: '#7A7A7A', fontSize: '0.73rem', marginTop: '0.25rem' },
-  smallBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.3)', color: '#F5A623', borderRadius: '9px', padding: '0.45rem 0.8rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', marginTop: '0.5rem', alignSelf: 'flex-start' },
-  codeArea: { width: '100%', marginTop: '0.55rem', fontSize: '0.7rem', minHeight: '70px', background: '#0A0A0A', border: '1px solid #262626', borderRadius: '8px', padding: '0.6rem', color: '#888', fontFamily: 'monospace', resize: 'vertical' as const, boxSizing: 'border-box' },
-  toggleRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.9rem 1.1rem', cursor: 'pointer' },
   toggleLeft: { display: 'flex', alignItems: 'center', gap: '0.7rem' },
   toggleTitle: { fontSize: '0.88rem', fontWeight: 600, color: '#F5F1EA' },
   toggleSub: { fontSize: '0.72rem', color: '#6B6B6B', marginTop: '0.1rem' },
-  switch: { width: '44px', height: '24px', borderRadius: '999px', position: 'relative', flexShrink: 0, transition: 'background 0.25s', cursor: 'pointer' },
-  switchDot: { position: 'absolute', top: '2px', width: '20px', height: '20px', borderRadius: '50%', background: '#fff', transition: 'transform 0.25s', boxShadow: '0 2px 4px rgba(0,0,0,0.25)' },
-
   stepsBox: { background: 'rgba(245,166,35,0.04)', border: '1px solid rgba(245,166,35,0.18)', borderRadius: '12px', padding: '0.8rem 0.9rem', display: 'flex', flexDirection: 'column', gap: '0.55rem' },
   step: { display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.82rem', color: '#DADADA' },
   stepNum: { width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(245,166,35,0.15)', color: '#F5A623', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 },
   promptBox: { position: 'relative', background: '#0A0A0A', border: '1px solid rgba(245,166,35,0.25)', borderRadius: '12px', padding: '0.9rem', marginTop: '0.4rem' },
-  copyPromptBtn: { position: 'absolute', top: '0.55rem', right: '0.55rem', background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '7px', padding: '0.3rem 0.65rem', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', zIndex: 1 },
   promptPre: { color: '#9A9A9A', fontSize: '0.78rem', lineHeight: 1.65, whiteSpace: 'pre-wrap', fontFamily: 'Inter', margin: 0, paddingRight: '3.5rem' },
   personaPreview: { background: '#0A0A0A', border: '1px solid #262626', borderRadius: '10px', padding: '0.7rem 0.9rem', maxHeight: '100px', overflow: 'auto' },
   personaPre: { color: '#8A8A8A', fontSize: '0.76rem', margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'Inter' },
-
-  planCard: { position: 'relative', overflow: 'hidden', background: 'linear-gradient(160deg, #1A1408 0%, #121212 60%, #0A0A0A 100%)', border: '1px solid #2A2318', borderRadius: '20px', padding: '1.1rem', marginBottom: '0.9rem', boxShadow: '0 30px 70px -40px rgba(0,0,0,0.9)' },
-  planGlow: { position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(245,166,35,0.2), transparent 55%)', pointerEvents: 'none' },
-  planTop: { position: 'relative', display: 'flex', alignItems: 'center', gap: '0.7rem' },
   planIcon: { width: '38px', height: '38px', borderRadius: '12px', background: 'linear-gradient(135deg, #F5A623, #E1921D)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 8px 20px -8px rgba(245,166,35,0.7)' },
   planTitle: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1.05rem', color: '#F5F1EA' },
   planSub: { fontSize: '0.76rem', color: '#8A8A8A', marginTop: '0.15rem' },
   proBadge: { background: 'linear-gradient(135deg, #F5A623, #D9821A)', color: '#0A0A0A', fontSize: '0.65rem', fontWeight: 800, padding: '0.25rem 0.65rem', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.08em' },
   freeBadge: { background: 'rgba(255,255,255,0.06)', border: '1px solid #2A2A2A', color: '#8A8A8A', fontSize: '0.65rem', fontWeight: 700, padding: '0.25rem 0.65rem', borderRadius: '20px' },
-  planDivider: { position: 'relative', height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0.9rem 0' },
-  planFeatures: { position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.55rem', marginBottom: '0.9rem' },
   planFeature: { display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#B0B0B0', fontSize: '0.76rem' },
-  upgradeBtn: { position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem', width: '100%', background: 'linear-gradient(135deg, #F5A623, #E1921D)', color: '#0A0A0A', border: 'none', borderRadius: '12px', padding: '0.85rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', boxShadow: '0 12px 28px -12px rgba(245,166,35,0.7)' },
-
-  signOutRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%', background: 'transparent', border: '1px solid rgba(229,62,62,0.25)', color: '#E53E3E', borderRadius: '12px', padding: '0.8rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', marginTop: '0.4rem' },
   footerNote: { textAlign: 'center', color: '#3A3A3A', fontSize: '0.7rem', marginTop: '1.25rem' },
 }

@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { Toaster } from 'react-hot-toast'
 import { setupGlobalErrorHandler } from './lib/errorHandler'
 import './global.css'
+import './styles/premium.css'
 
 setupGlobalErrorHandler()
 
