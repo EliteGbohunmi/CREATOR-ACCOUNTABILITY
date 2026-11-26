@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Trophy, Plus, X, KeyRound, Lock, Users, Clock, Loader, Sparkles,
-  ArrowRight, Shield, Hash, Zap, CalendarDays,
+  ArrowRight, Shield, Hash, Zap, CalendarDays, Share2,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { useAuth } from '../lib/AuthContext'
@@ -259,9 +259,25 @@ export default function Challenges() {
                   </div>
                 </div>
               </div>
-              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} style={styles.joinBtn} onClick={() => handleJoin(c.id)} disabled={joiningId === c.id}>
-                {joiningId === c.id ? <Loader size={14} className="animate-spin" color="#0A0A0A" /> : <><span>Join</span><ArrowRight size={14} color="#0A0A0A" /></>}
-              </motion.button>
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                <button
+                  style={styles.shareIconBtn}
+                  onClick={() => {
+                    const url = `${window.location.origin}/challenges/${c.id}`
+                    if (navigator.share) {
+                      navigator.share({ title: c.name, text: `Join this challenge: ${c.name}`, url }).catch(() => {})
+                    } else {
+                      navigator.clipboard.writeText(url).then(() => alert('Invite link copied!')).catch(() => {})
+                    }
+                  }}
+                  title="Share invite"
+                >
+                  <Share2 size={14} color="#F5A623" />
+                </button>
+                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} style={styles.joinBtn} onClick={() => handleJoin(c.id)} disabled={joiningId === c.id}>
+                  {joiningId === c.id ? <Loader size={14} className="animate-spin" color="#0A0A0A" /> : <><span>Join</span><ArrowRight size={14} color="#0A0A0A" /></>}
+                </motion.button>
+              </div>
             </motion.div>
           ))}
 
@@ -348,6 +364,7 @@ const styles: Record<string, React.CSSProperties> = {
   privatePill: { display: 'inline-flex', alignItems: 'center', gap: '0.22rem', background: 'rgba(255,255,255,0.05)', border: '1px solid #2A2A2A', color: '#A0A0A0', fontSize: '0.62rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '20px' },
   proofPill: { display: 'inline-flex', alignItems: 'center', gap: '0.22rem', background: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.28)', color: '#4CAF50', fontSize: '0.62rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '20px' },
   meta: { color: '#7A7A7A', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' },
+  shareIconBtn: { background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.28)', width: '34px', height: '34px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   joinBtn: { position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: 'linear-gradient(135deg, #F5A623, #E1921D)', color: '#0A0A0A', border: 'none', borderRadius: '10px', padding: '0.6rem 0.9rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', flexShrink: 0, boxShadow: '0 8px 20px -10px rgba(245,166,35,0.7)' },
   lockedRow: { position: 'relative', display: 'flex', gap: '0.5rem', marginTop: '0.75rem' },
   lockedInputWrap: { flex: 1, display: 'flex', alignItems: 'center', gap: '0.45rem', background: '#0A0A0A', border: '1px solid #262626', borderRadius: '10px', padding: '0 0.75rem' },

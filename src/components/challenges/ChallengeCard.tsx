@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Users, CheckCircle2, Clock, Award, Lock, Trash2, Copy,
-  MessageSquare, TrendingUp, Shield, Crown,
+  MessageSquare, TrendingUp, Shield, Crown, Share2,
 } from 'lucide-react'
 import { daysLeft, percent, type UserChallenge } from '../../lib/challenges'
 import Leaderboard from './Leaderboard'
@@ -220,6 +220,7 @@ const styles: Record<string, React.CSSProperties> = {
   donePill: { display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.3)', color: '#F5A623', borderRadius: '11px', padding: '0.6rem 0.95rem', fontWeight: 600, fontSize: '0.82rem' },
   error: { background: 'rgba(229,62,62,0.08)', border: '1px solid rgba(229,62,62,0.25)', color: '#E53E3E', fontSize: '0.78rem', padding: '0.6rem 0.8rem', borderRadius: '10px', marginTop: '0.75rem' },
   footer: { marginTop: '0.9rem', paddingTop: '0.8rem', borderTop: '1px solid #1A1A1A', display: 'flex', justifyContent: 'flex-start' },
+  shareLink: { background: 'none', border: 'none', color: '#F5A623', fontSize: '0.72rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0', marginRight: '0.75rem' },
   deleteLink: { background: 'none', border: 'none', color: '#E53E3E', fontSize: '0.72rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0' },
   leaveLink: { background: 'none', border: 'none', color: '#8A8A8A', fontSize: '0.72rem', cursor: 'pointer', padding: '0.3rem 0' },
   confirmRow: { display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', width: '100%' },
