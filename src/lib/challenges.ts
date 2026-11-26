@@ -298,6 +298,16 @@ export async function updateChallengeCode(
   return { ok: true, error: null }
 }
 
+export async function getLeavesUsed(userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('leaves_used')
+    .eq('id', userId)
+    .single()
+  if (error || !data) return 0
+  return data.leaves_used || 0
+}
+
 export function daysLeft(uc: UserChallenge): number {
   return Math.max((uc.challenges?.days || 0) - uc.progress, 0)
 }

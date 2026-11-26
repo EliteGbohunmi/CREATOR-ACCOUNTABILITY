@@ -9,7 +9,7 @@ import Layout from '../components/Layout'
 import { useAuth } from '../lib/AuthContext'
 import {
   listChallenges, listPrivateChallenges, listMyChallenges, listAllParticipants,
-  joinChallenge, joinByCode, leaveChallenge, deleteChallenge, checkIn,
+  joinChallenge, joinByCode, leaveChallenge, deleteChallenge, checkIn, getLeavesUsed,
   type Challenge, type UserChallenge,
 } from '../lib/challenges'
 import CreateChallengeModal from '../components/challenges/CreateChallengeModal'
@@ -33,21 +33,24 @@ export default function Challenges() {
   const [lockedCode, setLockedCode] = useState<Record<string, string>>({})
   const [lockedError, setLockedError] = useState<Record<string, string>>({})
   const [checkingInId, setCheckingInId] = useState<string | null>(null)
+  const [leavesUsed, setLeavesUsed] = useState(0)
 
   const today = new Date().toISOString().split('T')[0]
 
   const fetchAll = async () => {
     if (!user) return
-    const [mine, pub, priv, parts] = await Promise.all([
+    const [mine, pub, priv, parts, leaves] = await Promise.all([
       listMyChallenges(user.id),
       listChallenges(),
       listPrivateChallenges(),
       listAllParticipants(),
+      getLeavesUsed(user.id),
     ])
     setMyChallenges(mine.filter(uc => !uc.challenges?.end_date || new Date(uc.challenges.end_date) >= new Date()))
     setPublicChallenges(pub.filter(c => new Date(c.end_date) >= new Date()))
     setPrivateChallenges(priv.filter(c => new Date(c.end_date) >= new Date()))
     setAllParticipants(parts)
+    setLeavesUsed(leaves)
     setLoading(false)
   }
 
@@ -125,7 +128,6 @@ export default function Challenges() {
     )
   }
 
-  const leavesUsed = 0
   const leavesLeft = Math.max(0, MAX_LEAVES - leavesUsed)
   const activeCount = myChallenges.length
   const discoverCount = discoverPublic.length + discoverPrivate.length
