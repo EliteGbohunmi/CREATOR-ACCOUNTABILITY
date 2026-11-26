@@ -373,6 +373,26 @@ export default function Partners() {
     try {
       await supabase.from('partner_requests').update({ status: 'accepted' }).eq('id', requestId)
       await supabase.from('accountability_partners').insert({ user1_id: senderId, user2_id: user!.id })
+
+      // Notify the sender that their request was accepted
+      const { data: me } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', user!.id)
+        .single()
+
+      fetch('https://streak-backend-ar7h.onrender.com/api/notifications/in-app', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: senderId,
+          title: '🤝 Request accepted',
+          body: `${me?.name || 'Someone'} accepted your partner request. You're now in each other's circle.`,
+          type: 'partner',
+          action: 'partner_request'
+        })
+      }).catch(err => console.error('accept notify failed:', err))
+
       await fetchAll()
       await fetchSuggestions()
       toast.success('Partner added')
