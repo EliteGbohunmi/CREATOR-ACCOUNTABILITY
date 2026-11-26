@@ -170,6 +170,10 @@ export default function Partners() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
   const [discoverTab, setDiscoverTab] = useState<'search' | 'suggested'>('suggested')
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null)
+  const [viewingProfile, setViewingProfile] = useState<any | null>(null)
+  const [loadingViewingProfile, setLoadingViewingProfile] = useState(false)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -263,6 +267,60 @@ export default function Partners() {
       console.error('Failed to load suggestions:', err)
     } finally {
       setLoadingSuggestions(false)
+    }
+  }
+
+  const viewProfile = async (userId: string) => {
+    setViewingUserId(userId)
+    setLoadingViewingProfile(true)
+    setViewingProfile(null)
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, name, email, created_at, bio, avatar_url')
+        .eq('id', userId)
+        .single()
+      const { data: streak } = await supabase
+        .from('streaks')
+        .select('current_streak, best_streak, last_checked_in')
+        .eq('user_id', userId)
+        .single()
+      const { count: partnerCount } = await supabase
+        .from('accountability_partners')
+        .select('*', { count: 'exact', head: true })
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      setViewingProfile({
+        ...profile,
+        streak: streak || { current_streak: 0, best_streak: 0, last_checked_in: null },
+        partnerCount: partnerCount || 0
+      })
+    } catch (err) {
+      toast.error('Could not load profile')
+    } finally {
+      setLoadingViewingProfile(false)
+    }
+  }
+
+  const closeViewingProfile = () => {
+    setViewingUserId(null)
+    setViewingProfile(null)
+  }
+
+  const cancelRequest = async (requestId: string) => {
+    if (cancellingId) return
+    setCancellingId(requestId)
+    try {
+      const { error } = await supabase
+        .from('partner_requests')
+        .delete()
+        .eq('id', requestId)
+      if (error) throw error
+      setSent(prev => prev.filter(r => r.id !== requestId))
+      toast.success('Request cancelled')
+    } catch (err: any) {
+      toast.error('Cancel failed: ' + (err.message || 'Unknown'))
+    } finally {
+      setCancellingId(null)
     }
   }
 
@@ -479,11 +537,16 @@ export default function Partners() {
                     const alreadySent = sent.some(s => s.receiver_id === u.id)
                     return (
                       <div key={u.id} style={styles.searchResultRow}>
-                        {renderAvatar(u.avatar_url, u.name, 40)}
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={styles.compactName}>{u.name}</div>
-                          <div style={styles.compactSub}>{u.email}</div>
-                        </div>
+                        <button
+                          onClick={() => viewProfile(u.id)}
+                          style={styles.resultRowMain}
+                        >
+                          {renderAvatar(u.avatar_url, u.name, 40)}
+                          <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                            <div style={styles.compactName}>{u.name}</div>
+                            <div style={styles.compactSub}>{u.email}</div>
+                          </div>
+                        </button>
                         {alreadySent ? (
                           <div style={styles.pendingChip}>
                             <Clock size={11} color={COLORS.textFaint} />
@@ -562,7 +625,10 @@ export default function Partners() {
                       transition={{ delay: 0.1 + i * 0.05 }}
                       style={styles.requestRow}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', minWidth: 0, flex: 1 }}>
+                      <button
+                        onClick={() => viewProfile(r.sender_id)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', minWidth: 0, flex: 1, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+                      >
                         <div style={{ ...styles.avatarSmall, background: getAvatarGradient(r.profiles?.name) }}>
                           {getInitials(r.profiles?.name)}
                         </div>
@@ -570,7 +636,7 @@ export default function Partners() {
                           <div style={styles.compactName}>{r.profiles?.name}</div>
                           <div style={styles.compactSub}>wants to be your partner</div>
                         </div>
-                      </div>
+                      </button>
                       <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
                         <motion.button
                           whileTap={{ scale: 0.95 }}
@@ -612,10 +678,27 @@ export default function Partners() {
             <div style={styles.sentChips}>
               {sent.map(r => (
                 <div key={r.id} style={styles.sentChip}>
-                  <div style={{ ...styles.sentAvatar, background: getAvatarGradient(r.profiles?.name) }}>
-                    {getInitials(r.profiles?.name)}
-                  </div>
-                  <span style={styles.sentName}>{r.profiles?.name}</span>
+                  <button
+                    onClick={() => viewProfile(r.receiver_id || r.profiles?.id)}
+                    style={styles.sentChipMain}
+                  >
+                    <div style={{ ...styles.sentAvatar, background: getAvatarGradient(r.profiles?.name) }}>
+                      {getInitials(r.profiles?.name)}
+                    </div>
+                    <span style={styles.sentName}>{r.profiles?.name}</span>
+                  </button>
+                  <button
+                    onClick={() => cancelRequest(r.id)}
+                    disabled={cancellingId === r.id}
+                    style={styles.sentCancelBtn}
+                    aria-label="Cancel request"
+                  >
+                    {cancellingId === r.id ? (
+                      <Loader size={11} color={COLORS.textFaint} className="animate-spin" />
+                    ) : (
+                      <X size={11} color={COLORS.textFaint} />
+                    )}
+                  </button>
                 </div>
               ))}
             </div>
@@ -784,13 +867,16 @@ export default function Partners() {
                   const alreadySent = sent.some(req => req.receiver_id === s.id)
                   return (
                     <div key={s.id} style={styles.resultRow}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', minWidth: 0, flex: 1 }}>
+                      <button
+                        onClick={() => viewProfile(s.id)}
+                        style={styles.resultRowMain}
+                      >
                         {renderAvatar(s.avatar_url, s.name, 42)}
-                        <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                           <div style={styles.compactName}>{s.name}</div>
                           {s.email && <div style={styles.compactSub}>{s.email}</div>}
                         </div>
-                      </div>
+                      </button>
                       {alreadySent ? (
                         <div style={styles.pendingChip}>
                           <Clock size={11} color={COLORS.textFaint} />
@@ -825,6 +911,113 @@ export default function Partners() {
             </div>
           </div>
         )}
+
+        {/* NON-PARTNER PROFILE VIEWER */}
+        <AnimatePresence>
+          {viewingUserId && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={styles.modalOverlay}
+              onClick={closeViewingProfile}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                style={styles.modalCard}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button style={styles.modalClose} onClick={closeViewingProfile}>
+                  <X size={18} color={COLORS.textDim} />
+                </button>
+                {loadingViewingProfile ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                    <Loader size={28} color={COLORS.textFaint} className="animate-spin" />
+                  </div>
+                ) : viewingProfile ? (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.4rem' }}>
+                      {renderAvatar(viewingProfile.avatar_url, viewingProfile.name, 64)}
+                      <div style={{ minWidth: 0 }}>
+                        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text, margin: 0, fontFamily: 'Space Grotesk' }}>
+                          {viewingProfile.name}
+                        </h2>
+                        <p style={{ color: COLORS.textDim, fontSize: '0.82rem', margin: '0.15rem 0 0' }}>
+                          {viewingProfile.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '1.1rem' }}>
+                      <div style={styles.profileStat}>
+                        <span style={styles.profileStatLabel}>Current streak</span>
+                        <span style={{ color: COLORS.gold, fontWeight: 700, fontSize: '1rem' }}>
+                          {viewingProfile.streak.current_streak || 0}
+                        </span>
+                      </div>
+                      <div style={styles.profileStat}>
+                        <span style={styles.profileStatLabel}>Best streak</span>
+                        <span style={{ color: COLORS.text, fontWeight: 700, fontSize: '1rem' }}>
+                          {viewingProfile.streak.best_streak || 0}
+                        </span>
+                      </div>
+                      <div style={styles.profileStat}>
+                        <span style={styles.profileStatLabel}>Partners</span>
+                        <span style={{ color: COLORS.text, fontWeight: 600 }}>{viewingProfile.partnerCount}</span>
+                      </div>
+                      <div style={styles.profileStat}>
+                        <span style={styles.profileStatLabel}>Joined</span>
+                        <span style={{ color: COLORS.text, fontWeight: 600 }}>
+                          {new Date(viewingProfile.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: '0.9rem', marginBottom: '1rem' }}>
+                      <span style={styles.profileStatLabel}>About</span>
+                      <p style={{ color: COLORS.textDim, fontSize: '0.86rem', marginTop: '0.35rem', lineHeight: 1.5 }}>
+                        {viewingProfile.bio || 'No bio yet.'}
+                      </p>
+                    </div>
+
+                    {(() => {
+                      const alreadyPartner = partners.some(p => p.partnerId === viewingUserId)
+                      const alreadySent = sent.some(r => r.receiver_id === viewingUserId)
+                      if (alreadyPartner) {
+                        return (
+                          <div style={{ ...styles.doneRow, marginTop: 0 }}>
+                            <Check size={14} color={COLORS.green} />
+                            <span>Already in your circle</span>
+                          </div>
+                        )
+                      }
+                      if (alreadySent) {
+                        return (
+                          <div style={{ ...styles.doneRow, marginTop: 0, background: 'rgba(255,255,255,0.04)', borderColor: COLORS.border, color: COLORS.textDim }}>
+                            <Clock size={14} color={COLORS.textDim} />
+                            <span>Request pending</span>
+                          </div>
+                        )
+                      }
+                      return (
+                        <motion.button
+                          whileTap={{ scale: 0.98 }}
+                          style={{ ...styles.sendNudgeBtn, marginTop: 0 }}
+                          onClick={() => { sendRequest(viewingUserId); closeViewingProfile() }}
+                        >
+                          <UserPlus size={14} color={COLORS.bg} />
+                          Send partner request
+                        </motion.button>
+                      )
+                    })()}
+                  </div>
+                ) : null}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* EMPTY */}
         {partners.length === 0 && requests.length === 0 && sent.length === 0 && suggestions.length === 0 && !loadingSuggestions && (
@@ -1013,6 +1206,56 @@ const styles: Record<string, any> = {
   },
   detailStatLabel: {
     color: COLORS.textFaint, fontSize: '0.6rem',
+    textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600
+  },
+
+  // NEW: sent chip with cancel, result row main button
+  sentChipMain: {
+    display: 'flex', alignItems: 'center', gap: '0.45rem',
+    background: 'transparent', border: 'none', cursor: 'pointer',
+    padding: 0, color: 'inherit'
+  },
+  sentCancelBtn: {
+    width: '20px', height: '20px', borderRadius: '50%',
+    background: 'rgba(255,255,255,0.06)', border: 'none',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', padding: 0, flexShrink: 0
+  },
+  resultRowMain: {
+    display: 'flex', alignItems: 'center', gap: '0.7rem',
+    flex: 1, minWidth: 0, background: 'transparent',
+    border: 'none', cursor: 'pointer', padding: 0
+  },
+  modalOverlay: {
+    position: 'fixed', inset: 0,
+    background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 1000, padding: '1.25rem'
+  },
+  modalCard: {
+    background: COLORS.surfaceRaised,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '22px', padding: '1.75rem',
+    maxWidth: '420px', width: '100%',
+    position: 'relative',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
+  },
+  modalClose: {
+    position: 'absolute', top: '0.8rem', right: '0.8rem',
+    background: 'rgba(255,255,255,0.04)',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '10px', width: '32px', height: '32px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer'
+  },
+  profileStat: {
+    background: 'rgba(255,255,255,0.03)',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '12px', padding: '0.7rem 0.85rem',
+    display: 'flex', flexDirection: 'column', gap: '0.25rem'
+  },
+  profileStatLabel: {
+    color: COLORS.textFaint, fontSize: '0.68rem',
     textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600
   },
 
