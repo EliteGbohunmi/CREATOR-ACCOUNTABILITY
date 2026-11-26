@@ -1,74 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { X, Loader } from 'lucide-react'
+import { X, Loader, Users, Trophy, Flame, Calendar, Mail, ExternalLink, ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
 import CommunityDesign, { type CommunityPost } from '../components/community/CommunityDesign'
 
-// --- Avatar helper (same as Partners) ---
-const AVATAR_GRADIENTS = [
-  ['#F5A623', '#D9821A'],
-  ['#6FA8F5', '#3D7DD9'],
-  ['#F56F91', '#D93D63'],
-  ['#6FCB73', '#3DA843'],
-  ['#B98CF5', '#8A4DD9'],
-]
-
 function getInitials(name?: string | null) {
   if (!name) return '?'
-  const parts = name.trim().split(/\s+/)
-  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || name[0]?.toUpperCase() || '?'
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
+  return (parts[0][0] + parts[1][0]).toUpperCase()
 }
 
 function getAvatarGradient(name?: string | null) {
+  const gradients = [
+    ['#F5A623', '#D9821A'],
+    ['#6FA8F5', '#3D7DD9'],
+    ['#F56F91', '#D93D63'],
+    ['#6FCB73', '#3DA843'],
+    ['#B98CF5', '#8A4DD9'],
+  ]
   const key = name || '?'
   let hash = 0
   for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash)
-  const [a, b] = AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]
+  const [a, b] = gradients[Math.abs(hash) % gradients.length]
   return `linear-gradient(135deg, ${a}, ${b})`
-}
-
-function renderAvatar(avatarUrl: string | null, name: string, size: 'small' | 'large' = 'small') {
-  const sizeStyle = size === 'large'
-    ? { width: '64px', height: '64px', borderRadius: '20px' }
-    : { width: '36px', height: '36px', borderRadius: '11px' }
-  const common = {
-    flexShrink: 0,
-    overflow: 'hidden',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: avatarUrl ? 'transparent' : getAvatarGradient(name),
-    color: '#0A0A0A',
-    fontWeight: 700,
-    fontSize: size === 'large' ? '1.3rem' : '0.8rem',
-    fontFamily: 'Space Grotesk',
-    letterSpacing: '-0.01em',
-    boxShadow: '0 4px 14px -4px rgba(0,0,0,0.5)',
-    ...sizeStyle
-  }
-  if (avatarUrl) {
-    return (
-      <div style={{ ...common, background: 'transparent' }}>
-        <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      </div>
-    )
-  }
-  return <div style={common}>{getInitials(name)}</div>
-}
-
-// --- Color tokens for modal ---
-const COLORS = {
-  bg: '#0A0A0A',
-  surface: '#111111',
-  surfaceRaised: 'linear-gradient(180deg, #141414 0%, #0D0D0D 100%)',
-  border: '#1E1E1E',
-  gold: '#F5A623',
-  text: '#F0EDE8',
-  textDim: '#8A8A8A',
-  textFaint: '#5C5C5C',
 }
 
 export default function Community() {
@@ -86,7 +45,6 @@ export default function Community() {
   const [platformFilter, setPlatformFilter] = useState('')
   const [sortBy, setSortBy] = useState<'newest' | 'needs_engagement'>('newest')
 
-  // --- Profile modal state ---
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [profileData, setProfileData] = useState<any | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
@@ -96,83 +54,41 @@ export default function Community() {
       const { data: postsData, error: postsError } = await supabase
         .from('community_posts')
         .select(`
-          id,
-          content,
-          link,
-          user_id,
-          created_at,
-          post_type,
-          platform,
-          engagement_type,
-          engaged_by,
+          id, content, link, user_id, created_at, post_type, platform,
+          engagement_type, engaged_by,
           profiles ( name, email, avatar_url )
         `)
         .order('created_at', { ascending: false })
 
       if (postsError) throw postsError
-
       const postIds = postsData?.map(p => p.id) || []
 
-      const { data: commentsData, error: commentsError } = await supabase
-        .from('community_comments')
-        .select(`
-          id,
-          content,
-          user_id,
-          created_at,
-          post_id,
-          profiles ( name, avatar_url )
-        `)
-        .in('post_id', postIds.length ? postIds : [''])
+      const [commentsRes, likesRes, boostsRes, engagementsRes] = await Promise.all([
+        supabase.from('community_comments')
+          .select('id, content, user_id, created_at, post_id, profiles ( name, avatar_url )')
+          .in('post_id', postIds.length ? postIds : ['']),
+        supabase.from('community_likes').select('id, user_id, post_id').in('post_id', postIds.length ? postIds : ['']),
+        supabase.from('community_boosts').select('id, user_id, post_id').in('post_id', postIds.length ? postIds : ['']),
+        supabase.from('community_engagements').select('id, user_id, post_id').in('post_id', postIds.length ? postIds : ['']),
+      ])
 
-      if (commentsError) throw commentsError
+      if (commentsRes.error) throw commentsRes.error
+      if (likesRes.error) throw likesRes.error
+      if (boostsRes.error) throw boostsRes.error
+      if (engagementsRes.error) throw engagementsRes.error
 
-      const { data: likesData, error: likesError } = await supabase
-        .from('community_likes')
-        .select('id, user_id, post_id')
-        .in('post_id', postIds.length ? postIds : [''])
+      const group = <T extends { post_id: string }>(rows: T[] | null) => {
+        const map: Record<string, T[]> = {}
+        rows?.forEach(r => { if (!map[r.post_id]) map[r.post_id] = []; map[r.post_id].push(r) })
+        return map
+      }
 
-      if (likesError) throw likesError
+      const commentsByPost = group(commentsRes.data as any[])
+      const likesByPost = group(likesRes.data as any[])
+      const boostsByPost = group(boostsRes.data as any[])
+      const engagementsByPost = group(engagementsRes.data as any[])
 
-      const { data: boostsData, error: boostsError } = await supabase
-        .from('community_boosts')
-        .select('id, user_id, post_id')
-        .in('post_id', postIds.length ? postIds : [''])
-
-      if (boostsError) throw boostsError
-
-      const { data: engagementsData, error: engagementsError } = await supabase
-        .from('community_engagements')
-        .select('id, user_id, post_id')
-        .in('post_id', postIds.length ? postIds : [''])
-
-      if (engagementsError) throw engagementsError
-
-      const commentsByPost: Record<string, any[]> = {}
-      commentsData?.forEach((c: any) => {
-        if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
-        commentsByPost[c.post_id].push(c)
-      })
-
-      const likesByPost: Record<string, any[]> = {}
-      likesData?.forEach((l: any) => {
-        if (!likesByPost[l.post_id]) likesByPost[l.post_id] = []
-        likesByPost[l.post_id].push(l)
-      })
-
-      const boostsByPost: Record<string, any[]> = {}
-      boostsData?.forEach((b: any) => {
-        if (!boostsByPost[b.post_id]) boostsByPost[b.post_id] = []
-        boostsByPost[b.post_id].push(b)
-      })
-
-      const engagementsByPost: Record<string, any[]> = {}
-      engagementsData?.forEach((e: any) => {
-        if (!engagementsByPost[e.post_id]) engagementsByPost[e.post_id] = []
-        engagementsByPost[e.post_id].push(e)
-      })
-
-      const mapped: CommunityPost[] = postsData?.map((post: any) => ({
+      const mapped: CommunityPost[] = (postsData || []).map((post: any) => ({
         id: post.id,
         content: post.content,
         link: post.link,
@@ -189,75 +105,31 @@ export default function Community() {
         likes: likesByPost[post.id] || [],
         boosts: boostsByPost[post.id] || [],
         engagements: engagementsByPost[post.id] || [],
-      })) || []
+      }))
 
       setPosts(mapped)
-      setLikedPostIds(
-        new Set(
-          mapped
-            .filter((p) => p.likes?.some((l) => l.user_id === currentUserId))
-            .map((p) => p.id)
-        )
-      )
-      setBoostedPostIds(
-        new Set(
-          mapped
-            .filter((p) => p.boosts?.some((b) => b.user_id === currentUserId))
-            .map((p) => p.id)
-        )
-      )
-      setEngagedPostIds(
-        new Set(
-          mapped
-            .filter((p) => p.engagements?.some((e) => e.user_id === currentUserId))
-            .map((p) => p.id)
-        )
-      )
+      setLikedPostIds(new Set(mapped.filter(p => p.likes?.some(l => l.user_id === currentUserId)).map(p => p.id)))
+      setBoostedPostIds(new Set(mapped.filter(p => p.boosts?.some(b => b.user_id === currentUserId)).map(p => p.id)))
+      setEngagedPostIds(new Set(mapped.filter(p => p.engagements?.some(e => e.user_id === currentUserId)).map(p => p.id)))
     } catch (err: any) {
       console.error('Fetch error:', err)
-      toast.error('Could not load the community board: ' + err.message)
+      toast.error('Could not load the community board')
     } finally {
       setLoading(false)
     }
   }, [currentUserId])
 
-  useEffect(() => {
-    fetchPosts()
-  }, [fetchPosts])
+  useEffect(() => { fetchPosts() }, [fetchPosts])
 
   useEffect(() => {
-    const channel = supabase
-      .channel('community-board')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'community_posts' },
-        () => fetchPosts()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'community_comments' },
-        () => fetchPosts()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'community_likes' },
-        () => fetchPosts()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'community_boosts' },
-        () => fetchPosts()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'community_engagements' },
-        () => fetchPosts()
-      )
+    const channel = supabase.channel('community-board')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_posts' }, () => fetchPosts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_comments' }, () => fetchPosts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_likes' }, () => fetchPosts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_boosts' }, () => fetchPosts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_engagements' }, () => fetchPosts())
       .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => { supabase.removeChannel(channel) }
   }, [fetchPosts])
 
   const filteredPosts = useMemo(() => {
@@ -276,258 +148,132 @@ export default function Community() {
     return [...filteredPosts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   }, [filteredPosts, sortBy])
 
-  // --- Profile fetch ---
   const fetchUserProfile = async (userId: string) => {
     setLoadingProfile(true)
     try {
       const { data: profile, error: pErr } = await supabase
         .from('profiles')
-        .select('id, name, email, created_at, bio, avatar_url')
+        .select('id, name, email, created_at, bio, avatar_url, username')
         .eq('id', userId)
         .single()
       if (pErr) throw pErr
 
-      const { data: streak, error: sErr } = await supabase
+      const { data: streak } = await supabase
         .from('streaks')
         .select('current_streak, best_streak, last_checked_in')
         .eq('user_id', userId)
         .single()
-      if (sErr && sErr.code !== 'PGRST116') throw sErr
 
-      const { count: partnerCount, error: pcErr } = await supabase
+      const { count: partnerCount } = await supabase
         .from('accountability_partners')
         .select('*', { count: 'exact', head: true })
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-      if (pcErr) throw pcErr
+
+      const { count: postCount } = await supabase
+        .from('community_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
 
       setProfileData({
         ...profile,
         streak: streak || { current_streak: 0, best_streak: 0, last_checked_in: null },
         partnerCount: partnerCount || 0,
+        postCount: postCount || 0,
       })
     } catch (err) {
-      toast.error('Failed to load profile')
       console.error(err)
+      toast.error('Failed to load profile')
     } finally {
       setLoadingProfile(false)
     }
   }
 
   const handleViewProfile = (userId: string) => {
-    console.log('🔍 handleViewProfile called with userId:', userId)
     if (!userId) return
     setSelectedUserId(userId)
     fetchUserProfile(userId)
   }
 
-  const closeProfile = () => {
-    setSelectedUserId(null)
-    setProfileData(null)
-  }
+  const closeProfile = () => { setSelectedUserId(null); setProfileData(null) }
 
   const onCreatePost = async (
-    content: string,
-    link: string | null,
-    postType: 'say_hi' | 'boost',
-    platform: string | null,
-    engagementType: string | null
+    content: string, link: string | null, postType: 'say_hi' | 'boost',
+    platform: string | null, engagementType: string | null
   ) => {
-    if (!currentUserId) {
-      toast.error('Sign in to post')
-      return
-    }
+    if (!currentUserId) { toast.error('Sign in to post'); return }
     setIsPosting(true)
-    const { error } = await supabase
-      .from('community_posts')
-      .insert({
-        content,
-        link,
-        user_id: currentUserId,
-        post_type: postType,
-        platform: platform || null,
-        engagement_type: engagementType || null,
-        engaged_by: [],
-      })
+    const { error } = await supabase.from('community_posts').insert({
+      content, link, user_id: currentUserId, post_type: postType,
+      platform: platform || null, engagement_type: engagementType || null, engaged_by: [],
+    })
     setIsPosting(false)
-    if (error) {
-      console.error(error)
-      toast.error("Couldn't post that: " + error.message)
-      return
-    }
+    if (error) { toast.error("Couldn't post that"); return }
     toast.success('Posted to the community board')
     fetchPosts()
   }
 
   const onDeletePost = async (postId: string) => {
-    const { error } = await supabase
-      .from('community_posts')
-      .delete()
-      .eq('id', postId)
-    if (error) {
-      console.error(error)
-      toast.error("Couldn't delete that post: " + error.message)
-      return
-    }
-    setPosts((prev) => prev.filter((p) => p.id !== postId))
+    const { error } = await supabase.from('community_posts').delete().eq('id', postId)
+    if (error) { toast.error("Couldn't delete that post"); return }
+    setPosts(prev => prev.filter(p => p.id !== postId))
     toast.success('Post deleted')
   }
 
   const onToggleLike = async (postId: string) => {
-    if (!currentUserId) {
-      toast.error('Sign in to react')
-      return
-    }
+    if (!currentUserId) { toast.error('Sign in to react'); return }
     const liked = likedPostIds.has(postId)
-
-    setLikedPostIds((prev) => {
-      const next = new Set(prev)
-      liked ? next.delete(postId) : next.add(postId)
-      return next
-    })
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id !== postId
-          ? p
-          : {
-              ...p,
-              likes: liked
-                ? (p.likes ?? []).filter((l) => l.user_id !== currentUserId)
-                : [...(p.likes ?? []), { user_id: currentUserId }],
-            }
-      )
-    )
-
+    setLikedPostIds(prev => { const n = new Set(prev); liked ? n.delete(postId) : n.add(postId); return n })
+    setPosts(prev => prev.map(p => p.id !== postId ? p : {
+      ...p, likes: liked ? (p.likes ?? []).filter(l => l.user_id !== currentUserId) : [...(p.likes ?? []), { user_id: currentUserId }],
+    }))
     const { error } = liked
-      ? await supabase
-          .from('community_likes')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', currentUserId)
-      : await supabase
-          .from('community_likes')
-          .insert({ post_id: postId, user_id: currentUserId })
-
-    if (error) {
-      console.error(error)
-      toast.error("Couldn't update your reaction: " + error.message)
-      fetchPosts()
-    }
+      ? await supabase.from('community_likes').delete().eq('post_id', postId).eq('user_id', currentUserId)
+      : await supabase.from('community_likes').insert({ post_id: postId, user_id: currentUserId })
+    if (error) { toast.error("Couldn't update reaction"); fetchPosts() }
   }
 
   const onToggleBoost = async (postId: string) => {
-    if (!currentUserId) {
-      toast.error('Sign in to boost')
-      return
-    }
+    if (!currentUserId) { toast.error('Sign in to boost'); return }
     const boosted = boostedPostIds.has(postId)
-
-    setBoostedPostIds((prev) => {
-      const next = new Set(prev)
-      boosted ? next.delete(postId) : next.add(postId)
-      return next
-    })
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id !== postId
-          ? p
-          : {
-              ...p,
-              boosts: boosted
-                ? (p.boosts ?? []).filter((b) => b.user_id !== currentUserId)
-                : [...(p.boosts ?? []), { user_id: currentUserId }],
-            }
-      )
-    )
-
+    setBoostedPostIds(prev => { const n = new Set(prev); boosted ? n.delete(postId) : n.add(postId); return n })
+    setPosts(prev => prev.map(p => p.id !== postId ? p : {
+      ...p, boosts: boosted ? (p.boosts ?? []).filter(b => b.user_id !== currentUserId) : [...(p.boosts ?? []), { user_id: currentUserId }],
+    }))
     const { error } = boosted
-      ? await supabase
-          .from('community_boosts')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', currentUserId)
-      : await supabase
-          .from('community_boosts')
-          .insert({ post_id: postId, user_id: currentUserId })
-
-    if (error) {
-      console.error(error)
-      toast.error("Couldn't update your boost: " + error.message)
-      fetchPosts()
-    }
+      ? await supabase.from('community_boosts').delete().eq('post_id', postId).eq('user_id', currentUserId)
+      : await supabase.from('community_boosts').insert({ post_id: postId, user_id: currentUserId })
+    if (error) { toast.error("Couldn't update boost"); fetchPosts() }
   }
 
   const onToggleEngagement = async (postId: string) => {
-    if (!currentUserId) {
-      toast.error('Sign in to engage')
-      return
-    }
+    if (!currentUserId) { toast.error('Sign in to engage'); return }
     const engaged = engagedPostIds.has(postId)
-
-    setEngagedPostIds((prev) => {
-      const next = new Set(prev)
-      engaged ? next.delete(postId) : next.add(postId)
-      return next
-    })
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id !== postId
-          ? p
-          : {
-              ...p,
-              engagements: engaged
-                ? (p.engagements ?? []).filter((e) => e.user_id !== currentUserId)
-                : [...(p.engagements ?? []), { user_id: currentUserId }],
-            }
-      )
-    )
-
+    setEngagedPostIds(prev => { const n = new Set(prev); engaged ? n.delete(postId) : n.add(postId); return n })
+    setPosts(prev => prev.map(p => p.id !== postId ? p : {
+      ...p, engagements: engaged ? (p.engagements ?? []).filter(e => e.user_id !== currentUserId) : [...(p.engagements ?? []), { user_id: currentUserId }],
+    }))
     const { error } = engaged
-      ? await supabase
-          .from('community_engagements')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', currentUserId)
-      : await supabase
-          .from('community_engagements')
-          .insert({ post_id: postId, user_id: currentUserId })
-
-    if (error) {
-      console.error(error)
-      toast.error("Couldn't update your engagement: " + error.message)
-      fetchPosts()
-    }
+      ? await supabase.from('community_engagements').delete().eq('post_id', postId).eq('user_id', currentUserId)
+      : await supabase.from('community_engagements').insert({ post_id: postId, user_id: currentUserId })
+    if (error) { toast.error("Couldn't update engagement"); fetchPosts() }
   }
 
   const onReply = async (postId: string, content: string) => {
-    if (!currentUserId) {
-      toast.error('Sign in to reply')
-      return
-    }
+    if (!currentUserId) { toast.error('Sign in to reply'); return }
     setIsReplying(true)
-    const { error } = await supabase
-      .from('community_comments')
-      .insert({ post_id: postId, content, user_id: currentUserId })
+    const { error } = await supabase.from('community_comments').insert({ post_id: postId, content, user_id: currentUserId })
     setIsReplying(false)
-    if (error) {
-      console.error(error)
-      toast.error("Couldn't send that reply: " + error.message)
-      return
-    }
+    if (error) { toast.error("Couldn't send reply"); return }
     fetchPosts()
   }
 
   const onDeleteReply = async (_postId: string, commentId: string) => {
-    const { error } = await supabase
-      .from('community_comments')
-      .delete()
-      .eq('id', commentId)
-    if (error) {
-      console.error(error)
-      toast.error("Couldn't delete that reply: " + error.message)
-      return
-    }
+    const { error } = await supabase.from('community_comments').delete().eq('id', commentId)
+    if (error) { toast.error("Couldn't delete reply"); return }
     fetchPosts()
   }
+
+  const isOwnProfile = selectedUserId === currentUserId
 
   return (
     <Layout>
@@ -556,7 +302,6 @@ export default function Community() {
         onViewProfile={handleViewProfile}
       />
 
-      {/* --- Profile Modal --- */}
       <AnimatePresence>
         {selectedUserId && (
           <motion.div
@@ -567,77 +312,94 @@ export default function Community() {
             onClick={closeProfile}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ y: 24, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 24, opacity: 0, scale: 0.98 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 240 }}
               style={modalStyles.card}
               onClick={(e) => e.stopPropagation()}
             >
-              <button style={modalStyles.close} onClick={closeProfile}>
-                <X size={20} color={COLORS.textFaint} />
+              <button style={modalStyles.close} onClick={closeProfile} aria-label="Close">
+                <X size={18} color="#8A8A8A" />
               </button>
+
               {loadingProfile ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-                  <Loader size={30} color={COLORS.textFaint} className="animate-spin" />
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                  <Loader size={26} color="#5C5C5C" className="animate-spin" />
                 </div>
               ) : profileData ? (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                    {renderAvatar(profileData.avatar_url, profileData.name, 'large')}
-                    <div>
-                      <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: COLORS.text, margin: 0 }}>
-                        {profileData.name}
-                      </h2>
-                      <p style={{ color: COLORS.textDim, fontSize: '0.9rem', margin: '0.2rem 0 0' }}>
-                        {profileData.email}
-                      </p>
+                <>
+                  <div style={modalStyles.top}>
+                    <div style={modalStyles.banner} />
+                    <div style={modalStyles.avatarRing}>
+                      <div style={{
+                        ...modalStyles.avatar,
+                        background: profileData.avatar_url ? 'transparent' : getAvatarGradient(profileData.name),
+                      }}>
+                        {profileData.avatar_url
+                          ? <img src={profileData.avatar_url} alt={profileData.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : getInitials(profileData.name)}
+                      </div>
                     </div>
+                  </div>
+
+                  <div style={{ padding: '0 1.4rem 1.4rem', textAlign: 'center' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#F5F1EA', margin: '0.8rem 0 0.1rem', fontFamily: 'Space Grotesk', letterSpacing: '-0.02em' }}>
+                      {profileData.name}
+                      {isOwnProfile && <span style={{ fontSize: '0.62rem', marginLeft: '0.5rem', color: '#F5A623', background: 'rgba(245,166,35,0.12)', padding: '0.1rem 0.5rem', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, verticalAlign: 'middle' }}>you</span>}
+                    </h2>
+                    {profileData.username && (
+                      <p style={{ color: '#F5A623', fontSize: '0.78rem', fontWeight: 600, margin: 0 }}>
+                        @{profileData.username}
+                      </p>
+                    )}
+                    <p style={{ color: '#7A7A7A', fontSize: '0.78rem', margin: '0.25rem 0 0', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Mail size={11} /> {profileData.email}
+                    </p>
                   </div>
 
                   <div style={modalStyles.stats}>
                     <div style={modalStyles.stat}>
-                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Joined</span>
-                      <span style={{ color: COLORS.text, fontWeight: 600 }}>
-                        {new Date(profileData.created_at).toLocaleDateString()}
-                      </span>
+                      <span style={modalStyles.statIcon}><Flame size={13} color="#F5A623" /></span>
+                      <span style={modalStyles.statValue}>{profileData.streak.current_streak || 0}</span>
+                      <span style={modalStyles.statLabel}>Streak</span>
                     </div>
                     <div style={modalStyles.stat}>
-                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Partners</span>
-                      <span style={{ color: COLORS.text, fontWeight: 600 }}>{profileData.partnerCount}</span>
+                      <span style={modalStyles.statIcon}><Trophy size={13} color="#4CAF50" /></span>
+                      <span style={modalStyles.statValue}>{profileData.streak.best_streak || 0}</span>
+                      <span style={modalStyles.statLabel}>Best</span>
                     </div>
                     <div style={modalStyles.stat}>
-                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Current Streak</span>
-                      <span style={{ color: COLORS.gold, fontWeight: 700 }}>
-                        {profileData.streak.current_streak || 0} days
-                      </span>
+                      <span style={modalStyles.statIcon}><Users size={13} color="#6FA8F5" /></span>
+                      <span style={modalStyles.statValue}>{profileData.partnerCount}</span>
+                      <span style={modalStyles.statLabel}>Partners</span>
                     </div>
                     <div style={modalStyles.stat}>
-                      <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase' }}>Best Streak</span>
-                      <span style={{ color: COLORS.text, fontWeight: 600 }}>
-                        {profileData.streak.best_streak || 0} days
-                      </span>
+                      <span style={modalStyles.statIcon}><ShieldCheck size={13} color="#B98CF5" /></span>
+                      <span style={modalStyles.statValue}>{profileData.postCount}</span>
+                      <span style={modalStyles.statLabel}>Posts</span>
                     </div>
                   </div>
 
-                  <div style={{ marginTop: '0.5rem' }}>
-                    <span style={{ color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
-                      About
-                    </span>
-                    <p
-                      style={{
-                        color: COLORS.textDim,
-                        fontSize: '0.9rem',
-                        marginTop: '0.3rem',
-                        borderTop: `1px solid ${COLORS.border}`,
-                        paddingTop: '0.8rem',
-                      }}
-                    >
+                  <div style={{ padding: '0 1.4rem 1.4rem' }}>
+                    <div style={modalStyles.sectionLabel}>About</div>
+                    <p style={modalStyles.bio}>
                       {profileData.bio || "This creator hasn't added a bio yet."}
                     </p>
+                    <div style={modalStyles.metaRow}>
+                      <span style={modalStyles.metaItem}>
+                        <Calendar size={11} /> Joined {new Date(profileData.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                    {profileData.streak?.last_checked_in && (
+                      <div style={{ marginTop: '0.6rem', color: '#7A7A7A', fontSize: '0.73rem' }}>
+                        Last check-in: {new Date(profileData.streak.last_checked_in).toLocaleDateString()}
+                      </div>
+                    )}
                   </div>
-                </div>
+                </>
               ) : (
-                <p style={{ color: COLORS.textDim }}>No profile data</p>
+                <p style={{ color: '#8A8A8A', padding: '2rem', textAlign: 'center' }}>No profile data</p>
               )}
             </motion.div>
           </motion.div>
@@ -647,57 +409,70 @@ export default function Community() {
   )
 }
 
-// --- Modal styles ---
-const modalStyles = {
+const modalStyles: Record<string, React.CSSProperties> = {
   overlay: {
-    position: 'fixed' as const,
-    inset: 0,
-    background: 'rgba(0,0,0,0.7)',
-    backdropFilter: 'blur(8px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '1.5rem',
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+    backdropFilter: 'blur(10px)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1.25rem',
   },
   card: {
-    background: COLORS.surfaceRaised,
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: '24px',
-    padding: '2rem',
-    maxWidth: '440px',
-    width: '100%',
-    position: 'relative' as const,
-    boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
+    background: 'linear-gradient(180deg, #161616 0%, #0A0A0A 100%)',
+    border: '1px solid #262626', borderRadius: '24px',
+    width: '100%', maxWidth: '420px', position: 'relative',
+    overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.9)',
+    maxHeight: '90vh', overflowY: 'auto',
   },
   close: {
-    position: 'absolute' as const,
-    top: '0.8rem',
-    right: '0.8rem',
-    background: 'rgba(255,255,255,0.04)',
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: '10px',
-    width: '34px',
-    height: '34px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    color: COLORS.textFaint,
+    position: 'absolute', top: '0.75rem', right: '0.75rem',
+    background: 'rgba(0,0,0,0.5)', border: '1px solid #262626',
+    borderRadius: '10px', width: '34px', height: '34px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', zIndex: 2, backdropFilter: 'blur(6px)',
+  },
+  top: { position: 'relative', height: '92px' },
+  banner: {
+    position: 'absolute', inset: 0,
+    background: 'radial-gradient(circle at top right, rgba(245,166,35,0.28), transparent 65%), radial-gradient(circle at bottom left, rgba(111,168,245,0.14), transparent 60%)',
+  },
+  avatarRing: {
+    position: 'absolute', bottom: '-32px', left: '1.4rem',
+    padding: 3, borderRadius: '24px',
+    background: 'linear-gradient(135deg, #F5A623, #D9821A)',
+    boxShadow: '0 12px 30px -12px rgba(245,166,35,0.6)',
+  },
+  avatar: {
+    width: '72px', height: '72px', borderRadius: '20px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '1.5rem', fontWeight: 700, color: '#0A0A0A',
+    fontFamily: 'Space Grotesk', overflow: 'hidden',
+    border: '3px solid #0A0A0A',
   },
   stats: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem',
-    marginBottom: '1rem',
+    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '0.5rem', padding: '0.4rem 1.4rem 1rem', marginTop: '1.6rem',
   },
   stat: {
-    background: 'rgba(255,255,255,0.04)',
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: '12px',
-    padding: '0.6rem 0.8rem',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '0.15rem',
+    background: 'rgba(255,255,255,0.03)', border: '1px solid #1E1E1E',
+    borderRadius: '12px', padding: '0.6rem 0.4rem',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem',
+    transition: 'border-color 0.2s',
+  },
+  statIcon: { display: 'flex', marginBottom: '0.1rem' },
+  statValue: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '0.95rem', color: '#F5F1EA', lineHeight: 1 },
+  statLabel: { fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7A7A7A', fontWeight: 600 },
+  sectionLabel: {
+    color: '#5C5C5C', fontSize: '0.62rem', textTransform: 'uppercase',
+    letterSpacing: '0.1em', fontWeight: 700, marginBottom: '0.4rem',
+  },
+  bio: {
+    color: '#B0B0B0', fontSize: '0.85rem', lineHeight: 1.55,
+    margin: 0, background: 'rgba(255,255,255,0.02)',
+    border: '1px solid #1A1A1A', borderRadius: '12px',
+    padding: '0.75rem 0.9rem',
+  },
+  metaRow: { display: 'flex', gap: '0.75rem', marginTop: '0.6rem', flexWrap: 'wrap' },
+  metaItem: {
+    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+    color: '#7A7A7A', fontSize: '0.73rem', fontWeight: 500,
   },
 }
