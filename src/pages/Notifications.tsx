@@ -22,6 +22,7 @@ export default function Notifications() {
   useEffect(() => {
     if (!user?.email) return
     let mounted = true
+
     const load = async () => {
       try {
         const res = await fetchNotifications(user.email!)
@@ -34,8 +35,22 @@ export default function Notifications() {
         if (mounted) setLoading(false)
       }
     }
+
     load()
-    return () => { mounted = false }
+    const interval = setInterval(load, 20000)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+
+    return () => {
+      mounted = false
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
   }, [user?.email])
 
   const handleItemClick = async (n: AppNotification) => {
@@ -43,6 +58,7 @@ export default function Notifications() {
       await markRead(n.id)
       setItems(prev => prev.map(x => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x))
       setUnread(u => Math.max(0, u - 1))
+      window.dispatchEvent(new Event('notifications:refresh'))
     }
   }
 
@@ -51,6 +67,7 @@ export default function Notifications() {
     await markAllRead(user.email)
     setItems(prev => prev.map(x => ({ ...x, read_at: x.read_at || new Date().toISOString() })))
     setUnread(0)
+    window.dispatchEvent(new Event('notifications:refresh'))
   }
 
   const timeAgo = (iso: string) => {

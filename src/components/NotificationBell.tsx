@@ -12,13 +12,30 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!user?.email) return
     let mounted = true
+
     const load = async () => {
       const res = await fetchNotifications(user.email!)
       if (mounted) setUnread(res.unread)
     }
+
     load()
-    const interval = setInterval(load, 30000)
-    return () => { mounted = false; clearInterval(interval) }
+    const interval = setInterval(load, 15000)
+
+    const onRefresh = () => load()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    window.addEventListener('notifications:refresh', onRefresh)
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+
+    return () => {
+      mounted = false
+      clearInterval(interval)
+      window.removeEventListener('notifications:refresh', onRefresh)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
   }, [user?.email])
 
   if (!user) return null
