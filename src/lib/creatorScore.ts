@@ -14,10 +14,10 @@ export const SCORE_ACTIONS = {
 }
 
 export function getScoreLabel(score: number): { label: string; color: string; next: number | null; nextLabel: string | null } {
+  if (score >= 1000) return { label: 'Legend', color: '#9C27B0', next: null, nextLabel: null }
   if (score >= 700) return { label: 'Elite Creator', color: '#F5A623', next: 1000, nextLabel: 'Legend' }
   if (score >= 400) return { label: 'Established', color: '#2196F3', next: 700, nextLabel: 'Elite Creator' }
   if (score >= 200) return { label: 'Consistent', color: '#4CAF50', next: 400, nextLabel: 'Established' }
-  if (score >= 1000) return { label: 'Legend', color: '#9C27B0', next: null, nextLabel: null }
   return { label: 'Building', color: '#888', next: 200, nextLabel: 'Consistent' }
 }
 
