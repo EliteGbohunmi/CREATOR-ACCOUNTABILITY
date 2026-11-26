@@ -70,6 +70,24 @@ export async function checkAndAwardAchievements(userId: string) {
     await supabase.from('achievements').insert(
       toAward.map(type => ({ user_id: userId, type }))
     )
+
+    // Fire a notification for each newly unlocked achievement
+    for (const type of toAward) {
+      const meta = ACHIEVEMENTS.find(a => a.type === type)
+      if (!meta) continue
+      fetch('https://streak-backend-ar7h.onrender.com/api/notifications/in-app', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          title: `${meta.icon} Achievement unlocked: ${meta.label}`,
+          body: meta.desc,
+          type: 'achievement',
+          action: 'view_achievement',
+          metadata: { achievement_type: type }
+        })
+      }).catch(err => console.error('achievement notify failed:', err))
+    }
   }
 
   return toAward

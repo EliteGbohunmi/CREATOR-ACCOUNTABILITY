@@ -113,19 +113,34 @@ export default function Challenges() {
     const endDate = new Date(startDate)
     endDate.setDate(endDate.getDate() + days)
 
-    await supabase.from('challenges').insert({
+    const { data: created } = await supabase.from('challenges').insert({
       name: newName.trim(),
       days: days,
       created_by: user!.id,
       end_date: endDate.toISOString(),
       status: 'active'
-    })
+    }).select().single()
 
     setNewName('')
     setNewDays('')
     setShowForm(false)
     await fetchAll()
     setCreating(false)
+
+    // Broadcast to all other users
+    fetch('https://streak-backend-ar7h.onrender.com/api/notifications/in-app', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: user!.id,
+        broadcast: true,
+        title: `🎯 New challenge: ${newName.trim()}`,
+        body: `${days}-day challenge just started. Join before it fills up.`,
+        type: 'challenge',
+        action: 'join_challenge',
+        metadata: { challenge_id: created?.id }
+      })
+    }).catch(err => console.error('challenge broadcast failed:', err))
   }
 
   const joinChallenge = async (challengeId: string) => {
