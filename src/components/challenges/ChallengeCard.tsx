@@ -149,6 +149,21 @@ export default function ChallengeCard({
 
       {err && <div style={styles.error}>{err}</div>}
 
+      <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem' }}>
+        <button
+          style={styles.shareLink}
+          onClick={() => {
+            const url = `${window.location.origin}/challenges/${ch.id}`
+            if (navigator.share) {
+              navigator.share({ title: ch.name, text: `Join my challenge: ${ch.name}`, url }).catch(() => {})
+            } else {
+              navigator.clipboard.writeText(url).then(() => alert('Invite link copied!')).catch(() => {})
+            }
+          }}
+        >
+          <Share2 size={12} color="#F5A623" /> Share invite link
+        </button>
+      </div>
       <div style={styles.footer}>
         {isCreator ? (
           confirmDelete ? (
