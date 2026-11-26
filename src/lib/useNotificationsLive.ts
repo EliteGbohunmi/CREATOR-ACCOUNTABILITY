@@ -34,7 +34,7 @@ export function useNotificationsLive(email?: string) {
       if (!profile || !mounted) return
 
       channel = supabase
-        .channel('notification_log_live')
+        .channel(`notification_log_live_${Math.random().toString(36).slice(2)}`)
         .on(
           'postgres_changes',
           {
