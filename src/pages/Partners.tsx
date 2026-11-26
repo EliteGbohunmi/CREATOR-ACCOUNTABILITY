@@ -6,7 +6,7 @@ import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
 import {
   Users, Search, Check, X, Flame, AlertCircle, UserPlus, Clock,
-  UserMinus, Loader, Eye, Send, ChevronRight, Sparkles
+  UserMinus, Loader, Send, Sparkles
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -78,7 +78,6 @@ function getAvatarGradient(name?: string) {
   const [a, b] = AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]
   return `linear-gradient(135deg, ${a}, ${b})`
 }
-
 function relativeTime(dateStr?: string | null) {
   if (!dateStr) return 'Never'
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -115,19 +114,18 @@ function renderAvatar(avatarUrl: string | null, name: string, size: number = 44)
   return <div style={common}>{getInitials(name)}</div>
 }
 
-// Streak ring around avatar (arc = current / 30 capped at 100%)
 function StreakRing({ streak, checkedIn, size, children }: { streak: number; checkedIn: boolean; size: number; children: React.ReactNode }) {
   const pct = Math.min(1, streak / 30)
-  const r = (size + 8) / 2
+  const r = (size + 10) / 2
   const c = 2 * Math.PI * r
   return (
-    <div style={{ position: 'relative', width: size + 8, height: size + 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <svg width={size + 8} height={size + 8} style={{ position: 'absolute', transform: 'rotate(-90deg)' }}>
-        <circle cx={(size + 8) / 2} cy={(size + 8) / 2} r={r} stroke="rgba(255,255,255,0.06)" strokeWidth={2} fill="none" />
+    <div style={{ position: 'relative', width: size + 10, height: size + 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg width={size + 10} height={size + 10} style={{ position: 'absolute', transform: 'rotate(-90deg)' }}>
+        <circle cx={(size + 10) / 2} cy={(size + 10) / 2} r={r} stroke="rgba(255,255,255,0.06)" strokeWidth={2.5} fill="none" />
         <circle
-          cx={(size + 8) / 2} cy={(size + 8) / 2} r={r}
+          cx={(size + 10) / 2} cy={(size + 10) / 2} r={r}
           stroke={checkedIn ? COLORS.green : COLORS.gold}
-          strokeWidth={2.5}
+          strokeWidth={3}
           fill="none"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - pct)}
@@ -140,7 +138,6 @@ function StreakRing({ streak, checkedIn, size, children }: { streak: number; che
   )
 }
 
-// Nudge cooldown helpers (localStorage)
 const NUDGE_COOLDOWN_MS = 30 * 60 * 1000
 function getLastNudge(partnerId: string): number | null {
   const raw = localStorage.getItem(`nudge_${partnerId}`)
@@ -163,6 +160,7 @@ export default function Partners() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
+  const [searchFocused, setSearchFocused] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState<string | null>(null)
   const [nudgingIds, setNudgingIds] = useState<Set<string>>(new Set())
@@ -171,10 +169,7 @@ export default function Partners() {
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
-  const [profileData, setProfileData] = useState<any | null>(null)
-  const [loadingProfile, setLoadingProfile] = useState(false)
   const [discoverTab, setDiscoverTab] = useState<'search' | 'suggested'>('suggested')
-  const [sentExpanded, setSentExpanded] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -193,7 +188,6 @@ export default function Partners() {
     if (user) fetchSuggestions()
   }, [user, partners, sent])
 
-  // Cooldown ticker
   useEffect(() => {
     const id = setInterval(() => setCooldownTick(t => t + 1), 30000)
     return () => clearInterval(id)
@@ -272,51 +266,8 @@ export default function Partners() {
     }
   }
 
-  const fetchUserProfile = async (userId: string) => {
-    setLoadingProfile(true)
-    try {
-      const { data: profile, error: pErr } = await supabase
-        .from('profiles')
-        .select('id, name, email, created_at, bio, avatar_url')
-        .eq('id', userId)
-        .single()
-      if (pErr) throw pErr
-
-      const { data: streak } = await supabase
-        .from('streaks')
-        .select('current_streak, best_streak, last_checked_in')
-        .eq('user_id', userId)
-        .single()
-
-      const { count: partnerCount } = await supabase
-        .from('accountability_partners')
-        .select('*', { count: 'exact', head: true })
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-
-      setProfileData({
-        ...profile,
-        streak: streak || { current_streak: 0, best_streak: 0, last_checked_in: null },
-        partnerCount: partnerCount || 0
-      })
-    } catch (err) {
-      toast.error('Failed to load profile')
-    } finally {
-      setLoadingProfile(false)
-    }
-  }
-
-  const togglePartner = (userId: string) => {
-    if (selectedPartnerId === userId) {
-      setSelectedPartnerId(null)
-      setProfileData(null)
-    } else {
-      setSelectedPartnerId(userId)
-      fetchUserProfile(userId)
-    }
-  }
-
   const searchUsers = async () => {
-    if (!searchQuery.trim()) return
+    if (!searchQuery.trim()) { setSearchResults([]); return }
     setSearching(true)
     try {
       const { data } = await supabase
@@ -332,6 +283,13 @@ export default function Partners() {
     }
     setSearching(false)
   }
+
+  // live search as user types
+  useEffect(() => {
+    if (!searchFocused) return
+    const t = setTimeout(() => { searchUsers() }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery, searchFocused])
 
   const sendRequest = async (receiverId: string) => {
     setSending(receiverId)
@@ -383,7 +341,7 @@ export default function Partners() {
         .delete()
         .or(`user1_id.eq.${partnerId},user2_id.eq.${user!.id}`)
         .or(`user1_id.eq.${user!.id},user2_id.eq.${partnerId}`)
-      if (selectedPartnerId === partnerId) { setSelectedPartnerId(null); setProfileData(null) }
+      if (selectedPartnerId === partnerId) setSelectedPartnerId(null)
       await fetchAll()
       await fetchSuggestions()
       toast.success('Partner removed')
@@ -463,46 +421,117 @@ export default function Partners() {
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         style={{ paddingBottom: '120px' }}
       >
-        {/* HERO HEADER */}
+        {/* TITLE + SEARCH BAR */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.05 }}
-          style={{ marginBottom: '1.75rem' }}
+          transition={{ duration: 0.4, delay: 0.05 }}
+          style={{ marginBottom: '1.5rem' }}
         >
-          <div style={styles.eyebrow}>
-            <span style={styles.eyebrowDot} />
-            The Circle
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.9rem' }}>
+            <h1 style={styles.title}>Partners</h1>
+            <div style={styles.countPill}>
+              <Users size={13} color={COLORS.gold} />
+              <span>{partners.length}/{maxPartners}</span>
+            </div>
           </div>
-          <h1 style={styles.title}>
-            Your accountability<br />circle.
-          </h1>
-          <p style={styles.subtitle}>
-            The people who keep you honest. Show up for them.
-          </p>
 
-          {/* Stats strip */}
-          <div style={styles.statsStrip}>
-            <div style={styles.statCell}>
-              <span style={styles.statValue}>{partners.length}<span style={styles.statSlash}>/{maxPartners}</span></span>
-              <span style={styles.statLabel}>In circle</span>
-            </div>
-            <div style={styles.statDivider} />
-            <div style={styles.statCell}>
-              <span style={{ ...styles.statValue, color: COLORS.green }}>{activeToday}</span>
-              <span style={styles.statLabel}>Active today</span>
-            </div>
-            <div style={styles.statDivider} />
-            <div style={styles.statCell}>
-              <span style={{ ...styles.statValue, color: requests.length > 0 ? COLORS.gold : COLORS.textDim }}>
-                {requests.length}
-              </span>
-              <span style={styles.statLabel}>Pending</span>
-            </div>
+          {/* SEARCH — first interaction */}
+          <div style={styles.searchWrap}>
+            <Search size={16} color={COLORS.textFaint} style={{ flexShrink: 0 }} />
+            <input
+              style={styles.searchInput}
+              placeholder="Search creators to add..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); setSearchResults([]) }}
+                style={styles.clearBtn}
+              >
+                <X size={14} color={COLORS.textFaint} />
+              </button>
+            )}
+          </div>
+
+          {/* Search results appear right under the search bar */}
+          <AnimatePresence>
+            {searchFocused && searchQuery && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                style={styles.searchResults}
+              >
+                {searching ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}>
+                    <Loader size={18} color={COLORS.textFaint} className="animate-spin" />
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <p style={{ color: COLORS.textFaint, fontSize: '0.82rem', textAlign: 'center', padding: '1rem 0' }}>
+                    No creators found for "{searchQuery}"
+                  </p>
+                ) : (
+                  searchResults.map(u => {
+                    const alreadySent = sent.some(s => s.receiver_id === u.id)
+                    return (
+                      <div key={u.id} style={styles.searchResultRow}>
+                        {renderAvatar(u.avatar_url, u.name, 40)}
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={styles.compactName}>{u.name}</div>
+                          <div style={styles.compactSub}>{u.email}</div>
+                        </div>
+                        {alreadySent ? (
+                          <div style={styles.pendingChip}>
+                            <Clock size={11} color={COLORS.textFaint} />
+                            Pending
+                          </div>
+                        ) : (
+                          <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            style={styles.requestBtn}
+                            onClick={() => sendRequest(u.id)}
+                            disabled={sending === u.id}
+                          >
+                            {sending === u.id ? '...' : 'Request'}
+                          </motion.button>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* STATS — responsive grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          style={styles.statsGrid}
+        >
+          <div style={styles.statCell}>
+            <span style={styles.statValue}>{partners.length}<span style={styles.statSlash}>/{maxPartners}</span></span>
+            <span style={styles.statLabel}>In circle</span>
+          </div>
+          <div style={styles.statCell}>
+            <span style={{ ...styles.statValue, color: COLORS.green }}>{activeToday}</span>
+            <span style={styles.statLabel}>Active today</span>
+          </div>
+          <div style={styles.statCell}>
+            <span style={{ ...styles.statValue, color: requests.length > 0 ? COLORS.gold : COLORS.textDim }}>
+              {requests.length}
+            </span>
+            <span style={styles.statLabel}>Pending</span>
           </div>
         </motion.div>
 
-        {/* PRIORITY STRIP — pending requests first */}
+        {/* PRIORITY — pending requests */}
         <AnimatePresence>
           {requests.length > 0 && (
             <motion.div
@@ -510,7 +539,7 @@ export default function Partners() {
               animate={{ opacity: 1, y: 0, height: 'auto' }}
               exit={{ opacity: 0, y: -12, height: 0 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              style={{ overflow: 'hidden', marginBottom: '2rem' }}
+              style={{ overflow: 'hidden', marginBottom: '1.5rem' }}
             >
               <div style={styles.priorityCard}>
                 <div style={styles.priorityHeader}>
@@ -544,20 +573,20 @@ export default function Partners() {
                       </div>
                       <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
                         <motion.button
-                          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                          whileTap={{ scale: 0.95 }}
                           style={styles.acceptBtn}
                           onClick={() => acceptRequest(r.id, r.sender_id)}
                           aria-label="Accept"
                         >
-                          <Check size={15} color={COLORS.bg} />
+                          <Check size={16} color={COLORS.bg} />
                         </motion.button>
                         <motion.button
-                          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                          whileTap={{ scale: 0.95 }}
                           style={styles.declineBtn}
                           onClick={() => declineRequest(r.id)}
                           aria-label="Decline"
                         >
-                          <X size={15} color={COLORS.red} />
+                          <X size={16} color={COLORS.red} />
                         </motion.button>
                       </div>
                     </motion.div>
@@ -568,20 +597,45 @@ export default function Partners() {
           )}
         </AnimatePresence>
 
-        {/* YOUR CIRCLE — horizontal avatar carousel */}
+        {/* SENT REQUESTS — inline compact chips, moved up */}
+        {sent.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            style={{ marginBottom: '1.75rem' }}
+          >
+            <div style={styles.sectionLabel}>
+              <Clock size={12} color={COLORS.textDim} />
+              Sent · {sent.length} waiting
+            </div>
+            <div style={styles.sentChips}>
+              {sent.map(r => (
+                <div key={r.id} style={styles.sentChip}>
+                  <div style={{ ...styles.sentAvatar, background: getAvatarGradient(r.profiles?.name) }}>
+                    {getInitials(r.profiles?.name)}
+                  </div>
+                  <span style={styles.sentName}>{r.profiles?.name}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* YOUR CIRCLE — carousel */}
         {partners.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.15 }}
-            style={{ marginBottom: '2.5rem' }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            style={{ marginBottom: '2rem' }}
           >
             <div style={styles.sectionLabel}>
-              <div style={{ ...styles.iconChipSmall, background: COLORS.goldSoft }}>
-                <Users size={12} color={COLORS.gold} />
-              </div>
+              <Users size={12} color={COLORS.gold} />
               Your circle
             </div>
+
+            {/* Carousel with bigger avatars */}
             <div style={styles.carousel}>
               {partners.map((p, i) => {
                 const checkedIn = partnerCheckedIn(p.streak)
@@ -592,17 +646,17 @@ export default function Partners() {
                     key={p.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 + i * 0.06 }}
+                    transition={{ delay: 0.3 + i * 0.06 }}
                     whileTap={{ scale: 0.96 }}
-                    onClick={() => togglePartner(p.partnerId)}
+                    onClick={() => setSelectedPartnerId(isSelected ? null : p.partnerId)}
                     style={{
                       ...styles.avatarTile,
                       borderColor: isSelected ? COLORS.goldBorder : 'transparent',
                       background: isSelected ? COLORS.goldSoft : 'transparent',
                     }}
                   >
-                    <StreakRing streak={streak} checkedIn={checkedIn} size={56}>
-                      {renderAvatar(p.partnerAvatar, p.partnerName, 56)}
+                    <StreakRing streak={streak} checkedIn={checkedIn} size={72}>
+                      {renderAvatar(p.partnerAvatar, p.partnerName, 72)}
                     </StreakRing>
                     <span style={styles.tileName}>{p.partnerName?.split(' ')[0]}</span>
                     <span style={{ ...styles.tileStatus, color: checkedIn ? COLORS.green : COLORS.textFaint }}>
@@ -613,343 +667,176 @@ export default function Partners() {
               })}
             </div>
 
-            {/* INLINE PARTNER PANEL */}
+            {/* INLINE PANEL */}
             <AnimatePresence mode="wait">
-              {selectedPartnerId && (
-                <motion.div
-                  key={selectedPartnerId}
-                  initial={{ opacity: 0, height: 0, y: -10 }}
-                  animate={{ opacity: 1, height: 'auto', y: 0 }}
-                  exit={{ opacity: 0, height: 0, y: -10 }}
-                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                  style={{ overflow: 'hidden', marginTop: '1rem' }}
-                >
-                  {(() => {
-                    const partner = partners.find(p => p.partnerId === selectedPartnerId)
-                    if (!partner) return null
-                    const checkedIn = partnerCheckedIn(partner.streak)
-                    const streak = partner.streak?.current_streak || 0
-                    const best = partner.streak?.best_streak || 0
-                    const isNudging = nudgingIds.has(partner.partnerId)
-                    const cooldown = cooldownRemaining(partner.partnerId)
-                    const cooldownMin = Math.ceil(cooldown / 60000)
-                    return (
-                      <div style={styles.detailPanel}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '1.1rem' }}>
-                          {renderAvatar(partner.partnerAvatar, partner.partnerName, 52)}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={styles.partnerName}>{partner.partnerName}</div>
-                            <div style={{ ...styles.compactSub, marginTop: '0.2rem' }}>
-                              {checkedIn ? 'Posted today' : `Last seen ${relativeTime(partner.streak?.last_checked_in)}`}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => togglePartner(partner.partnerId)}
-                            style={styles.iconGhostBtn}
-                            aria-label="Close"
-                          >
-                            <X size={15} color={COLORS.textDim} />
-                          </button>
-                        </div>
-
-                        <div style={styles.detailStats}>
-                          <div style={styles.detailStat}>
-                            <span style={styles.detailStatValue}>{streak}</span>
-                            <span style={styles.detailStatLabel}>Current</span>
-                          </div>
-                          <div style={styles.detailStat}>
-                            <span style={{ ...styles.detailStatValue, color: COLORS.textDim }}>{best}</span>
-                            <span style={styles.detailStatLabel}>Best</span>
-                          </div>
-                          <div style={styles.detailStat}>
-                            <span style={{ ...styles.detailStatValue, color: checkedIn ? COLORS.green : COLORS.textDim }}>
-                              {checkedIn ? '✓' : '—'}
-                            </span>
-                            <span style={styles.detailStatLabel}>Today</span>
+              {selectedPartnerId && (() => {
+                const partner = partners.find(p => p.partnerId === selectedPartnerId)
+                if (!partner) return null
+                const checkedIn = partnerCheckedIn(partner.streak)
+                const streak = partner.streak?.current_streak || 0
+                const best = partner.streak?.best_streak || 0
+                const isNudging = nudgingIds.has(partner.partnerId)
+                const cooldown = cooldownRemaining(partner.partnerId)
+                const cooldownMin = Math.ceil(cooldown / 60000)
+                return (
+                  <motion.div
+                    key={selectedPartnerId}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ overflow: 'hidden', marginTop: '1rem' }}
+                  >
+                    <div style={styles.detailPanel}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '1rem' }}>
+                        {renderAvatar(partner.partnerAvatar, partner.partnerName, 56)}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={styles.partnerName}>{partner.partnerName}</div>
+                          <div style={{ ...styles.compactSub, marginTop: '0.2rem' }}>
+                            {checkedIn ? 'Posted today' : `Last seen ${relativeTime(partner.streak?.last_checked_in)}`}
                           </div>
                         </div>
+                        <button
+                          onClick={() => setSelectedPartnerId(null)}
+                          style={styles.iconGhostBtn}
+                          aria-label="Close"
+                        >
+                          <X size={16} color={COLORS.textDim} />
+                        </button>
+                      </div>
 
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                          {!checkedIn ? (
-                            <motion.button
-                              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
-                              style={{
-                                ...styles.sendNudgeBtn,
-                                opacity: isNudging || cooldown > 0 ? 0.6 : 1,
-                              }}
-                              disabled={isNudging || cooldown > 0}
-                              onClick={() => handleNudge(partner.partnerId, partner.partnerName)}
-                            >
-                              <Send size={14} color={COLORS.bg} />
-                              {isNudging ? 'Sending…' : cooldown > 0 ? `Nudged ${cooldownMin}m ago` : 'Send nudge'}
-                            </motion.button>
-                          ) : (
-                            <div style={styles.doneRow}>
-                              <Sparkles size={14} color={COLORS.green} />
-                              <span>No nudge needed — they showed up</span>
-                            </div>
-                          )}
-                          <button
-                            style={styles.removeBtn}
-                            onClick={() => removePartner(partner.partnerId)}
-                            aria-label="Remove partner"
-                          >
-                            <UserMinus size={15} color={COLORS.textFaint} />
-                          </button>
+                      <div style={styles.detailStats}>
+                        <div style={styles.detailStat}>
+                          <span style={styles.detailStatValue}>{streak}</span>
+                          <span style={styles.detailStatLabel}>Current</span>
+                        </div>
+                        <div style={styles.detailStat}>
+                          <span style={{ ...styles.detailStatValue, color: COLORS.textDim }}>{best}</span>
+                          <span style={styles.detailStatLabel}>Best</span>
+                        </div>
+                        <div style={styles.detailStat}>
+                          <span style={{ ...styles.detailStatValue, color: checkedIn ? COLORS.green : COLORS.textDim }}>
+                            {checkedIn ? '✓' : '—'}
+                          </span>
+                          <span style={styles.detailStatLabel}>Today</span>
                         </div>
                       </div>
-                    )
-                  })()}
-                </motion.div>
-              )}
+
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                        {!checkedIn ? (
+                          <motion.button
+                            whileTap={{ scale: 0.98 }}
+                            style={{
+                              ...styles.sendNudgeBtn,
+                              opacity: isNudging || cooldown > 0 ? 0.6 : 1,
+                            }}
+                            disabled={isNudging || cooldown > 0}
+                            onClick={() => handleNudge(partner.partnerId, partner.partnerName)}
+                          >
+                            <Send size={14} color={COLORS.bg} />
+                            {isNudging ? 'Sending…' : cooldown > 0 ? `Nudged ${cooldownMin}m ago` : 'Send nudge'}
+                          </motion.button>
+                        ) : (
+                          <div style={styles.doneRow}>
+                            <Sparkles size={14} color={COLORS.green} />
+                            <span>No nudge needed — they showed up</span>
+                          </div>
+                        )}
+                        <button
+                          style={styles.removeBtn}
+                          onClick={() => removePartner(partner.partnerId)}
+                          aria-label="Remove partner"
+                        >
+                          <UserMinus size={16} color={COLORS.textFaint} />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })()}
             </AnimatePresence>
           </motion.div>
         )}
 
-        {/* DISCOVER — search + suggested merged */}
+        {/* SUGGESTED — always shown when can add */}
         {canAddMore && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25 }}
-            style={{ marginBottom: '2.5rem' }}
-          >
-            <div style={styles.sectionLabel}>
-              <div style={{ ...styles.iconChipSmall, background: 'rgba(255,255,255,0.05)' }}>
-                <UserPlus size={12} color={COLORS.textDim} />
-              </div>
-              Grow your circle
-            </div>
-
-            <div style={styles.card}>
-              {/* Segmented toggle */}
-              <div style={styles.segment}>
-                <button
-                  onClick={() => setDiscoverTab('search')}
-                  style={{
-                    ...styles.segmentBtn,
-                    ...(discoverTab === 'search' ? styles.segmentBtnActive : {})
-                  }}
-                >
-                  <Search size={13} />
-                  Search
-                </button>
-                <button
-                  onClick={() => setDiscoverTab('suggested')}
-                  style={{
-                    ...styles.segmentBtn,
-                    ...(discoverTab === 'suggested' ? styles.segmentBtnActive : {})
-                  }}
-                >
-                  <Sparkles size={13} />
-                  Suggested
-                </button>
-              </div>
-
-              <AnimatePresence mode="wait">
-                {discoverTab === 'search' ? (
-                  <motion.div
-                    key="search"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input
-                        style={{ ...styles.input, flex: 1 }}
-                        placeholder="Search by name..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && searchUsers()}
-                      />
-                      <motion.button
-                        whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                        style={styles.searchBtn}
-                        onClick={searchUsers}
-                        disabled={searching}
-                      >
-                        <Search size={16} color={COLORS.bg} />
-                      </motion.button>
-                    </div>
-                    {searchResults.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.85rem' }}>
-                        {searchResults.map(u => {
-                          const alreadySent = sent.some(s => s.receiver_id === u.id)
-                          return (
-                            <div key={u.id} style={styles.resultRow}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', minWidth: 0, flex: 1 }}>
-                                {renderAvatar(u.avatar_url, u.name, 40)}
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                  <div style={styles.compactName}>{u.name}</div>
-                                  <div style={styles.compactSub}>{u.email}</div>
-                                </div>
-                              </div>
-                              {alreadySent ? (
-                                <div style={styles.pendingChip}>
-                                  <Clock size={11} color={COLORS.textFaint} />
-                                  Pending
-                                </div>
-                              ) : (
-                                <motion.button
-                                  whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                                  style={styles.requestBtn}
-                                  onClick={() => sendRequest(u.id)}
-                                  disabled={sending === u.id}
-                                >
-                                  {sending === u.id ? '...' : 'Request'}
-                                </motion.button>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="suggested"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {loadingSuggestions ? (
-                      <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem 0' }}>
-                        <Loader size={20} color={COLORS.textFaint} className="animate-spin" />
-                      </div>
-                    ) : suggestions.length === 0 ? (
-                      <p style={{ color: COLORS.textFaint, fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>
-                        No suggestions right now.
-                      </p>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {suggestions.map(s => {
-                          const alreadySent = sent.some(req => req.receiver_id === s.id)
-                          return (
-                            <div key={s.id} style={styles.resultRow}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', minWidth: 0, flex: 1 }}>
-                                {renderAvatar(s.avatar_url, s.name, 40)}
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                  <div style={styles.compactName}>{s.name}</div>
-                                  {s.email && <div style={styles.compactSub}>{s.email}</div>}
-                                </div>
-                              </div>
-                              {alreadySent ? (
-                                <div style={styles.pendingChip}>
-                                  <Clock size={11} color={COLORS.textFaint} />
-                                  Pending
-                                </div>
-                              ) : (
-                                <motion.button
-                                  whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                                  style={styles.requestBtn}
-                                  onClick={() => sendRequest(s.id)}
-                                  disabled={sending === s.id}
-                                >
-                                  {sending === s.id ? '...' : 'Request'}
-                                </motion.button>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.div>
-        )}
-
-        {/* SENT REQUESTS — collapsed summary */}
-        {sent.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.35 }}
             style={{ marginBottom: '2rem' }}
           >
-            <button
-              onClick={() => setSentExpanded(s => !s)}
-              style={styles.collapsedRow}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Clock size={13} color={COLORS.textFaint} />
-                <span style={{ color: COLORS.textDim, fontSize: '0.82rem' }}>
-                  {sent.length} sent request{sent.length > 1 ? 's' : ''} waiting
-                </span>
+            <div style={styles.sectionLabel}>
+              <Sparkles size={12} color={COLORS.textDim} />
+              Suggested creators
+            </div>
+            {loadingSuggestions ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem 0' }}>
+                <Loader size={20} color={COLORS.textFaint} className="animate-spin" />
               </div>
-              <motion.div animate={{ rotate: sentExpanded ? 90 : 0 }} transition={{ duration: 0.2 }}>
-                <ChevronRight size={15} color={COLORS.textFaint} />
-              </motion.div>
-            </button>
-            <AnimatePresence>
-              {sentExpanded && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
-                    {sent.map(r => (
-                      <div key={r.id} style={styles.compactCard}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', minWidth: 0 }}>
-                          <div style={{ ...styles.avatarSmall, background: getAvatarGradient(r.profiles?.name) }}>
-                            {getInitials(r.profiles?.name)}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={styles.compactName}>{r.profiles?.name}</div>
-                            <div style={styles.compactSub}>Request pending</div>
-                          </div>
-                        </div>
-                        <div style={styles.pendingChip}>
-                          <Clock size={11} color={COLORS.textFaint} />
-                          Waiting
+            ) : suggestions.length === 0 ? (
+              <p style={{ color: COLORS.textFaint, fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>
+                No suggestions right now.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {suggestions.map(s => {
+                  const alreadySent = sent.some(req => req.receiver_id === s.id)
+                  return (
+                    <div key={s.id} style={styles.resultRow}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', minWidth: 0, flex: 1 }}>
+                        {renderAvatar(s.avatar_url, s.name, 42)}
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={styles.compactName}>{s.name}</div>
+                          {s.email && <div style={styles.compactSub}>{s.email}</div>}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      {alreadySent ? (
+                        <div style={styles.pendingChip}>
+                          <Clock size={11} color={COLORS.textFaint} />
+                          Pending
+                        </div>
+                      ) : (
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          style={styles.requestBtn}
+                          onClick={() => sendRequest(s.id)}
+                          disabled={sending === s.id}
+                        >
+                          {sending === s.id ? '...' : 'Request'}
+                        </motion.button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </motion.div>
         )}
 
-        {/* MAX PARTNERS */}
+        {/* MAX */}
         {!canAddMore && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            style={{ ...styles.card, borderColor: COLORS.goldBorder, background: 'linear-gradient(180deg, #1A1400 0%, #131313 100%)', marginBottom: '2rem' }}
-          >
+          <div style={{ ...styles.card, borderColor: COLORS.goldBorder, background: 'linear-gradient(180deg, #1A1400 0%, #131313 100%)', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <Check size={16} color={COLORS.gold} />
               <p style={{ color: COLORS.gold, fontSize: '0.85rem', margin: 0 }}>
                 Your circle is full ({maxPartners}/{maxPartners}). Remove one to add another.
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* EMPTY */}
         {partners.length === 0 && requests.length === 0 && sent.length === 0 && suggestions.length === 0 && !loadingSuggestions && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={styles.empty}
-          >
+          <div style={styles.empty}>
             <div style={styles.emptyIconRing}>
               <Users size={24} color={COLORS.textFaint} />
             </div>
             <p style={styles.emptyTitle}>Your circle is empty</p>
             <p style={styles.emptySub}>
               Accountability partners are the difference between "I'll do it tomorrow" and "I did it today."
-              Find someone to grow with.
             </p>
-          </motion.div>
+          </div>
         )}
       </motion.div>
     </Layout>
@@ -957,57 +844,90 @@ export default function Partners() {
 }
 
 const styles: Record<string, any> = {
-  eyebrow: {
-    display: 'flex', alignItems: 'center', gap: '0.4rem',
-    color: COLORS.textFaint, fontSize: '0.7rem', textTransform: 'uppercase',
-    letterSpacing: '0.18em', marginBottom: '0.6rem', fontWeight: 600
-  },
-  eyebrowDot: {
-    width: '5px', height: '5px', borderRadius: '50%',
-    background: COLORS.gold, boxShadow: '0 0 8px rgba(245,166,35,0.8)', display: 'inline-block'
-  },
   title: {
-    fontSize: '2.2rem', fontFamily: 'Space Grotesk', fontWeight: 700,
-    letterSpacing: '-0.035em', color: COLORS.text, lineHeight: 1.02, margin: 0
+    fontSize: 'clamp(1.6rem, 5vw, 2rem)',
+    fontFamily: 'Space Grotesk', fontWeight: 700,
+    letterSpacing: '-0.03em', color: COLORS.text, lineHeight: 1.05, margin: 0
   },
-  subtitle: {
-    color: COLORS.textDim, fontSize: '0.92rem',
-    letterSpacing: '-0.005em', margin: '0.5rem 0 0', lineHeight: 1.5, maxWidth: '340px'
+  countPill: {
+    display: 'flex', alignItems: 'center', gap: '0.35rem',
+    background: COLORS.goldSoft, border: `1px solid ${COLORS.goldBorder}`,
+    color: COLORS.gold, borderRadius: '20px', padding: '0.35rem 0.7rem',
+    fontSize: '0.75rem', fontWeight: 700, flexShrink: 0
   },
-  statsStrip: {
-    display: 'flex', alignItems: 'center', gap: '0.75rem',
-    marginTop: '1.25rem', padding: '0.85rem 1rem',
+
+  // SEARCH
+  searchWrap: {
+    display: 'flex', alignItems: 'center', gap: '0.6rem',
+    background: 'rgba(255,255,255,0.03)',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '14px', padding: '0.85rem 1rem',
+    transition: 'border-color 0.2s'
+  },
+  searchInput: {
+    flex: 1, background: 'transparent', border: 'none',
+    color: COLORS.text, fontSize: '0.95rem', outline: 'none',
+    minWidth: 0, fontFamily: 'inherit'
+  },
+  clearBtn: {
+    background: 'transparent', border: 'none', cursor: 'pointer',
+    padding: '0.2rem', display: 'flex', flexShrink: 0
+  },
+  searchResults: {
+    marginTop: '0.5rem',
+    background: COLORS.surfaceRaised,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '14px', padding: '0.5rem',
+    maxHeight: '320px', overflowY: 'auto'
+  },
+  searchResultRow: {
+    display: 'flex', alignItems: 'center', gap: '0.7rem',
+    padding: '0.65rem 0.6rem', borderRadius: '10px',
+    transition: 'background 0.15s'
+  },
+
+  // STATS
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: '0.5rem',
+    marginBottom: '1.5rem'
+  },
+  statCell: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    justifyContent: 'center',
     background: 'rgba(255,255,255,0.02)',
-    border: `1px solid ${COLORS.border}`, borderRadius: '14px'
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '14px',
+    padding: 'clamp(0.7rem, 2.5vw, 1rem) 0.5rem',
+    minWidth: 0
   },
-  statCell: { display: 'flex', flexDirection: 'column', flex: 1, alignItems: 'center' },
   statValue: {
     color: COLORS.text, fontFamily: 'Space Grotesk',
-    fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1
+    fontSize: 'clamp(1.1rem, 4vw, 1.35rem)',
+    fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1
   },
-  statSlash: { color: COLORS.textFaint, fontWeight: 500, fontSize: '0.9rem' },
+  statSlash: { color: COLORS.textFaint, fontWeight: 500, fontSize: 'clamp(0.75rem, 2.5vw, 0.9rem)' },
   statLabel: {
-    color: COLORS.textFaint, fontSize: '0.65rem',
-    textTransform: 'uppercase', letterSpacing: '0.08em',
-    marginTop: '0.35rem', fontWeight: 600
+    color: COLORS.textFaint, fontSize: 'clamp(0.58rem, 2vw, 0.68rem)',
+    textTransform: 'uppercase', letterSpacing: '0.06em',
+    marginTop: '0.35rem', fontWeight: 600, textAlign: 'center'
   },
-  statDivider: { width: '1px', height: '26px', background: COLORS.border },
+
+  // PRIORITY
   priorityCard: {
     background: 'linear-gradient(180deg, rgba(245,166,35,0.08) 0%, rgba(245,166,35,0.02) 100%)',
     border: `1px solid ${COLORS.goldBorder}`,
     borderRadius: '18px', padding: '1rem 1.15rem'
   },
-  priorityHeader: {
-    display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center', gap: '0.5rem'
-  },
+  priorityHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' },
   priorityDot: {
     width: '6px', height: '6px', borderRadius: '50%',
     background: COLORS.gold, display: 'inline-block',
     boxShadow: '0 0 8px rgba(245,166,35,0.8)'
   },
   priorityLabel: {
-    color: COLORS.gold, fontSize: '0.72rem',
+    color: COLORS.gold, fontSize: '0.7rem',
     textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700
   },
   requestRow: {
@@ -1016,89 +936,101 @@ const styles: Record<string, any> = {
     background: 'rgba(0,0,0,0.25)', borderRadius: '12px',
     padding: '0.7rem 0.85rem'
   },
+
+  // SECTION LABEL
   sectionLabel: {
-    display: 'flex', alignItems: 'center', gap: '0.55rem',
+    display: 'flex', alignItems: 'center', gap: '0.5rem',
     color: COLORS.textDim, fontSize: '0.7rem', textTransform: 'uppercase',
-    letterSpacing: '0.14em', marginBottom: '0.95rem', fontWeight: 600
+    letterSpacing: '0.13em', marginBottom: '0.85rem', fontWeight: 600
   },
-  iconChipSmall: {
-    width: '20px', height: '20px', borderRadius: '6px',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+
+  // SENT CHIPS
+  sentChips: { display: 'flex', flexWrap: 'wrap', gap: '0.45rem' },
+  sentChip: {
+    display: 'flex', alignItems: 'center', gap: '0.45rem',
+    background: 'rgba(255,255,255,0.03)',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '20px',
+    padding: '0.35rem 0.7rem 0.35rem 0.35rem'
   },
-  countBadge: {
-    background: COLORS.gold, color: COLORS.bg,
-    fontSize: '0.68rem', fontWeight: 700, borderRadius: '10px',
-    padding: '1px 8px', letterSpacing: 0
+  sentAvatar: {
+    width: '22px', height: '22px', borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#0A0A0A', fontWeight: 700, fontSize: '0.6rem',
+    fontFamily: 'Space Grotesk', flexShrink: 0
   },
+  sentName: {
+    color: COLORS.textDim, fontSize: '0.76rem',
+    fontWeight: 500, maxWidth: '120px',
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+  },
+
+  // CAROUSEL
   carousel: {
-    display: 'flex', gap: '0.5rem', overflowX: 'auto',
-    paddingBottom: '0.5rem', margin: '0 -0.25rem', paddingLeft: '0.25rem', paddingRight: '0.25rem',
+    display: 'flex', gap: '0.35rem', overflowX: 'auto',
+    paddingBottom: '0.5rem', margin: '0 -0.25rem',
+    paddingLeft: '0.25rem', paddingRight: '0.25rem',
     scrollbarWidth: 'none'
   },
   avatarTile: {
     display: 'flex', flexDirection: 'column', alignItems: 'center',
-    gap: '0.4rem', padding: '0.85rem 0.5rem',
+    gap: '0.45rem', padding: '0.85rem 0.4rem',
     background: 'transparent', border: '1px solid transparent',
-    borderRadius: '16px', cursor: 'pointer',
-    minWidth: '86px', flexShrink: 0,
+    borderRadius: '18px', cursor: 'pointer',
+    minWidth: '102px', flexShrink: 0,
     transition: 'background 0.2s, border-color 0.2s'
   },
   tileName: {
-    color: COLORS.text, fontSize: '0.78rem',
+    color: COLORS.text, fontSize: '0.82rem',
     fontWeight: 600, letterSpacing: '-0.01em',
-    maxWidth: '80px', overflow: 'hidden',
+    maxWidth: '94px', overflow: 'hidden',
     textOverflow: 'ellipsis', whiteSpace: 'nowrap'
   },
   tileStatus: {
-    fontSize: '0.66rem', fontWeight: 500,
-    maxWidth: '80px', overflow: 'hidden',
+    fontSize: '0.68rem', fontWeight: 500,
+    maxWidth: '94px', overflow: 'hidden',
     textOverflow: 'ellipsis', whiteSpace: 'nowrap'
   },
+
+  // DETAIL PANEL
   detailPanel: {
     background: COLORS.surfaceRaised,
     border: `1px solid ${COLORS.border}`,
     borderRadius: '18px', padding: '1.15rem 1.25rem',
     boxShadow: '0 10px 30px -15px rgba(0,0,0,0.8)'
   },
-  detailStats: {
-    display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-    gap: '0.5rem'
-  },
+  detailStats: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem' },
   detailStat: {
     background: 'rgba(255,255,255,0.03)',
     border: `1px solid ${COLORS.border}`,
     borderRadius: '12px', padding: '0.7rem 0.5rem',
     display: 'flex', flexDirection: 'column',
-    alignItems: 'center', gap: '0.2rem'
+    alignItems: 'center', gap: '0.25rem', minWidth: 0
   },
   detailStatValue: {
     color: COLORS.gold, fontFamily: 'Space Grotesk',
-    fontSize: '1.15rem', fontWeight: 700, lineHeight: 1
+    fontSize: '1.2rem', fontWeight: 700, lineHeight: 1
   },
   detailStatLabel: {
-    color: COLORS.textFaint, fontSize: '0.62rem',
+    color: COLORS.textFaint, fontSize: '0.6rem',
     textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600
   },
+
+  // COMMON
   partnerName: {
-    fontWeight: 700, fontSize: '1rem', color: COLORS.text,
+    fontWeight: 700, fontSize: '1.05rem', color: COLORS.text,
     letterSpacing: '-0.015em', overflow: 'hidden',
     textOverflow: 'ellipsis', whiteSpace: 'nowrap',
     fontFamily: 'Space Grotesk'
   },
   compactName: {
-    fontWeight: 600, fontSize: '0.88rem', color: COLORS.text,
+    fontWeight: 600, fontSize: '0.9rem', color: COLORS.text,
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
   },
   compactSub: {
-    color: COLORS.textFaint, fontSize: '0.74rem',
+    color: COLORS.textFaint, fontSize: '0.76rem',
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
     marginTop: '0.1rem'
-  },
-  compactCard: {
-    background: COLORS.surfaceRaised, border: `1px solid ${COLORS.border}`,
-    borderRadius: '13px', padding: '0.8rem 1rem',
-    display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center', gap: '0.75rem'
   },
   avatarSmall: {
     width: '38px', height: '38px', borderRadius: '11px', flexShrink: 0,
@@ -1110,63 +1042,38 @@ const styles: Record<string, any> = {
     flex: 1,
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
     background: COLORS.gold, color: COLORS.bg, border: 'none',
-    borderRadius: '12px', padding: '0.7rem 0.9rem',
+    borderRadius: '12px', padding: '0.75rem 0.9rem',
     fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
     boxShadow: '0 4px 14px -4px rgba(245,166,35,0.5)',
-    fontFamily: 'Space Grotesk', letterSpacing: '-0.005em'
+    fontFamily: 'Space Grotesk', letterSpacing: '-0.005em',
+    minWidth: 0
   },
   doneRow: {
     flex: 1,
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
     background: 'rgba(76,175,80,0.06)', border: `1px solid ${COLORS.greenBorder}`,
-    borderRadius: '12px', padding: '0.7rem 0.9rem',
-    color: COLORS.green, fontSize: '0.78rem', fontWeight: 500
+    borderRadius: '12px', padding: '0.75rem 0.9rem',
+    color: COLORS.green, fontSize: '0.78rem', fontWeight: 500, minWidth: 0
   },
   removeBtn: {
     background: 'rgba(255,255,255,0.03)', border: `1px solid ${COLORS.border}`,
-    borderRadius: '12px', width: '42px', height: '42px', cursor: 'pointer',
+    borderRadius: '12px', width: '44px', height: '44px', cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
   },
   iconGhostBtn: {
     background: 'rgba(255,255,255,0.04)', border: `1px solid ${COLORS.border}`,
-    borderRadius: '10px', width: '34px', height: '34px', cursor: 'pointer',
+    borderRadius: '10px', width: '36px', height: '36px', cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-  },
-  input: {
-    background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '11px',
-    padding: '0.75rem 1rem', color: COLORS.text, fontSize: '0.92rem', outline: 'none'
-  },
-  searchBtn: {
-    background: COLORS.gold, border: 'none', borderRadius: '11px',
-    padding: '0.75rem 1rem', cursor: 'pointer',
-    display: 'flex', alignItems: 'center',
-    boxShadow: '0 4px 14px -4px rgba(245,166,35,0.5)'
   },
   card: {
     background: COLORS.surfaceRaised, border: `1px solid ${COLORS.border}`,
     borderRadius: '18px', padding: '1.1rem 1.2rem',
     boxShadow: '0 6px 20px -14px rgba(0,0,0,0.7)'
   },
-  segment: {
-    display: 'flex', gap: '0.35rem', marginBottom: '0.9rem',
-    background: 'rgba(0,0,0,0.3)', padding: '0.25rem',
-    borderRadius: '11px', width: 'fit-content'
-  },
-  segmentBtn: {
-    display: 'flex', alignItems: 'center', gap: '0.35rem',
-    background: 'transparent', border: 'none',
-    color: COLORS.textDim, fontSize: '0.78rem',
-    fontWeight: 600, padding: '0.5rem 0.85rem',
-    borderRadius: '9px', cursor: 'pointer',
-    transition: 'background 0.2s, color 0.2s'
-  },
-  segmentBtnActive: {
-    background: COLORS.goldSoft, color: COLORS.gold
-  },
   resultRow: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '12px',
-    padding: '0.7rem 0.85rem', gap: '0.7rem'
+    background: COLORS.surfaceRaised, border: `1px solid ${COLORS.border}`, borderRadius: '14px',
+    padding: '0.75rem 0.9rem', gap: '0.7rem'
   },
   pendingChip: {
     display: 'flex', alignItems: 'center', gap: '0.3rem',
@@ -1175,25 +1082,24 @@ const styles: Record<string, any> = {
   requestBtn: {
     background: COLORS.goldSoft, color: COLORS.gold,
     border: `1px solid ${COLORS.goldBorder}`, borderRadius: '9px',
-    padding: '0.42rem 0.85rem', fontWeight: 600,
+    padding: '0.45rem 0.85rem', fontWeight: 600,
     fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0
   },
   acceptBtn: {
     background: COLORS.gold, border: 'none', borderRadius: '9px',
-    width: '34px', height: '34px', cursor: 'pointer',
+    width: '38px', height: '38px', cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     boxShadow: '0 4px 14px -4px rgba(245,166,35,0.5)'
   },
   declineBtn: {
     background: 'rgba(229,62,62,0.06)', border: `1px solid ${COLORS.redBorder}`,
-    borderRadius: '9px', width: '34px', height: '34px', cursor: 'pointer',
+    borderRadius: '9px', width: '38px', height: '38px', cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center'
   },
-  collapsedRow: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    background: 'transparent', border: `1px solid ${COLORS.border}`,
-    borderRadius: '12px', padding: '0.75rem 1rem',
-    cursor: 'pointer', width: '100%'
+  countBadge: {
+    background: COLORS.gold, color: COLORS.bg,
+    fontSize: '0.68rem', fontWeight: 700, borderRadius: '10px',
+    padding: '1px 8px', letterSpacing: 0
   },
   empty: {
     background: COLORS.surfaceRaised, border: `1px dashed ${COLORS.border}`, borderRadius: '20px',
