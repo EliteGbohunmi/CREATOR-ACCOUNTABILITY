@@ -703,27 +703,7 @@ export default function Dashboard() {
               </a>
             </div>
 
-            {/* Today's tasks */}
-            <div style={{ marginBottom: '1.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Calendar size={15} color="#555" />
-                  <span style={{ color: '#555', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Today's Plan</span>
-                </div>
-              </div>
-              {tasksToday.length === 0 ? (
-                <div style={styles.emptyBox}>
-                  No tasks planned for today.{' '}
-                  <a href="/planner" style={{ color: '#F5A623', textDecoration: 'none' }}>Add some →</a>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {tasksToday.map(task => (
-                    <TaskItem key={task.id} task={task} onToggle={fetchAll} />
-                  ))}
-                </div>
-              )}
-            </div>
+            
 
             <Heatmap />
           </>
