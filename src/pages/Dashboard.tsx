@@ -261,13 +261,19 @@ export default function Dashboard() {
   const confirmStreak = async () => {
     const newStreak = (streak?.current_streak || 0) + 1
     const bestStreak = Math.max(newStreak, streak?.best_streak || 0)
-    await supabase.from('streaks').upsert({
+    const { error: streakError } = await supabase.from('streaks').upsert({
       user_id: user!.id,
       current_streak: newStreak,
       best_streak: bestStreak,
       last_checked_in: today,
       on_rest_day: false
     }, { onConflict: 'user_id' })
+
+    if (streakError) {
+      console.error('❌ Check-in failed:', streakError)
+      showToast('❌ Check-in failed: ' + streakError.message)
+      return
+    }
 
     // Update challenges
     const { data: userChallenges } = await supabase
@@ -293,20 +299,31 @@ export default function Dashboard() {
     setCelebrated(true)
     setTimeout(() => setCelebrated(false), 3000)
 
-    // Achievements, tokens, score
-    const newAchievements = await checkAndAwardAchievements(user!.id)
-    if (newAchievements.length > 0) setCurrentMilestone(newAchievements[0])
-    await checkAndAwardToken(user!.id)
+    // Achievements, tokens — best effort, never block scoring
+    try {
+      const newAchievements = await checkAndAwardAchievements(user!.id)
+      if (newAchievements.length > 0) setCurrentMilestone(newAchievements[0])
+    } catch (e) { console.error('achievements failed:', e) }
 
-    if (partners.length > 0) {
-      await awardScore(user!.id, 'POST_CONFIRMED')
-    } else {
-      await awardScore(user!.id, 'SELF_CHECKIN')
+    try {
+      await checkAndAwardToken(user!.id)
+    } catch (e) { console.error('token award failed:', e) }
+
+    // Score — always runs
+    try {
+      if (partners.length > 0) {
+        await awardScore(user!.id, 'POST_CONFIRMED')
+      } else {
+        await awardScore(user!.id, 'SELF_CHECKIN')
+      }
+      const prevStreak = streak?.current_streak || 0
+      if (prevStreak < 7 && newStreak >= 7) await awardScore(user!.id, 'STREAK_7')
+      if (prevStreak < 30 && newStreak >= 30) await awardScore(user!.id, 'STREAK_30')
+      if (prevStreak < 60 && newStreak >= 60) await awardScore(user!.id, 'STREAK_60')
+      if (prevStreak < 100 && newStreak >= 100) await awardScore(user!.id, 'STREAK_100')
+    } catch (e) {
+      console.error('score award failed:', e)
     }
-    if (newStreak === 7) await awardScore(user!.id, 'STREAK_7')
-    if (newStreak === 30) await awardScore(user!.id, 'STREAK_30')
-    if (newStreak === 60) await awardScore(user!.id, 'STREAK_60')
-    if (newStreak === 100) await awardScore(user!.id, 'STREAK_100')
   }
 
   const confirmPartnerProof = async (proof: any) => {
