@@ -13,7 +13,6 @@ import OnboardingTour from '../components/OnboardingTour'
 import { checkAndAwardAchievements } from '../lib/achievements'
 import { checkAndAwardToken, useRestToken } from '../lib/restTokens'
 import { awardScore, getScoreLabel } from '../lib/creatorScore'
-import TaskChecklist from '../components/TaskChecklist'
 import { notifyPartnerCheckin } from '../lib/backend'
 import {
   Flame,
@@ -41,7 +40,6 @@ export default function Dashboard() {
   const [todayDone, setTodayDone] = useState(false)
   const [todayPending, setTodayPending] = useState(false)
   const [todayRest, setTodayRest] = useState(false)
-  const [tasksToday, setTasksToday] = useState<any[]>([])
   const [celebrated, setCelebrated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<'operator' | 'creator'>('operator')
@@ -52,7 +50,6 @@ export default function Dashboard() {
   const [pendingConfirmations, setPendingConfirmations] = useState<any[]>([])
   const [confirmingProofId, setConfirmingProofId] = useState<string | null>(null)
   const [submittingProof, setSubmittingProof] = useState(false)
-  const [tasksDone, setTasksDone] = useState(0)
   const [taskPoints, setTaskPoints] = useState(0)
   const [restTokens, setRestTokens] = useState(0)
   const [usingRestToken, setUsingRestToken] = useState(false)
@@ -108,16 +105,14 @@ export default function Dashboard() {
   }
 
   const fetchAll = async () => {
-    const [{ data: prof }, { data: str }, { data: tasks }, { data: proof }] = await Promise.all([
+    const [{ data: prof }, { data: str }, { data: proof }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user!.id).single(),
       supabase.from('streaks').select('*').eq('user_id', user!.id).single(),
-      supabase.from('tasks').select('*').eq('user_id', user!.id).eq('date', today),
       supabase.from('checkin_proofs').select('*').eq('user_id', user!.id).eq('date', today).single()
     ])
 
     setProfile(prof)
     setStreak(str)
-    setTasksToday(tasks || [])
     setRestTokens(prof?.rest_tokens || 0)
     setCreatorScore(prof?.creator_score || 0)
     setWeeklyTarget(prof?.weekly_target || 7)
@@ -662,11 +657,6 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {user?.id && (
                       <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid #1E1E1E' }}>
-                        <TaskChecklist
-                          userId={user.id}
-                          date={today}
-                          onChange={(count) => setTasksDone(count)}
-                        />
                       </div>
                     )}
                     <div>
@@ -689,19 +679,15 @@ export default function Dashboard() {
                     <button
                       style={{
                         ...styles.submitBtn,
-                        opacity: tasksDone === 0 ? 0.4 : 1,
-                        cursor: tasksDone === 0 ? 'not-allowed' : 'pointer',
+                        opacity: submittingProof ? 0.6 : 1,
+                        cursor: submittingProof ? 'not-allowed' : 'pointer',
                       }}
                       onClick={() => {
-                        if (tasksDone === 0) {
-                          alert('Complete at least 1 task before checking in.')
-                          return
-                        }
-                        submitProof()
+                                                submitProof()
                       }}
                       disabled={submittingProof}
                     >
-                      {submittingProof ? 'Submitting...' : tasksDone === 0 ? 'Complete a task first' : partners.length > 0 ? 'Submit for Confirmation' : 'Confirm Check-in'}
+                      {submittingProof ? 'Submitting...' : partners.length > 0 ? 'Submit for Confirmation' : 'Confirm Check-in'}
                     </button>
                   </div>
                 </motion.div>
@@ -724,11 +710,6 @@ export default function Dashboard() {
                   <Calendar size={15} color="#555" />
                   <span style={{ color: '#555', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Today's Plan</span>
                 </div>
-                {tasksToday.length > 0 && (
-                  <span style={{ color: '#555', fontSize: '0.75rem' }}>
-                    {tasksToday.filter(t => t.completed).length}/{tasksToday.length} done
-                  </span>
-                )}
               </div>
               {tasksToday.length === 0 ? (
                 <div style={styles.emptyBox}>
@@ -802,7 +783,7 @@ export default function Dashboard() {
           <OnboardingTour onComplete={() => setShowOnboarding(false)} />
         )}
 
-        <AICoach name={profile?.name || 'Creator'} streak={streak?.current_streak || 0} todayDone={todayDone} tasksCount={tasksToday.length} />
+        <AICoach name={profile?.name || 'Creator'} streak={streak?.current_streak || 0} todayDone={todayDone} tasksCount={0} />
 
         {toast && <div style={styles.toast}>{toast}</div>}
 
@@ -811,19 +792,6 @@ export default function Dashboard() {
   )
 }
 
-function TaskItem({ task, onToggle }: any) {
-  const toggle = async () => {
-    await supabase.from('tasks').update({ completed: !task.completed }).eq('id', task.id)
-    onToggle()
-  }
-  return (
-    <div style={{ ...styles.taskItem, opacity: task.completed ? 0.5 : 1 }} onClick={toggle}>
-      {task.completed ? <CheckCircle2 size={17} color="#4CAF50" /> : <Circle size={17} color="#333" />}
-      <span style={{ flex: 1, textDecoration: task.completed ? 'line-through' : 'none', fontSize: '0.92rem' }}>{task.title}</span>
-      {task.platform && <span style={styles.platform}>{task.platform}</span>}
-    </div>
-  )
-}
 
 const styles: Record<string, React.CSSProperties> = {
   skel: { background: 'linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', borderRadius: '8px' },
