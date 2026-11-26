@@ -31,12 +31,20 @@ export default function CreateChallengeModal({ userId, onClose, onCreated }: Pro
     if (!n) { setError('Give your challenge a name'); return }
     if (!d || d < 1 || d > 365) { setError('Days must be between 1 and 365'); return }
     setCreating(true)
-    const created = await createChallenge({
-      userId, name: n, days: d, visibility, proofRequired, category
+    const { data, error: err } = await createChallenge({
+      userId,
+      name: n,
+      days: d,
+      visibility,
+      proofRequired,
+      category,
     })
     setCreating(false)
-    if (!created) { setError('Could not create challenge. Try again.'); return }
-    onCreated(created)
+    if (err || !data) {
+      setError(err || 'Could not create challenge. Try again.')
+      return
+    }
+    onCreated(data)
   }
 
   return (
@@ -72,7 +80,7 @@ export default function CreateChallengeModal({ userId, onClose, onCreated }: Pro
             <div>
               <p style={styles.label}>Quick start</p>
               <div style={styles.templateRow}>
-                {TEMPLATES.map(t => (
+                {TEMPLATES.map((t) => (
                   <button key={t.label} style={styles.templateChip} onClick={() => applyTemplate(t)}>
                     <Sparkles size={12} color="#F5A623" />
                     {t.label}
@@ -87,7 +95,7 @@ export default function CreateChallengeModal({ userId, onClose, onCreated }: Pro
                 style={styles.input}
                 placeholder="e.g. 30 Days of Reels"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value)}
               />
             </div>
 
@@ -99,19 +107,19 @@ export default function CreateChallengeModal({ userId, onClose, onCreated }: Pro
                 min="1"
                 max="365"
                 value={days}
-                onChange={e => setDays(e.target.value)}
+                onChange={(e) => setDays(e.target.value)}
               />
             </div>
 
             <div>
               <p style={styles.label}>Category</p>
               <div style={styles.categoryRow}>
-                {CATEGORIES.map(c => (
+                {CATEGORIES.map((c) => (
                   <button
                     key={c}
                     style={{
                       ...styles.categoryChip,
-                      ...(category === c ? styles.categoryChipActive : {})
+                      ...(category === c ? styles.categoryChipActive : {}),
                     }}
                     onClick={() => setCategory(c)}
                   >
@@ -151,16 +159,27 @@ export default function CreateChallengeModal({ userId, onClose, onCreated }: Pro
               style={{ ...styles.toggleRow, borderColor: proofRequired ? 'rgba(245,166,35,0.3)' : '#1E1E1E' }}
               onClick={() => setProofRequired(!proofRequired)}
             >
-              <div style={{
-                width: '20px', height: '20px', borderRadius: '6px',
-                border: `1.5px solid ${proofRequired ? '#F5A623' : '#5C5C5C'}`,
-                background: proofRequired ? '#F5A623' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-              }}>
-                {proofRequired && <span style={{ color: '#0A0A0A', fontSize: '12px', fontWeight: 700 }}>✓</span>}
+              <div
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '6px',
+                  border: `1.5px solid ${proofRequired ? '#F5A623' : '#5C5C5C'}`,
+                  background: proofRequired ? '#F5A623' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {proofRequired && (
+                  <span style={{ color: '#0A0A0A', fontSize: '12px', fontWeight: 700 }}>✓</span>
+                )}
               </div>
               <div style={{ flex: 1, textAlign: 'left' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#F0EDE8' }}>Require proof</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#F0EDE8' }}>
+                  Require proof
+                </div>
                 <div style={{ fontSize: '0.75rem', color: '#5C5C5C', marginTop: '0.1rem' }}>
                   Participants upload proof each check-in
                 </div>
@@ -184,102 +203,48 @@ export default function CreateChallengeModal({ userId, onClose, onCreated }: Pro
 
 const styles: Record<string, React.CSSProperties> = {
   overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
-    backdropFilter: 'blur(8px)', zIndex: 500,
-    display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.75)',
+    backdropFilter: 'blur(8px)',
+    zIndex: 500,
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
     padding: '1rem',
   },
   sheet: {
-    width: '100%', maxWidth: '520px', maxHeight: '92vh',
-    background: '#0F0F0F', border: '1px solid #1E1E1E',
+    width: '100%',
+    maxWidth: '520px',
+    maxHeight: '92vh',
+    background: 'linear-gradient(180deg, #141414 0%, #0D0D0D 100%)',
+    border: '1px solid #232323',
     borderRadius: '24px 24px 16px 16px',
-    display: 'flex', flexDirection: 'column',
-    overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.9)',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    boxShadow: '0 32px 80px rgba(0,0,0,0.9)',
   },
-  handle: {
-    width: '38px', height: '4px', borderRadius: '2px',
-    background: '#2A2A2A', margin: '0.6rem auto 0',
-  },
-  header: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-    padding: '1rem 1.25rem 0.75rem',
-  },
-  eyebrow: {
-    color: '#5C5C5C', fontSize: '0.68rem', textTransform: 'uppercase',
-    letterSpacing: '0.1em', marginBottom: '0.2rem', fontWeight: 600,
-  },
-  title: {
-    fontFamily: 'Space Grotesk', fontWeight: 700,
-    fontSize: '1.25rem', color: '#F0EDE8',
-  },
-  closeBtn: {
-    width: '32px', height: '32px', borderRadius: '10px',
-    background: 'rgba(255,255,255,0.04)', border: '1px solid #1E1E1E',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-  },
-  body: {
-    padding: '0.5rem 1.25rem 1rem', overflowY: 'auto',
-    display: 'flex', flexDirection: 'column', gap: '1rem',
-  },
-  label: {
-    color: '#8A8A8A', fontSize: '0.72rem', textTransform: 'uppercase',
-    letterSpacing: '0.08em', marginBottom: '0.5rem', fontWeight: 600,
-  },
+  handle: { width: '38px', height: '4px', borderRadius: '2px', background: '#2A2A2A', margin: '0.6rem auto 0' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '1rem 1.25rem 0.75rem' },
+  eyebrow: { color: '#5C5C5C', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.2rem', fontWeight: 600 },
+  title: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1.25rem', color: '#F0EDE8' },
+  closeBtn: { width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid #1E1E1E', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  body: { padding: '0.5rem 1.25rem 1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' },
+  label: { color: '#8A8A8A', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem', fontWeight: 600 },
   templateRow: { display: 'flex', gap: '0.4rem', flexWrap: 'wrap' },
-  templateChip: {
-    display: 'flex', alignItems: 'center', gap: '0.35rem',
-    background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.2)',
-    color: '#F5A623', fontSize: '0.72rem', fontWeight: 500,
-    padding: '0.45rem 0.7rem', borderRadius: '20px', cursor: 'pointer',
-  },
-  input: {
-    width: '100%', background: '#0A0A0A', border: '1px solid #1E1E1E',
-    borderRadius: '10px', padding: '0.75rem 0.9rem', color: '#F0EDE8',
-    fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box',
-  },
+  templateChip: { display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.2)', color: '#F5A623', fontSize: '0.72rem', fontWeight: 500, padding: '0.45rem 0.7rem', borderRadius: '20px', cursor: 'pointer' },
+  input: { width: '100%', background: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: '10px', padding: '0.75rem 0.9rem', color: '#F0EDE8', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' },
   categoryRow: { display: 'flex', gap: '0.4rem', flexWrap: 'wrap' },
-  categoryChip: {
-    background: 'transparent', border: '1px solid #1E1E1E',
-    color: '#8A8A8A', fontSize: '0.75rem', fontWeight: 500,
-    padding: '0.4rem 0.8rem', borderRadius: '20px', cursor: 'pointer',
-    textTransform: 'capitalize',
-  },
-  categoryChipActive: {
-    background: '#F5A623', border: '1px solid #F5A623', color: '#0A0A0A', fontWeight: 600,
-  },
+  categoryChip: { background: 'transparent', border: '1px solid #1E1E1E', color: '#8A8A8A', fontSize: '0.75rem', fontWeight: 500, padding: '0.4rem 0.8rem', borderRadius: '20px', cursor: 'pointer', textTransform: 'capitalize' },
+  categoryChipActive: { background: '#F5A623', border: '1px solid #F5A623', color: '#0A0A0A', fontWeight: 600 },
   visibilityRow: { display: 'flex', gap: '0.5rem' },
-  visBtn: {
-    flex: 1, display: 'flex', alignItems: 'center', gap: '0.6rem',
-    background: '#0A0A0A', border: '1px solid #1E1E1E',
-    borderRadius: '12px', padding: '0.7rem 0.8rem', cursor: 'pointer',
-    textAlign: 'left',
-  },
-  visBtnActive: {
-    background: '#F5A623', border: '1px solid #F5A623',
-  },
+  visBtn: { flex: 1, display: 'flex', alignItems: 'center', gap: '0.6rem', background: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: '12px', padding: '0.7rem 0.8rem', cursor: 'pointer', textAlign: 'left' },
+  visBtnActive: { background: '#F5A623', border: '1px solid #F5A623' },
   visTitle: { fontSize: '0.8rem', fontWeight: 600, color: 'inherit' },
   visSub: { fontSize: '0.68rem', color: 'inherit', opacity: 0.7 },
-  toggleRow: {
-    display: 'flex', alignItems: 'center', gap: '0.75rem',
-    background: '#0A0A0A', border: '1px solid #1E1E1E',
-    borderRadius: '12px', padding: '0.75rem 0.9rem',
-    cursor: 'pointer', width: '100%',
-  },
-  error: {
-    background: 'rgba(229,62,62,0.08)', border: '1px solid rgba(229,62,62,0.25)',
-    color: '#E53E3E', fontSize: '0.8rem', padding: '0.7rem 0.9rem',
-    borderRadius: '10px',
-  },
-  footer: {
-    padding: '0.75rem 1.25rem 1.25rem',
-    borderTop: '1px solid #1A1A1A',
-    background: '#0F0F0F',
-  },
-  createBtn: {
-    width: '100%', background: '#F5A623', color: '#0A0A0A',
-    border: 'none', borderRadius: '12px', padding: '0.95rem',
-    fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-    boxShadow: '0 8px 24px -8px rgba(245,166,35,0.6)',
-  },
+  toggleRow: { display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: '12px', padding: '0.75rem 0.9rem', cursor: 'pointer', width: '100%' },
+  error: { background: 'rgba(229,62,62,0.08)', border: '1px solid rgba(229,62,62,0.25)', color: '#E53E3E', fontSize: '0.8rem', padding: '0.7rem 0.9rem', borderRadius: '10px' },
+  footer: { padding: '0.75rem 1.25rem 1.25rem', borderTop: '1px solid #1A1A1A', background: '#0D0D0D' },
+  createBtn: { width: '100%', background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '12px', padding: '0.95rem', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 8px 24px -8px rgba(245,166,35,0.6)' },
 }

@@ -33,9 +33,9 @@ export const CATEGORIES = ['content', 'fitness', 'learning', 'creative', 'other'
 
 export const TEMPLATES = [
   { label: '7-Day Sprint', name: '7-Day Sprint', days: 7, category: 'content' as const },
-  { label: '30-Day Content Challenge', name: '30-Day Content Challenge', days: 30, category: 'content' as const },
+  { label: '30-Day Content', name: '30-Day Content Challenge', days: 30, category: 'content' as const },
   { label: '100-Day Consistency', name: '100-Day Consistency', days: 100, category: 'content' as const },
-  { label: '21-Day Habit Builder', name: '21-Day Habit Builder', days: 21, category: 'learning' as const },
+  { label: '21-Day Habit', name: '21-Day Habit Builder', days: 21, category: 'learning' as const },
 ]
 
 export function generateCode(): string {
@@ -52,6 +52,16 @@ export async function listChallenges(): Promise<Challenge[]> {
     .eq('visibility', 'public')
     .order('created_at', { ascending: false })
   if (error) { console.error('listChallenges:', error); return [] }
+  return data || []
+}
+
+export async function listPrivateChallenges(): Promise<Challenge[]> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('*, profiles(name)')
+    .eq('visibility', 'private')
+    .order('created_at', { ascending: false })
+  if (error) { console.error('listPrivateChallenges:', error); return [] }
   return data || []
 }
 
@@ -81,11 +91,9 @@ export async function createChallenge(input: {
   visibility: 'public' | 'private'
   proofRequired: boolean
   category: Challenge['category']
-}): Promise<Challenge | null> {
-  const startDate = new Date()
-  const endDate = new Date(startDate)
+}): Promise<{ data: Challenge | null; error: string | null }> {
+  const endDate = new Date()
   endDate.setDate(endDate.getDate() + input.days)
-
   const code = input.visibility === 'private' ? generateCode() : null
 
   const { data, error } = await supabase
@@ -104,31 +112,45 @@ export async function createChallenge(input: {
     .select()
     .single()
 
-  if (error) { console.error('createChallenge:', error); return null }
-  return data
+  if (error) {
+    console.error('createChallenge:', error)
+    return { data: null, error: error.message }
+  }
+  return { data, error: null }
 }
 
-export async function joinChallenge(userId: string, challengeId: string, viaCode = false): Promise<boolean> {
+export async function joinChallenge(
+  userId: string,
+  challengeId: string,
+  viaCode = false
+): Promise<{ ok: boolean; error: string | null }> {
   const { error } = await supabase.from('user_challenges').insert({
     user_id: userId,
     challenge_id: challengeId,
     progress: 0,
     joined_via_code: viaCode,
   })
-  if (error) { console.error('joinChallenge:', error); return false }
-  return true
+  if (error) {
+    console.error('joinChallenge:', error)
+    return { ok: false, error: error.message }
+  }
+  return { ok: true, error: null }
 }
 
-export async function joinByCode(userId: string, code: string): Promise<Challenge | null> {
+export async function joinByCode(
+  userId: string,
+  code: string
+): Promise<{ challenge: Challenge | null; error: string | null }> {
   const { data: ch, error } = await supabase
     .from('challenges')
     .select('*, profiles(name)')
     .eq('access_code', code.toUpperCase())
     .eq('visibility', 'private')
     .maybeSingle()
-  if (error || !ch) return null
-  const ok = await joinChallenge(userId, ch.id, true)
-  return ok ? ch : null
+  if (error) return { challenge: null, error: error.message }
+  if (!ch) return { challenge: null, error: 'No private challenge matches that code' }
+  const res = await joinChallenge(userId, ch.id, true)
+  return res.ok ? { challenge: ch, error: null } : { challenge: null, error: res.error }
 }
 
 export async function leaveChallenge(ucId: string, userId: string): Promise<boolean> {
@@ -137,20 +159,39 @@ export async function leaveChallenge(ucId: string, userId: string): Promise<bool
     .update({ left_at: new Date().toISOString() })
     .eq('id', ucId)
   if (error) { console.error('leaveChallenge:', error); return false }
-  const { data: prof } = await supabase.from('profiles').select('leaves_used').eq('id', userId).single()
-  await supabase.from('profiles').update({ leaves_used: (prof?.leaves_used || 0) + 1 }).eq('id', userId)
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('leaves_used')
+    .eq('id', userId)
+    .single()
+  await supabase
+    .from('profiles')
+    .update({ leaves_used: (prof?.leaves_used || 0) + 1 })
+    .eq('id', userId)
   return true
 }
 
-export async function deleteChallenge(challengeId: string): Promise<boolean> {
+export async function deleteChallenge(
+  challengeId: string
+): Promise<{ ok: boolean; error: string | null }> {
   const { error } = await supabase.from('challenges').delete().eq('id', challengeId)
-  if (error) { console.error('deleteChallenge:', error); return false }
-  return true
+  if (error) {
+    console.error('deleteChallenge:', error)
+    return { ok: false, error: error.message }
+  }
+  return { ok: true, error: null }
 }
 
-export async function checkIn(ucId: string, challengeDays: number): Promise<{ progress: number; completed: boolean } | null> {
+export async function checkIn(
+  ucId: string,
+  challengeDays: number
+): Promise<{ progress: number; completed: boolean } | null> {
   const today = new Date().toISOString().split('T')[0]
-  const { data: uc } = await supabase.from('user_challenges').select('progress').eq('id', ucId).single()
+  const { data: uc } = await supabase
+    .from('user_challenges')
+    .select('progress')
+    .eq('id', ucId)
+    .single()
   if (!uc) return null
   const newProgress = uc.progress + 1
   const completed = newProgress >= challengeDays
@@ -194,11 +235,11 @@ export function percent(uc: UserChallenge): number {
   return Math.min(Math.round((uc.progress / uc.challenges.days) * 100), 100)
 }
 
-export function milestonesToAward(percentValue: number): number[] {
+export function milestonesToAward(p: number): number[] {
   const out: number[] = []
-  if (percentValue >= 25) out.push(25)
-  if (percentValue >= 50) out.push(50)
-  if (percentValue >= 75) out.push(75)
-  if (percentValue >= 100) out.push(100)
+  if (p >= 25) out.push(25)
+  if (p >= 50) out.push(50)
+  if (p >= 75) out.push(75)
+  if (p >= 100) out.push(100)
   return out
 }
