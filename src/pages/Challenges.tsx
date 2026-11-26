@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, Users, CheckCircle2, Clock, Award, Plus, X, Calendar, Globe, Lock, Trash2, KeyRound, Copy } from 'lucide-react'
+import { Trophy, Users, CheckCircle2, Clock, Award, Plus, X, Calendar, Lock, Trash2, KeyRound, Copy } from 'lucide-react'
 import Layout from '../components/Layout'
 import { useAuth } from '../lib/AuthContext'
 import {
@@ -133,11 +133,7 @@ export default function Challenges() {
             <KeyRound size={15} color="#8A8A8A" />
             Join with code
           </button>
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            style={styles.addBtn}
-            onClick={() => setShowCreate(true)}
-          >
+          <motion.button whileTap={{ scale: 0.97 }} style={styles.addBtn} onClick={() => setShowCreate(true)}>
             <Plus size={16} color="#0A0A0A" />
             Create
           </motion.button>
@@ -164,9 +160,7 @@ export default function Challenges() {
                 />
                 {codeError && <p style={styles.codeError}>{codeError}</p>}
               </div>
-              <button style={styles.codeJoinBtn} onClick={handleJoinCode}>
-                Join
-              </button>
+              <button style={styles.codeJoinBtn} onClick={handleJoinCode}>Join</button>
               <button style={styles.codeCloseBtn} onClick={() => { setShowCodeInput(false); setCodeError(''); setCodeInput('') }}>
                 <X size={16} color="#5C5C5C" />
               </button>
@@ -202,9 +196,7 @@ export default function Challenges() {
                         {ch.visibility === 'private' && (
                           <span style={styles.privateBadge}><Lock size={10} color="#8A8A8A" /> Private</span>
                         )}
-                        {ch.proof_required && (
-                          <span style={styles.proofBadge}>Proof required</span>
-                        )}
+                        {ch.proof_required && <span style={styles.proofBadge}>Proof required</span>}
                       </div>
                       <div style={styles.metaRow}>
                         <span style={styles.metaItem}><Clock size={11} color="#5C5C5C" />{done ? 'Completed' : `${daysLeft(uc)} days left`}</span>
@@ -222,10 +214,7 @@ export default function Challenges() {
                       initial={{ width: 0 }}
                       animate={{ width: `${pct}%` }}
                       transition={{ duration: 0.5 }}
-                      style={{
-                        ...styles.progressFill,
-                        background: done ? '#4CAF50' : '#F5A623',
-                      }}
+                      style={{ ...styles.progressFill, background: done ? '#4CAF50' : '#F5A623' }}
                     />
                   </div>
 
@@ -242,14 +231,8 @@ export default function Challenges() {
                     </div>
                   )}
 
-                  <Leaderboard
-                    participants={participants as any}
-                    currentUserId={user!.id}
-                    totalDays={ch.days}
-                  />
-
-                  <ChallengeCalendar checkinDates={myCheckins} totalDays={ch.days} />
-
+                  <Leaderboard participants={participants as any} currentUserId={user!.id} totalDays={ch.days} />
+                  <ChallengeCalendar checkinDates={myCheckins} />
                   <ChallengeChat challengeId={ch.id} userId={user!.id} />
 
                   <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -292,11 +275,7 @@ export default function Challenges() {
                         <button style={styles.confirmNo} onClick={() => setConfirmLeave(null)}>Cancel</button>
                       </div>
                     ) : (
-                      <button
-                        style={styles.leaveLink}
-                        onClick={() => setConfirmLeave(uc.id)}
-                        disabled={leavesLeft <= 0}
-                      >
+                      <button style={styles.leaveLink} onClick={() => setConfirmLeave(uc.id)} disabled={leavesLeft <= 0}>
                         Leave challenge {leavesLeft > 0 ? `(${leavesLeft} left)` : '(no leaves)'}
                       </button>
                     )}
@@ -333,13 +312,7 @@ export default function Challenges() {
                   <span style={styles.metaItem}><Calendar size={11} color="#5C5C5C" />Ends {c.end_date.split('T')[0]}</span>
                 </div>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.96 }}
-                style={styles.joinBtn}
-                onClick={() => handleJoin(c.id)}
-                disabled={joiningId === c.id}
-              >
+              <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} style={styles.joinBtn} onClick={() => handleJoin(c.id)} disabled={joiningId === c.id}>
                 {joiningId === c.id ? '...' : 'Join'}
               </motion.button>
             </motion.div>
@@ -348,203 +321,54 @@ export default function Challenges() {
       )}
 
       {showCreate && user && (
-        <CreateChallengeModal
-          userId={user.id}
-          onClose={() => setShowCreate(false)}
-          onCreated={handleCreate}
-        />
+        <CreateChallengeModal userId={user.id} onClose={() => setShowCreate(false)} onCreated={handleCreate} />
       )}
     </Layout>
   )
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  headerRow: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-    gap: '1rem', marginBottom: '1.75rem', flexWrap: 'wrap',
-  },
-  eyebrow: {
-    display: 'flex', alignItems: 'center', gap: '0.4rem',
-    color: '#5C5C5C', fontSize: '0.72rem', textTransform: 'uppercase',
-    letterSpacing: '0.1em', marginBottom: '0.3rem', fontWeight: 600,
-  },
-  eyebrowDot: {
-    width: '5px', height: '5px', borderRadius: '50%',
-    background: '#F5A623', boxShadow: '0 0 6px rgba(245,166,35,0.7)',
-  },
-  title: {
-    fontSize: '1.75rem', fontFamily: 'Space Grotesk',
-    fontWeight: 700, color: '#F0EDE8', lineHeight: 1.1,
-  },
+  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.75rem', flexWrap: 'wrap' },
+  eyebrow: { display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#5C5C5C', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.3rem', fontWeight: 600 },
+  eyebrowDot: { width: '5px', height: '5px', borderRadius: '50%', background: '#F5A623', boxShadow: '0 0 6px rgba(245,166,35,0.7)' },
+  title: { fontSize: '1.75rem', fontFamily: 'Space Grotesk', fontWeight: 700, color: '#F0EDE8', lineHeight: 1.1 },
   subtitle: { color: '#8A8A8A', marginTop: '0.3rem', fontSize: '0.88rem' },
-  addBtn: {
-    display: 'flex', alignItems: 'center', gap: '0.4rem',
-    background: '#F5A623', color: '#0A0A0A', border: 'none',
-    borderRadius: '11px', padding: '0.65rem 1rem',
-    fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem',
-    boxShadow: '0 6px 18px -6px rgba(245,166,35,0.55)',
-  },
-  ghostBtn: {
-    display: 'flex', alignItems: 'center', gap: '0.4rem',
-    background: '#111', color: '#8A8A8A', border: '1px solid #1E1E1E',
-    borderRadius: '11px', padding: '0.65rem 1rem',
-    fontWeight: 500, cursor: 'pointer', fontSize: '0.85rem',
-  },
-  codeBox: {
-    display: 'flex', alignItems: 'flex-end', gap: '0.5rem',
-    background: '#0F0F0F', border: '1px solid #1E1E1E',
-    borderRadius: '14px', padding: '0.9rem',
-  },
-  codeLabel: {
-    color: '#5C5C5C', fontSize: '0.7rem', textTransform: 'uppercase',
-    letterSpacing: '0.08em', marginBottom: '0.35rem', fontWeight: 600,
-  },
-  codeInput: {
-    width: '100%', background: '#0A0A0A', border: '1px solid #1E1E1E',
-    borderRadius: '10px', padding: '0.7rem 0.9rem', color: '#F0EDE8',
-    fontSize: '0.95rem', outline: 'none', letterSpacing: '0.2em',
-    fontFamily: 'Space Grotesk', fontWeight: 600,
-  },
+  addBtn: { display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '11px', padding: '0.65rem 1rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', boxShadow: '0 6px 18px -6px rgba(245,166,35,0.55)' },
+  ghostBtn: { display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#111', color: '#8A8A8A', border: '1px solid #1E1E1E', borderRadius: '11px', padding: '0.65rem 1rem', fontWeight: 500, cursor: 'pointer', fontSize: '0.85rem' },
+  codeBox: { display: 'flex', alignItems: 'flex-end', gap: '0.5rem', background: '#0F0F0F', border: '1px solid #1E1E1E', borderRadius: '14px', padding: '0.9rem' },
+  codeLabel: { color: '#5C5C5C', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.35rem', fontWeight: 600 },
+  codeInput: { width: '100%', background: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: '10px', padding: '0.7rem 0.9rem', color: '#F0EDE8', fontSize: '0.95rem', outline: 'none', letterSpacing: '0.2em', fontFamily: 'Space Grotesk', fontWeight: 600 },
   codeError: { color: '#E53E3E', fontSize: '0.75rem', marginTop: '0.35rem' },
-  codeJoinBtn: {
-    background: '#F5A623', color: '#0A0A0A', border: 'none',
-    borderRadius: '10px', padding: '0.7rem 1.1rem',
-    fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem',
-  },
-  codeCloseBtn: {
-    background: 'none', border: 'none', cursor: 'pointer',
-    padding: '0.6rem',
-  },
-  sectionLabel: {
-    color: '#8A8A8A', fontSize: '0.72rem', textTransform: 'uppercase',
-    letterSpacing: '0.1em', fontWeight: 700, marginBottom: '0.75rem',
-  },
-  card: {
-    background: '#0F0F0F', border: '1px solid #1E1E1E',
-    borderRadius: '16px', padding: '1.15rem',
-    boxShadow: '0 4px 18px -12px rgba(0,0,0,0.7)',
-  },
-  cardHeader: {
-    display: 'flex', justifyContent: 'space-between',
-    alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.6rem',
-  },
-  challengeName: {
-    fontWeight: 600, fontSize: '0.95rem', color: '#F0EDE8',
-  },
-  categoryBadge: {
-    background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.2)',
-    color: '#F5A623', fontSize: '0.65rem', fontWeight: 600,
-    padding: '0.15rem 0.5rem', borderRadius: '20px',
-    textTransform: 'capitalize',
-  },
-  privateBadge: {
-    background: 'rgba(255,255,255,0.04)', border: '1px solid #1E1E1E',
-    color: '#8A8A8A', fontSize: '0.65rem', fontWeight: 600,
-    padding: '0.15rem 0.5rem', borderRadius: '20px',
-    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-  },
-  proofBadge: {
-    background: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.25)',
-    color: '#4CAF50', fontSize: '0.65rem', fontWeight: 600,
-    padding: '0.15rem 0.5rem', borderRadius: '20px',
-  },
-  metaRow: {
-    display: 'flex', alignItems: 'center', gap: '0.75rem',
-    flexWrap: 'wrap', rowGap: '0.25rem',
-  },
-  metaItem: {
-    color: '#8A8A8A', fontSize: '0.74rem',
-    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-  },
+  codeJoinBtn: { background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '10px', padding: '0.7rem 1.1rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' },
+  codeCloseBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '0.6rem' },
+  sectionLabel: { color: '#8A8A8A', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: '0.75rem' },
+  card: { background: '#0F0F0F', border: '1px solid #1E1E1E', borderRadius: '16px', padding: '1.15rem', boxShadow: '0 4px 18px -12px rgba(0,0,0,0.7)' },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.6rem' },
+  challengeName: { fontWeight: 600, fontSize: '0.95rem', color: '#F0EDE8' },
+  categoryBadge: { background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.2)', color: '#F5A623', fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '20px', textTransform: 'capitalize' },
+  privateBadge: { background: 'rgba(255,255,255,0.04)', border: '1px solid #1E1E1E', color: '#8A8A8A', fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '20px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' },
+  proofBadge: { background: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.25)', color: '#4CAF50', fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '20px' },
+  metaRow: { display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', rowGap: '0.25rem' },
+  metaItem: { color: '#8A8A8A', fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' },
   progressBlock: { textAlign: 'right', flexShrink: 0 },
-  progressNum: {
-    fontFamily: 'Space Grotesk', fontWeight: 700,
-    fontSize: '1.1rem', color: '#F5A623',
-  },
-  progressPct: {
-    color: '#5C5C5C', fontSize: '0.7rem', marginTop: '0.1rem',
-  },
-  progressTrack: {
-    height: '5px', background: '#1A1A1A', borderRadius: '999px',
-    overflow: 'hidden', marginBottom: '0.5rem',
-  },
+  progressNum: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1.1rem', color: '#F5A623' },
+  progressPct: { color: '#5C5C5C', fontSize: '0.7rem', marginTop: '0.1rem' },
+  progressTrack: { height: '5px', background: '#1A1A1A', borderRadius: '999px', overflow: 'hidden', marginBottom: '0.5rem' },
   progressFill: { height: '100%', borderRadius: '999px' },
-  codeShareRow: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    background: 'rgba(245,166,35,0.05)', border: '1px solid rgba(245,166,35,0.2)',
-    borderRadius: '10px', padding: '0.6rem 0.85rem', marginTop: '0.6rem',
-  },
-  codeShareLabel: {
-    color: '#8A8A8A', fontSize: '0.68rem', textTransform: 'uppercase',
-    letterSpacing: '0.08em', fontWeight: 600,
-  },
-  codeShareValue: {
-    color: '#F5A623', fontFamily: 'Space Grotesk', fontWeight: 700,
-    fontSize: '1rem', letterSpacing: '0.15em', marginTop: '0.15rem',
-  },
-  copyBtn: {
-    display: 'flex', alignItems: 'center', gap: '0.35rem',
-    background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.28)',
-    color: '#F5A623', borderRadius: '8px', padding: '0.4rem 0.7rem',
-    fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
-  },
-  checkInBtn: {
-    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    gap: '0.45rem', background: '#F5A623', color: '#0A0A0A',
-    border: 'none', borderRadius: '10px', padding: '0.75rem',
-    fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
-    boxShadow: '0 6px 18px -6px rgba(245,166,35,0.55)',
-  },
-  checkInDone: {
-    background: '#161616', color: '#5C5C5C',
-    border: '1px solid #1E1E1E', boxShadow: 'none', cursor: 'default',
-  },
-  doneBadge: {
-    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    gap: '0.45rem', background: 'rgba(245,166,35,0.08)',
-    border: '1px solid rgba(245,166,35,0.28)',
-    borderRadius: '10px', padding: '0.75rem',
-    color: '#F5A623', fontSize: '0.85rem', fontWeight: 600,
-  },
-  confirmRow: {
-    display: 'flex', alignItems: 'center', gap: '0.5rem',
-    flexWrap: 'wrap', width: '100%',
-  },
-  confirmText: {
-    color: '#E53E3E', fontSize: '0.75rem', flex: 1,
-  },
-  confirmYes: {
-    background: '#E53E3E', color: '#fff', border: 'none',
-    borderRadius: '7px', padding: '0.4rem 0.7rem',
-    fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
-  },
-  confirmNo: {
-    background: 'none', border: '1px solid #1E1E1E',
-    borderRadius: '7px', padding: '0.4rem 0.7rem',
-    color: '#8A8A8A', fontSize: '0.75rem', cursor: 'pointer',
-  },
-  deleteLink: {
-    display: 'flex', alignItems: 'center', gap: '0.35rem',
-    background: 'none', border: 'none', cursor: 'pointer',
-    color: '#E53E3E', fontSize: '0.75rem', padding: 0,
-  },
-  leaveLink: {
-    background: 'none', border: 'none', cursor: 'pointer',
-    color: '#5C5C5C', fontSize: '0.75rem', padding: 0,
-  },
-  empty: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    padding: '2.5rem 1rem', background: '#0F0F0F',
-    border: '1px dashed #1A1A1A', borderRadius: '16px',
-  },
-  discoverCard: {
-    display: 'flex', alignItems: 'center', gap: '0.75rem',
-    background: '#0F0F0F', border: '1px solid #1E1E1E',
-    borderRadius: '14px', padding: '0.95rem 1.1rem',
-  },
-  joinBtn: {
-    background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.28)',
-    color: '#F5A623', borderRadius: '9px', padding: '0.5rem 1rem',
-    fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', flexShrink: 0,
-  },
+  codeShareRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(245,166,35,0.05)', border: '1px solid rgba(245,166,35,0.2)', borderRadius: '10px', padding: '0.6rem 0.85rem', marginTop: '0.6rem' },
+  codeShareLabel: { color: '#8A8A8A', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 },
+  codeShareValue: { color: '#F5A623', fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1rem', letterSpacing: '0.15em', marginTop: '0.15rem' },
+  copyBtn: { display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.28)', color: '#F5A623', borderRadius: '8px', padding: '0.4rem 0.7rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' },
+  checkInBtn: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem', background: '#F5A623', color: '#0A0A0A', border: 'none', borderRadius: '10px', padding: '0.75rem', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 6px 18px -6px rgba(245,166,35,0.55)' },
+  checkInDone: { background: '#161616', color: '#5C5C5C', border: '1px solid #1E1E1E', boxShadow: 'none', cursor: 'default' },
+  doneBadge: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem', background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.28)', borderRadius: '10px', padding: '0.75rem', color: '#F5A623', fontSize: '0.85rem', fontWeight: 600 },
+  confirmRow: { display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', width: '100%' },
+  confirmText: { color: '#E53E3E', fontSize: '0.75rem', flex: 1 },
+  confirmYes: { background: '#E53E3E', color: '#fff', border: 'none', borderRadius: '7px', padding: '0.4rem 0.7rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' },
+  confirmNo: { background: 'none', border: '1px solid #1E1E1E', borderRadius: '7px', padding: '0.4rem 0.7rem', color: '#8A8A8A', fontSize: '0.75rem', cursor: 'pointer' },
+  deleteLink: { display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'none', border: 'none', cursor: 'pointer', color: '#E53E3E', fontSize: '0.75rem', padding: 0 },
+  leaveLink: { background: 'none', border: 'none', cursor: 'pointer', color: '#5C5C5C', fontSize: '0.75rem', padding: 0 },
+  empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2.5rem 1rem', background: '#0F0F0F', border: '1px dashed #1A1A1A', borderRadius: '16px' },
+  discoverCard: { display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#0F0F0F', border: '1px solid #1E1E1E', borderRadius: '14px', padding: '0.95rem 1.1rem' },
+  joinBtn: { background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.28)', color: '#F5A623', borderRadius: '9px', padding: '0.5rem 1rem', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', flexShrink: 0 },
 }
