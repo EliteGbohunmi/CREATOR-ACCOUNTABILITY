@@ -32,17 +32,23 @@ export type UserChallenge = {
 export const CATEGORIES = ['content', 'fitness', 'learning', 'creative', 'other'] as const
 
 export const TEMPLATES = [
-  { label: '7-Day Sprint', name: '7-Day Sprint', days: 7, category: 'content' as const },
-  { label: '30-Day Content', name: '30-Day Content Challenge', days: 30, category: 'content' as const },
-  { label: '100-Day Consistency', name: '100-Day Consistency', days: 100, category: 'content' as const },
-  { label: '21-Day Habit', name: '21-Day Habit Builder', days: 21, category: 'learning' as const },
+  { label: '7-Day Sprint', name: '7-Day Sprint', days: 7, category: 'content' as const, emoji: '⚡' },
+  { label: '30-Day Content', name: '30-Day Content Challenge', days: 30, category: 'content' as const, emoji: '🎬' },
+  { label: '100-Day Consistency', name: '100-Day Consistency', days: 100, category: 'content' as const, emoji: '🔥' },
+  { label: '21-Day Habit', name: '21-Day Habit Builder', days: 21, category: 'learning' as const, emoji: '📚' },
+  { label: 'Morning Routine', name: '14-Day Morning Routine', days: 14, category: 'fitness' as const, emoji: '🌅' },
+  { label: 'Write Daily', name: '30-Day Writing Streak', days: 30, category: 'creative' as const, emoji: '✍️' },
 ]
 
-export function generateCode(): string {
+export function generateCode(length = 6): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let out = ''
-  for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)]
+  for (let i = 0; i < length; i++) out += chars[Math.floor(Math.random() * chars.length)]
   return out
+}
+
+export function validateCode(code: string): boolean {
+  return /^[A-Z0-9]{4,8}$/.test(code.toUpperCase())
 }
 
 export async function listChallenges(): Promise<Challenge[]> {
@@ -91,10 +97,40 @@ export async function createChallenge(input: {
   visibility: 'public' | 'private'
   proofRequired: boolean
   category: Challenge['category']
+  customCode?: string | null
 }): Promise<{ data: Challenge | null; error: string | null }> {
   const endDate = new Date()
   endDate.setDate(endDate.getDate() + input.days)
-  const code = input.visibility === 'private' ? generateCode() : null
+
+  let code: string | null = null
+  if (input.visibility === 'private') {
+    if (input.customCode && input.customCode.trim()) {
+      const cleaned = input.customCode.trim().toUpperCase()
+      if (!validateCode(cleaned)) {
+        return { data: null, error: 'Code must be 4–8 letters or numbers' }
+      }
+      const { data: existing } = await supabase
+        .from('challenges')
+        .select('id')
+        .eq('access_code', cleaned)
+        .maybeSingle()
+      if (existing) return { data: null, error: 'That code is already taken. Try another.' }
+      code = cleaned
+    } else {
+      let tries = 0
+      while (tries < 5) {
+        const candidate = generateCode()
+        const { data: existing } = await supabase
+          .from('challenges')
+          .select('id')
+          .eq('access_code', candidate)
+          .maybeSingle()
+        if (!existing) { code = candidate; break }
+        tries++
+      }
+      if (!code) code = generateCode(8)
+    }
+  }
 
   const { data, error } = await supabase
     .from('challenges')
@@ -141,10 +177,14 @@ export async function joinByCode(
   userId: string,
   code: string
 ): Promise<{ challenge: Challenge | null; error: string | null }> {
+  const cleaned = code.trim().toUpperCase()
+  if (!validateCode(cleaned)) {
+    return { challenge: null, error: 'Code must be 4–8 letters or numbers' }
+  }
   const { data: ch, error } = await supabase
     .from('challenges')
     .select('*, profiles(name)')
-    .eq('access_code', code.toUpperCase())
+    .eq('access_code', cleaned)
     .eq('visibility', 'private')
     .maybeSingle()
   if (error) return { challenge: null, error: error.message }
@@ -224,6 +264,29 @@ export async function postMessage(challengeId: string, userId: string, body: str
     .insert({ challenge_id: challengeId, user_id: userId, body })
   if (error) { console.error('postMessage:', error); return false }
   return true
+}
+
+export async function updateChallengeCode(
+  challengeId: string,
+  newCode: string
+): Promise<{ ok: boolean; error: string | null }> {
+  const cleaned = newCode.trim().toUpperCase()
+  if (!validateCode(cleaned)) {
+    return { ok: false, error: 'Code must be 4–8 letters or numbers' }
+  }
+  const { data: existing } = await supabase
+    .from('challenges')
+    .select('id')
+    .eq('access_code', cleaned)
+    .neq('id', challengeId)
+    .maybeSingle()
+  if (existing) return { ok: false, error: 'That code is already taken' }
+  const { error } = await supabase
+    .from('challenges')
+    .update({ access_code: cleaned })
+    .eq('id', challengeId)
+  if (error) return { ok: false, error: error.message }
+  return { ok: true, error: null }
 }
 
 export function daysLeft(uc: UserChallenge): number {

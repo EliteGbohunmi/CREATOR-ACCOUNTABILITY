@@ -3,11 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Send } from 'lucide-react'
 import { listMessages, postMessage } from '../../lib/challenges'
 
-type Props = {
-  challengeId: string
-  userId: string
-  embedded?: boolean
-}
+type Props = { challengeId: string; userId: string; embedded?: boolean }
 
 export default function ChallengeChat({ challengeId, userId, embedded = false }: Props) {
   const [open, setOpen] = useState(false)
@@ -34,10 +30,7 @@ export default function ChallengeChat({ challengeId, userId, embedded = false }:
     setSending(true)
     const ok = await postMessage(challengeId, userId, body)
     setSending(false)
-    if (ok) {
-      setText('')
-      await load()
-    }
+    if (ok) { setText(''); await load() }
   }
 
   const ChatBody = (
@@ -65,9 +58,7 @@ export default function ChallengeChat({ challengeId, userId, embedded = false }:
           placeholder="Write a message…"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') send()
-          }}
+          onKeyDown={(e) => { if (e.key === 'Enter') send() }}
         />
         <button style={styles.send} onClick={send} disabled={sending || !text.trim()}>
           <Send size={16} color="#0A0A0A" />
@@ -76,9 +67,7 @@ export default function ChallengeChat({ challengeId, userId, embedded = false }:
     </div>
   )
 
-  if (embedded) {
-    return <div style={{ height: '360px' }}>{ChatBody}</div>
-  }
+  if (embedded) return <div style={{ height: '360px' }}>{ChatBody}</div>
 
   return (
     <>
@@ -90,20 +79,11 @@ export default function ChallengeChat({ challengeId, userId, embedded = false }:
 
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={styles.overlay}
-            onClick={() => setOpen(false)}
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={styles.overlay} onClick={() => setOpen(false)}>
             <motion.div
-              initial={{ y: 60, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 60, opacity: 0 }}
+              initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
               transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-              style={styles.sheet}
-              onClick={(e) => e.stopPropagation()}
+              style={styles.sheet} onClick={(e) => e.stopPropagation()}
             >
               <div style={styles.header}>
                 <div>
@@ -127,19 +107,19 @@ const styles: Record<string, React.CSSProperties> = {
   chatBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.22)', color: '#F5A623', borderRadius: '10px', padding: '0.5rem 0.85rem', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' },
   count: { background: '#F5A623', color: '#0A0A0A', borderRadius: '10px', fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 600, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '1rem' },
-  sheet: { width: '100%', maxWidth: '520px', height: '75vh', background: 'linear-gradient(180deg, #141414 0%, #0D0D0D 100%)', border: '1px solid #232323', borderRadius: '24px 24px 16px 16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.9)' },
+  sheet: { width: '100%', maxWidth: '520px', height: '75vh', background: 'linear-gradient(180deg, #161616 0%, #0A0A0A 100%)', border: '1px solid #262626', borderRadius: '24px 24px 16px 16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.9)' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '1rem 1.25rem 0.75rem', borderBottom: '1px solid #1A1A1A' },
-  eyebrow: { color: '#5C5C5C', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.15rem', fontWeight: 600 },
-  title: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1.1rem', color: '#F0EDE8' },
-  close: { width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid #1E1E1E', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  eyebrow: { color: '#F5A623', fontSize: '0.64rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.15rem', fontWeight: 700 },
+  title: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '1.1rem', color: '#F5F1EA' },
+  close: { width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid #262626', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   list: { flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' },
   empty: { color: '#5C5C5C', fontSize: '0.85rem', textAlign: 'center', marginTop: '2rem' },
   bubble: { maxWidth: '80%', borderRadius: '14px', padding: '0.55rem 0.8rem', fontSize: '0.85rem' },
-  bubbleMine: { background: 'rgba(245,166,35,0.14)', border: '1px solid rgba(245,166,35,0.25)', color: '#F0EDE8' },
-  bubbleOther: { background: 'rgba(255,255,255,0.04)', border: '1px solid #1E1E1E', color: '#F0EDE8' },
+  bubbleMine: { background: 'rgba(245,166,35,0.14)', border: '1px solid rgba(245,166,35,0.25)', color: '#F5F1EA' },
+  bubbleOther: { background: 'rgba(255,255,255,0.04)', border: '1px solid #262626', color: '#F5F1EA' },
   sender: { color: '#8A8A8A', fontSize: '0.68rem', fontWeight: 600, marginBottom: '0.15rem' },
   bodyText: { lineHeight: 1.35, wordBreak: 'break-word' },
   composer: { display: 'flex', gap: '0.5rem', padding: '0.75rem', borderTop: '1px solid #1A1A1A' },
-  input: { flex: 1, background: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: '10px', padding: '0.7rem 0.9rem', color: '#F0EDE8', fontSize: '0.88rem', outline: 'none' },
+  input: { flex: 1, background: '#0A0A0A', border: '1px solid #262626', borderRadius: '10px', padding: '0.7rem 0.9rem', color: '#F5F1EA', fontSize: '0.88rem', outline: 'none' },
   send: { width: '42px', height: '42px', borderRadius: '10px', background: '#F5A623', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 }
