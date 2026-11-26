@@ -152,6 +152,15 @@ export async function createChallenge(input: {
     console.error('createChallenge:', error)
     return { data: null, error: error.message }
   }
+
+  // Creator auto-joins their own challenge
+  await supabase.from('user_challenges').insert({
+    user_id: input.userId,
+    challenge_id: data.id,
+    progress: 0,
+    joined_via_code: input.visibility === 'private',
+  })
+
   return { data, error: null }
 }
 

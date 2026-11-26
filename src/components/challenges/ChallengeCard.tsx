@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Users, CheckCircle2, Clock, Award, Lock, Trash2, Copy,
-  MessageSquare, TrendingUp, Shield, Crown, Eye, EyeOff, Pencil,
+  MessageSquare, TrendingUp, Shield, Crown,
 } from 'lucide-react'
-import { daysLeft, percent, updateChallengeCode, type UserChallenge } from '../../lib/challenges'
+import { daysLeft, percent, type UserChallenge } from '../../lib/challenges'
 import Leaderboard from './Leaderboard'
 import ChallengeCalendar from './ChallengeCalendar'
 import ChallengeChat from './ChallengeChat'
@@ -37,10 +37,6 @@ export default function ChallengeCard({
   const [deleting, setDeleting] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [err, setErr] = useState('')
-  const [showCode, setShowCode] = useState(false)
-  const [editingCode, setEditingCode] = useState(false)
-  const [newCode, setNewCode] = useState('')
-  const [savingCode, setSavingCode] = useState(false)
 
   if (!ch) return null
 
@@ -72,17 +68,6 @@ export default function ChallengeCard({
     setLeaving(true)
     try { await onLeave() } catch (e: any) { setErr(e?.message || 'Leave failed') }
     setLeaving(false)
-  }
-  const saveCode = async () => {
-    if (!ch) return
-    setErr('')
-    setSavingCode(true)
-    const res = await updateChallengeCode(ch.id, newCode)
-    setSavingCode(false)
-    if (!res.ok) { setErr(res.error || 'Could not update code'); return }
-    setEditingCode(false)
-    setNewCode('')
-    await onRefresh()
   }
 
   return (
@@ -124,40 +109,12 @@ export default function ChallengeCard({
       {ch.visibility === 'private' && ch.access_code && isCreator && (
         <div style={styles.codeStrip}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={styles.codeLabel}>Access code</div>
-            {editingCode ? (
-              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.3rem' }}>
-                <input
-                  style={styles.editCodeInput}
-                  placeholder="NEWCODE"
-                  value={newCode}
-                  onChange={(e) => setNewCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
-                  maxLength={8}
-                />
-                <button style={styles.saveCodeBtn} onClick={saveCode} disabled={savingCode}>
-                  {savingCode ? '…' : 'Save'}
-                </button>
-                <button style={styles.cancelCodeBtn} onClick={() => { setEditingCode(false); setNewCode(''); setErr('') }}>Cancel</button>
-              </div>
-            ) : (
-              <div style={styles.codeValueRow}>
-                <div style={styles.codeValue}>{showCode ? ch.access_code : '•'.repeat(ch.access_code.length)}</div>
-                <button style={styles.iconBtnSmall} onClick={() => setShowCode(!showCode)} title={showCode ? 'Hide' : 'Show'}>
-                  {showCode ? <EyeOff size={12} color="#8A8A8A" /> : <Eye size={12} color="#8A8A8A" />}
-                </button>
-              </div>
-            )}
+            <div style={styles.codeLabel}>Your access code — share this</div>
+            <div style={styles.codeValue}>{ch.access_code}</div>
           </div>
-          {!editingCode && (
-            <div style={{ display: 'flex', gap: '0.35rem' }}>
-              <button style={styles.copyBtn} onClick={() => onCopyCode(ch.access_code!)}>
-                <Copy size={12} color="#F5A623" /> Copy
-              </button>
-              <button style={styles.copyBtn} onClick={() => setEditingCode(true)}>
-                <Pencil size={12} color="#F5A623" /> Edit
-              </button>
-            </div>
-          )}
+          <button style={styles.copyBtn} onClick={() => onCopyCode(ch.access_code!)}>
+            <Copy size={12} color="#F5A623" /> Copy
+          </button>
         </div>
       )}
 
