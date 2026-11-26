@@ -310,11 +310,15 @@ export default function Partners() {
   const sendRequest = async (receiverId: string) => {
     setSending(receiverId)
     try {
-      await supabase.from('partner_requests').insert({
-        sender_id: user!.id,
-        receiver_id: receiverId,
-        status: 'pending'
+      const res = await fetch('https://streak-backend-ar7h.onrender.com/api/partners/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender_id: user!.id, receiver_id: receiverId })
       })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text)
+      }
       await fetchAll()
       await fetchSuggestions()
       setSearchResults([])

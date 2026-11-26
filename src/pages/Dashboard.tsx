@@ -281,6 +281,12 @@ export default function Dashboard() {
       }
     }
 
+    fetch('https://streak-backend-ar7h.onrender.com/api/streaks/award', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: user!.id, streak: newStreak })
+    }).catch(err => console.error('award failed:', err))
+
     setStreak((prev: any) => ({ ...prev, current_streak: newStreak, best_streak: bestStreak }))
     setTodayDone(true)
     setTodayPending(false)
@@ -357,6 +363,12 @@ export default function Dashboard() {
         showToast('❌ Could not update streak: ' + streakErr.message)
         return
       }
+
+      fetch('https://streak-backend-ar7h.onrender.com/api/streaks/award', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: proof.user_id, streak: newStreak })
+      }).catch(err => console.error('award failed:', err))
 
       // Also update challenges for the poster
       const { data: userChallenges } = await supabase

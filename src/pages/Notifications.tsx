@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bell, CheckCircle2, Zap, Sparkles } from 'lucide-react'
+import { ArrowLeft, Bell, CheckCircle2, Zap, Sparkles, Trophy, Medal, Target, Users, MessageCircle } from 'lucide-react'
 import Layout from '../components/Layout'
 import { useAuth } from '../lib/AuthContext'
 import { markRead, markAllRead, type AppNotification } from '../lib/notifications'
@@ -8,8 +8,13 @@ import { useNotificationsLive } from '../lib/useNotificationsLive'
 
 function iconFor(n: AppNotification) {
   const t = (n.type || '').toLowerCase()
-  if (t === 'system') return { Icon: Sparkles, color: '#7C9CF5' }
-  if (t === 'push') return { Icon: Zap, color: '#F5A623' }
+  if (t === 'leaderboard') return { Icon: Trophy, color: '#F5C542' }
+  if (t === 'achievement') return { Icon: Medal, color: '#F5A623' }
+  if (t === 'challenge')   return { Icon: Target, color: '#7C9CF5' }
+  if (t === 'partner')     return { Icon: Users, color: '#6FCB73' }
+  if (t === 'community')   return { Icon: MessageCircle, color: '#B98CF5' }
+  if (t === 'system')      return { Icon: Sparkles, color: '#7C9CF5' }
+  if (t === 'push')        return { Icon: Zap, color: '#F5A623' }
   return { Icon: Bell, color: '#F5A623' }
 }
 
@@ -29,6 +34,14 @@ export default function Notifications() {
       await markRead(n.id)
       reload()
       window.dispatchEvent(new Event('notifications:refresh'))
+    }
+    switch (n.action) {
+      case 'open_leaderboard': navigate('/leaderboard'); break
+      case 'join_challenge':   navigate('/challenges'); break
+      case 'partner_request':  navigate('/partners'); break
+      case 'view_achievement': navigate('/achievements'); break
+      case 'open_community':   navigate('/community'); break
+      case 'checkin':          navigate('/dashboard'); break
     }
   }
 
