@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toPng } from 'html-to-image'
 import {
   ArrowLeft, Trophy, Crown, Medal, Loader, Share2, RefreshCw,
-  TrendingUp, Flame, Zap, Download
+  TrendingUp, Flame, Zap, Download, Target
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { useAuth } from '../lib/AuthContext'
@@ -71,6 +71,7 @@ function renderAvatar(url: string | null, name: string, size: number) {
 type Entry = {
   id: string; name: string; email: string; avatar_url: string | null;
   score: number; lifetime_score: number; rank: number;
+  current_streak: number; best_streak: number; gap_to_next: number | null;
 }
 
 export default function Leaderboard() {
@@ -107,7 +108,7 @@ export default function Leaderboard() {
   useEffect(() => { load(win) }, [win, user?.email])
 
   const top3 = entries.slice(0, 3)
-  const rest = entries.slice(3)
+  const rest = entries.slice(3, 10)
   const isTopOne = you?.rank === 1 || (you?.id && entries[0]?.id === you.id)
 
   const weekLabel = weekStart
@@ -248,27 +249,29 @@ export default function Leaderboard() {
               )}
             </AnimatePresence>
 
-            {/* SHARE CARD CAPTURE */}
+            {/* ============ SHARE CARD ============ */}
             <div ref={shareRef} style={styles.shareCapture}>
-              {/* Header band */}
-              <div style={styles.captureHeader}>
+              {/* Top gradient band */}
+              <div style={styles.captureTopBand}>
                 <div style={styles.captureBrandRow}>
-                  <div style={styles.captureDot} />
+                  <Trophy size={11} color={COLORS.gold} />
                   <div style={styles.captureBrand}>CREATOR ACCOUNTABILITY</div>
                 </div>
                 <div style={styles.captureTitle}>
-                  {win === 'weekly' ? 'Weekly Leaderboard' : 'All-time Leaderboard'}
+                  {win === 'weekly' ? 'WEEKLY LEADERBOARD' : 'ALL-TIME LEADERBOARD'}
                 </div>
                 {win === 'weekly' && weekLabel && (
-                  <div style={styles.captureSub}>{weekLabel}</div>
+                  <div style={styles.captureSub}>{weekLabel.toUpperCase()}</div>
                 )}
-                {isTopOne && (
-                  <div style={styles.capturePill}>
-                    <Crown size={12} color={COLORS.gold} />
-                    <span>{you?.name} is #1</span>
-                  </div>
-                )}
+                <div style={styles.captureTopStats}>
+                  <span style={styles.captureTopStat}>{entries.length} creators</span>
+                  <span style={styles.captureTopDot}>·</span>
+                  <span style={styles.captureTopStat}>Top {entries[0]?.score.toLocaleString()} pts</span>
+                </div>
               </div>
+
+              {/* Diagonal gold accent */}
+              <div style={styles.accentStripe} />
 
               {/* Podium */}
               {top3.length > 0 && (
@@ -279,9 +282,9 @@ export default function Leaderboard() {
                 </div>
               )}
 
-              {/* Rest */}
+              {/* List 4–10 */}
               {rest.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.25rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: '1rem' }}>
                   {rest.map((e, i) => (
                     <motion.div
                       key={e.id}
@@ -291,22 +294,35 @@ export default function Leaderboard() {
                       style={{ ...styles.row, ...(you?.id === e.id ? styles.rowYou : {}) }}
                     >
                       <span style={styles.rowRank}>#{e.rank}</span>
-                      {renderAvatar(e.avatar_url, e.name, 38)}
+                      {renderAvatar(e.avatar_url, e.name, 36)}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={styles.rowName}>
                           {e.name}
                           {you?.id === e.id && <span style={styles.youChip}>You</span>}
                         </div>
-                        <div style={styles.rowSub}>{getScoreLabel(e.score).label}</div>
+                        <div style={styles.rowSub}>
+                          <span style={styles.rowStreak}>
+                            <Flame size={9} color={COLORS.gold} /> {e.current_streak}
+                          </span>
+                          <span style={styles.rowDot}>·</span>
+                          <span>{getScoreLabel(e.score).label}</span>
+                        </div>
                       </div>
-                      <span style={styles.rowScore}>{e.score.toLocaleString()}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
+                        <span style={styles.rowScore}>{e.score.toLocaleString()}</span>
+                        {e.gap_to_next !== null && (
+                          <span style={styles.rowGap}>−{e.gap_to_next}</span>
+                        )}
+                      </div>
                     </motion.div>
                   ))}
                 </div>
               )}
 
+              {/* Footer */}
               <div style={styles.captureFooter}>
-                creator-accountability.vercel.app
+                <div style={styles.captureFooterLine} />
+                <span style={styles.captureFooterText}>creator-accountability.vercel.app</span>
               </div>
             </div>
 
@@ -320,14 +336,25 @@ export default function Leaderboard() {
                     <div style={styles.rowName}>
                       {you.name}<span style={styles.youChip}>You</span>
                     </div>
-                    <div style={styles.rowSub}>{getScoreLabel(you.score).label}</div>
+                    <div style={styles.rowSub}>
+                      <span style={styles.rowStreak}>
+                        <Flame size={9} color={COLORS.gold} /> {you.current_streak}
+                      </span>
+                      <span style={styles.rowDot}>·</span>
+                      <span>{getScoreLabel(you.score).label}</span>
+                    </div>
                   </div>
                 </div>
-                <span style={{ ...styles.rowScore, color: COLORS.gold }}>{you.score.toLocaleString()}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <span style={{ ...styles.rowScore, color: COLORS.gold }}>{you.score.toLocaleString()}</span>
+                  {you.gap_to_next !== null && (
+                    <span style={styles.rowGap}>−{you.gap_to_next} to next</span>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Secondary share (always visible) */}
+            {/* Secondary share button */}
             <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -431,12 +458,12 @@ function PodiumItem({ entry, place, isYou }: { entry: Entry; place: 1 | 2 | 3; i
           <motion.div
             animate={{ y: [0, -3, 0] }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', zIndex: 1 }}
+            style={{ position: 'absolute', top: -22, left: '50%', transform: 'translateX(-50%)', zIndex: 1 }}
           >
-            <Crown size={18} color={color} fill={color} />
+            <Crown size={20} color={color} fill={color} />
           </motion.div>
         )}
-        {renderAvatar(entry.avatar_url, entry.name, place === 1 ? 60 : 46)}
+        {renderAvatar(entry.avatar_url, entry.name, place === 1 ? 64 : 46)}
         <div style={{
           position: 'absolute', bottom: -6, right: -6,
           width: 24, height: 24, borderRadius: '50%',
@@ -448,15 +475,25 @@ function PodiumItem({ entry, place, isYou }: { entry: Entry; place: 1 | 2 | 3; i
         }}>{place}</div>
       </div>
       <span style={{
-        fontSize: place === 1 ? '0.82rem' : '0.75rem',
+        fontSize: place === 1 ? '0.86rem' : '0.76rem',
         fontWeight: 700, color: COLORS.text,
-        maxWidth: '90px', overflow: 'hidden',
+        maxWidth: '94px', overflow: 'hidden',
         textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         fontFamily: 'Space Grotesk', letterSpacing: '-0.01em'
       }}>
         {entry.name?.split(' ')[0]}{isYou ? ' (you)' : ''}
       </span>
-      <span style={{ fontSize: place === 1 ? '0.78rem' : '0.7rem', color: color, fontWeight: 800, marginTop: '0.1rem', fontFamily: 'Space Grotesk' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.15rem' }}>
+        <Flame size={10} color={COLORS.gold} />
+        <span style={{ fontSize: '0.66rem', color: COLORS.textDim, fontWeight: 600 }}>
+          {entry.current_streak}
+        </span>
+      </div>
+      <span style={{
+        fontSize: place === 1 ? '0.86rem' : '0.74rem',
+        color: color, fontWeight: 800,
+        marginTop: '0.15rem', fontFamily: 'Space Grotesk'
+      }}>
         {entry.score.toLocaleString()}
       </span>
       <div style={{
@@ -528,7 +565,7 @@ const styles: Record<string, any> = {
   shareBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
     width: '100%', marginTop: '0.75rem', marginBottom: '1rem',
-    padding: '0.85rem 1rem', borderRadius: '14px',
+    padding: '0.9rem 1rem', borderRadius: '14px',
     background: `linear-gradient(135deg, ${COLORS.gold} 0%, #D9821A 100%)`,
     border: 'none', color: '#0A0A0A',
     fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '0.9rem',
@@ -552,43 +589,53 @@ const styles: Record<string, any> = {
     marginBottom: '1rem'
   },
   statDivider: { width: '1px', height: '32px', background: '#1E1E1E' },
+
+  // ===== SHARE CARD =====
   shareCapture: {
-    background: 'linear-gradient(180deg, #0F0F0F 0%, #050505 100%)',
-    borderRadius: '20px', padding: '1.5rem 1.25rem',
-    border: `1px solid ${COLORS.border}`,
+    background: 'linear-gradient(180deg, #121212 0%, #0A0A0A 60%, #050505 100%)',
+    borderRadius: '22px', padding: '1.5rem 1.25rem 1.25rem',
+    border: `1px solid rgba(245,166,35,0.15)`,
     position: 'relative', overflow: 'hidden',
-    boxShadow: '0 20px 60px -20px rgba(0,0,0,0.8)'
+    boxShadow: '0 30px 80px -30px rgba(0,0,0,0.9), 0 0 0 1px rgba(245,166,35,0.08)'
   },
-  captureHeader: { textAlign: 'center', paddingBottom: '0.5rem' },
+  captureTopBand: {
+    background: 'linear-gradient(135deg, rgba(245,166,35,0.16) 0%, rgba(245,166,35,0.04) 100%)',
+    border: `1px solid ${COLORS.goldBorder}`,
+    borderRadius: '16px', padding: '1rem 1.15rem',
+    textAlign: 'center', position: 'relative', overflow: 'hidden'
+  },
   captureBrandRow: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    gap: '0.4rem', marginBottom: '0.5rem'
-  },
-  captureDot: {
-    width: '5px', height: '5px', borderRadius: '50%',
-    background: COLORS.gold, boxShadow: '0 0 8px rgba(245,166,35,0.8)'
+    gap: '0.4rem', marginBottom: '0.6rem'
   },
   captureBrand: {
-    fontSize: '0.6rem', fontWeight: 700, color: COLORS.textFaint,
+    fontSize: '0.6rem', fontWeight: 800, color: COLORS.gold,
     letterSpacing: '0.22em'
   },
   captureTitle: {
-    fontFamily: 'Space Grotesk', fontWeight: 700,
-    fontSize: '1.25rem', color: COLORS.text, letterSpacing: '-0.025em'
+    fontFamily: 'Space Grotesk', fontWeight: 800,
+    fontSize: '1.2rem', color: COLORS.text,
+    letterSpacing: '-0.02em', lineHeight: 1.1
   },
   captureSub: {
-    fontSize: '0.72rem', color: COLORS.textFaint, marginTop: '0.2rem'
+    fontSize: '0.7rem', color: COLORS.gold, fontWeight: 700,
+    marginTop: '0.4rem', letterSpacing: '0.08em'
   },
-  capturePill: {
-    display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-    background: COLORS.goldSoft, border: `1px solid ${COLORS.goldBorder}`,
-    color: COLORS.gold, fontSize: '0.7rem', fontWeight: 700,
-    borderRadius: '20px', padding: '0.25rem 0.7rem',
-    marginTop: '0.6rem'
+  captureTopStats: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: '0.4rem', marginTop: '0.6rem'
   },
-  captureFooter: {
-    textAlign: 'center', fontSize: '0.6rem', color: COLORS.textFaint,
-    paddingTop: '1.25rem', letterSpacing: '0.06em'
+  captureTopStat: {
+    fontSize: '0.7rem', color: COLORS.textDim, fontWeight: 600
+  },
+  captureTopDot: {
+    color: COLORS.textFaint, fontSize: '0.7rem'
+  },
+  accentStripe: {
+    position: 'absolute', top: 0, right: 0,
+    width: '120px', height: '120px',
+    background: 'linear-gradient(135deg, transparent 45%, rgba(245,166,35,0.12) 45%, rgba(245,166,35,0.12) 55%, transparent 55%)',
+    pointerEvents: 'none'
   },
   podium: {
     display: 'flex', alignItems: 'flex-end',
@@ -596,36 +643,61 @@ const styles: Record<string, any> = {
     padding: '1.5rem 0 0', marginBottom: '0.5rem'
   },
   row: {
-    display: 'flex', alignItems: 'center', gap: '0.75rem',
-    background: '#111', border: '1px solid #1E1E1E',
-    borderRadius: '14px', padding: '0.7rem 0.9rem'
+    display: 'flex', alignItems: 'center', gap: '0.7rem',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.06)',
+    borderRadius: '12px', padding: '0.6rem 0.8rem'
   },
   rowYou: {
     borderColor: COLORS.goldBorder,
-    background: 'rgba(245,166,35,0.05)'
+    background: 'rgba(245,166,35,0.07)'
   },
   rowRank: {
     fontFamily: 'Space Grotesk', fontWeight: 700,
-    fontSize: '0.82rem', color: COLORS.textFaint,
-    width: '32px', flexShrink: 0
+    fontSize: '0.8rem', color: COLORS.textFaint,
+    width: '30px', flexShrink: 0
   },
   rowName: {
-    color: COLORS.text, fontSize: '0.88rem', fontWeight: 600,
+    color: COLORS.text, fontSize: '0.86rem', fontWeight: 600,
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
     display: 'flex', alignItems: 'center', gap: '0.4rem'
   },
   rowSub: {
-    color: COLORS.textFaint, fontSize: '0.7rem', marginTop: '0.1rem'
+    color: COLORS.textFaint, fontSize: '0.68rem', marginTop: '0.15rem',
+    display: 'flex', alignItems: 'center', gap: '0.3rem'
+  },
+  rowStreak: {
+    display: 'inline-flex', alignItems: 'center', gap: '0.2rem'
+  },
+  rowDot: {
+    color: COLORS.textFaint, opacity: 0.5
   },
   rowScore: {
     fontFamily: 'Space Grotesk', fontWeight: 700,
-    fontSize: '0.92rem', color: COLORS.text, flexShrink: 0
+    fontSize: '0.9rem', color: COLORS.text
+  },
+  rowGap: {
+    fontSize: '0.62rem', color: COLORS.textFaint, marginTop: '0.1rem',
+    fontFamily: 'Space Grotesk', fontWeight: 600
   },
   youChip: {
-    fontSize: '0.6rem', fontWeight: 700,
+    fontSize: '0.58rem', fontWeight: 700,
     background: COLORS.goldSoft, color: COLORS.gold,
     borderRadius: '10px', padding: '1px 6px',
     textTransform: 'uppercase', letterSpacing: '0.05em'
+  },
+  captureFooter: {
+    marginTop: '1.25rem', paddingTop: '1rem',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem'
+  },
+  captureFooterLine: {
+    width: '60%', height: '1px',
+    background: 'linear-gradient(90deg, transparent, rgba(245,166,35,0.4), transparent)'
+  },
+  captureFooterText: {
+    fontSize: '0.68rem', color: COLORS.gold,
+    fontWeight: 700, letterSpacing: '0.08em',
+    fontFamily: 'Space Grotesk'
   },
   youCard: {
     display: 'flex', alignItems: 'center', gap: '0.75rem',
