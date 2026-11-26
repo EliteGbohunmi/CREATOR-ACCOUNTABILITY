@@ -13,6 +13,7 @@ import OnboardingTour from '../components/OnboardingTour'
 import { checkAndAwardAchievements } from '../lib/achievements'
 import { checkAndAwardToken, useRestToken } from '../lib/restTokens'
 import { awardScore, getScoreLabel } from '../lib/creatorScore'
+import TaskChecklist from '../components/TaskChecklist'
 import { notifyPartnerCheckin } from '../lib/backend'
 import {
   Flame,
@@ -51,6 +52,8 @@ export default function Dashboard() {
   const [pendingConfirmations, setPendingConfirmations] = useState<any[]>([])
   const [confirmingProofId, setConfirmingProofId] = useState<string | null>(null)
   const [submittingProof, setSubmittingProof] = useState(false)
+  const [tasksDone, setTasksDone] = useState(0)
+  const [taskPoints, setTaskPoints] = useState(0)
   const [restTokens, setRestTokens] = useState(0)
   const [usingRestToken, setUsingRestToken] = useState(false)
   const [toast, setToast] = useState('')
@@ -657,6 +660,15 @@ export default function Dashboard() {
                       : 'No partner — your check-in will be confirmed automatically.'}
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {user?.id && (
+                      <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid #1E1E1E' }}>
+                        <TaskChecklist
+                          userId={user.id}
+                          date={today}
+                          onChange={(count) => setTasksDone(count)}
+                        />
+                      </div>
+                    )}
                     <div>
                       <label style={styles.label}>Post Link (optional)</label>
                       <input
@@ -674,8 +686,22 @@ export default function Dashboard() {
                       </div>
                       <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setProofFile(e.target.files?.[0] || null)} />
                     </div>
-                    <button style={styles.submitBtn} onClick={submitProof} disabled={submittingProof}>
-                      {submittingProof ? 'Submitting...' : partners.length > 0 ? 'Submit for Confirmation' : 'Confirm Check-in'}
+                    <button
+                      style={{
+                        ...styles.submitBtn,
+                        opacity: tasksDone === 0 ? 0.4 : 1,
+                        cursor: tasksDone === 0 ? 'not-allowed' : 'pointer',
+                      }}
+                      onClick={() => {
+                        if (tasksDone === 0) {
+                          alert('Complete at least 1 task before checking in.')
+                          return
+                        }
+                        submitProof()
+                      }}
+                      disabled={submittingProof}
+                    >
+                      {submittingProof ? 'Submitting...' : tasksDone === 0 ? 'Complete a task first' : partners.length > 0 ? 'Submit for Confirmation' : 'Confirm Check-in'}
                     </button>
                   </div>
                 </motion.div>
