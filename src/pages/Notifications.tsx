@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bell, CheckCircle2, Zap, Sparkles } from 'lucide-react'
 import Layout from '../components/Layout'
 import { useAuth } from '../lib/AuthContext'
-import { fetchNotifications, markRead, markAllRead, type AppNotification } from '../lib/notifications'
+import { markRead, markAllRead, type AppNotification } from '../lib/notifications'
+import { useNotificationsLive } from '../lib/useNotificationsLive'
 
 function iconFor(n: AppNotification) {
   const t = (n.type || '').toLowerCase()
@@ -15,49 +16,18 @@ function iconFor(n: AppNotification) {
 export default function Notifications() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [items, setItems] = useState<AppNotification[]>([])
-  const [unread, setUnread] = useState(0)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!user?.email) return
-    let mounted = true
-
-    const load = async () => {
-      try {
-        const res = await fetchNotifications(user.email!)
-        if (!mounted) return
-        setItems(res.notifications)
-        setUnread(res.unread)
-      } catch (err) {
-        console.error('Failed to load notifications:', err)
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-
-    load()
-    const interval = setInterval(load, 20000)
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') load()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', onVisible)
-
-    return () => {
-      mounted = false
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', onVisible)
-    }
-  }, [user?.email])
+  const { items, unread, loading, reload } = useNotificationsLive(user?.email)
+  const [setItemsLocal] = useState(() => (fn: any) => fn)
+  const setItems = (updater: (prev: AppNotification[]) => AppNotification[]) => {
+    // called after mark-read; just trigger a refetch via the hook
+    reload()
+  }
+  const setUnread = (_: any) => { /* handled by reload */ }
 
   const handleItemClick = async (n: AppNotification) => {
     if (!n.read_at) {
       await markRead(n.id)
-      setItems(prev => prev.map(x => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x))
-      setUnread(u => Math.max(0, u - 1))
+      reload()
       window.dispatchEvent(new Event('notifications:refresh'))
     }
   }
@@ -65,8 +35,7 @@ export default function Notifications() {
   const handleMarkAll = async () => {
     if (!user?.email) return
     await markAllRead(user.email)
-    setItems(prev => prev.map(x => ({ ...x, read_at: x.read_at || new Date().toISOString() })))
-    setUnread(0)
+    reload()
     window.dispatchEvent(new Event('notifications:refresh'))
   }
 
