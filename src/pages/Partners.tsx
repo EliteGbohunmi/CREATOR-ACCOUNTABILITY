@@ -121,6 +121,7 @@ export default function Partners() {
   const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState<string | null>(null)
+  const [nudgingIds, setNudgingIds] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
 
   const [suggestions, setSuggestions] = useState<any[]>([])
@@ -476,8 +477,15 @@ export default function Partners() {
                           <motion.button
                             whileHover={{ scale: 1.04 }}
                             whileTap={{ scale: 0.96 }}
-                            style={styles.nudgeBtn}
+                            style={{
+                              ...styles.nudgeBtn,
+                              opacity: nudgingIds.has(p.partnerId) ? 0.55 : 1,
+                              pointerEvents: nudgingIds.has(p.partnerId) ? 'none' : 'auto',
+                            }}
+                            disabled={nudgingIds.has(p.partnerId)}
                             onClick={async () => {
+                              if (nudgingIds.has(p.partnerId)) return
+                              setNudgingIds(prev => new Set(prev).add(p.partnerId))
                               try {
                                 await sendNudge(user!.id, p.partnerId)
                                 const message = getRandomNudgeMessage(p.partnerName)
@@ -485,10 +493,16 @@ export default function Partners() {
                                 toast.success('✅ Nudge sent to ' + p.partnerName)
                               } catch (err: any) {
                                 toast.error('❌ Failed: ' + (err.message || 'Unknown error'))
+                              } finally {
+                                setNudgingIds(prev => {
+                                  const next = new Set(prev)
+                                  next.delete(p.partnerId)
+                                  return next
+                                })
                               }
                             }}
                           >
-                            Copy Nudge
+                            {nudgingIds.has(p.partnerId) ? 'Sending…' : 'Copy Nudge'}
                           </motion.button>
                         )}
                         <button
