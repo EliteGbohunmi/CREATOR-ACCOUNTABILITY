@@ -91,7 +91,7 @@ export default function NotificationModal() {   // 👈 default export
               <div style={styles.itemContent}>
                 <p style={styles.message}>{n.message}</p>
                 <span style={styles.time}>
-                  {new Date(n.created_at).toLocaleTimeString()}
+                  {new Date(n.created_at.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(n.created_at) ? n.created_at : n.created_at + 'Z').toLocaleTimeString()}
                 </span>
               </div>
               <button
