@@ -55,6 +55,7 @@ interface Props {
   onReply: (postId: string, content: string) => void
   onDeleteReply: (postId: string, commentId: string) => void
   onViewProfile: (userId: string) => void
+  renderCard?: (post: CommunityPost) => React.ReactNode
 }
 
 const PLATFORMS = ['X', 'TikTok', 'YouTube', 'Instagram', 'LinkedIn', 'Substack']
@@ -93,7 +94,7 @@ export default function CommunityDesign({
   loading, isPosting, isReplying, filter, platformFilter, sortBy,
   onFilterChange, onPlatformFilterChange, onSortChange,
   onCreatePost, onDeletePost, onToggleLike, onToggleBoost, onToggleEngagement,
-  onReply, onDeleteReply, onViewProfile,
+  onReply, onDeleteReply, onViewProfile, renderCard,
 }: Props) {
   const [layout, setLayout] = useState<Layout>('a')
   const [mode, setMode] = useState<'say_hi' | 'boost'>('say_hi')
@@ -309,6 +310,7 @@ export default function CommunityDesign({
           onDeletePost={onDeletePost}
           onDeleteReply={onDeleteReply}
           onViewProfile={onViewProfile}
+          renderCard={renderCard}
         />
       )}
 
@@ -347,13 +349,18 @@ type ListProps = {
   onDeletePost: (id: string) => void
   onDeleteReply: (id: string, commentId: string) => void
   onViewProfile: (userId: string) => void
+  renderCard?: (post: CommunityPost) => React.ReactNode
 }
 
 function PostList(p: ListProps) {
   const cls = p.layout === 'a' ? 'cm-a-list' : p.layout === 'b' ? 'cm-b-list' : p.layout === 'c' ? 'cm-c-list' : 'cm-d-grid'
   return (
     <div className={cls}>
-      {p.posts.map(post => <PostItem key={post.id} {...p} post={post} />)}
+      {p.posts.map(post =>
+        (p as any).renderCard
+          ? <div key={post.id}>{(p as any).renderCard(post)}</div>
+          : <PostItem key={post.id} {...p} post={post} />
+      )}
     </div>
   )
 }

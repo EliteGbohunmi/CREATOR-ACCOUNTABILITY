@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Layout from '../components/Layout'
 import CommunityDesign, { type CommunityPost } from '../components/community/CommunityDesign'
+import ThreadedPostCard from '../components/community/ThreadedPostCard'
+import { toggleBookmark, toggleReaction, type FullPost } from '../lib/communityThreads'
 
 function getInitials(name?: string | null) {
   if (!name) return '?'
@@ -275,6 +277,58 @@ export default function Community() {
 
   const isOwnProfile = selectedUserId === currentUserId
 
+  const toFullPost = (p: CommunityPost): FullPost => ({
+    id: p.id,
+    content: p.content,
+    link: p.link,
+    user_id: p.user_id,
+    created_at: p.created_at,
+    post_type: p.post_type,
+    platform: p.platform,
+    profiles: p.profiles
+      ? { name: p.profiles.name, role: null, verified: false, avatar_url: p.profiles.avatar_url ?? null }
+      : null,
+    reactions: [
+      { emoji: '❤️', count: p.likes?.length || 0, mine: p.likes?.some(l => l.user_id === currentUserId) || false },
+      { emoji: '🔥', count: p.boosts?.length || 0, mine: p.boosts?.some(b => b.user_id === currentUserId) || false },
+      { emoji: '👏', count: p.engagements?.length || 0, mine: p.engagements?.some(e => e.user_id === currentUserId) || false },
+    ],
+    comment_count: p.comments?.length || 0,
+    bookmarked: false,
+    likes_count: p.likes?.length || 0,
+  })
+
+  const renderCard = (p: CommunityPost) => {
+    const full = toFullPost(p)
+    return (
+      <ThreadedPostCard
+        post={full}
+        currentUserId={currentUserId}
+        onReact={(emoji) => {
+          if (emoji === '❤️') onToggleLike(p.id)
+          else if (emoji === '🔥') onToggleBoost(p.id)
+          else onToggleEngagement(p.id)
+        }}
+        onBookmark={() => {
+          if (!currentUserId) { toast.error('Sign in to bookmark'); return }
+          toggleBookmark(p.id, currentUserId).then(r => {
+            if (r.error) toast.error('Could not update bookmark')
+            else toast.success(r.on ? 'Bookmarked' : 'Removed bookmark')
+          })
+        }}
+        onShare={() => {
+          const url = `${window.location.origin}/post/${p.id}`
+          if (navigator.share) {
+            navigator.share({ title: p.profiles?.name || 'Post', url }).catch(() => {})
+          } else {
+            navigator.clipboard.writeText(url).then(() => toast.success('Link copied'))
+          }
+        }}
+        onMenu={() => toast('More actions coming soon')}
+      />
+    )
+  }
+
   return (
     <Layout>
       <CommunityDesign
@@ -300,6 +354,7 @@ export default function Community() {
         onReply={onReply}
         onDeleteReply={onDeleteReply}
         onViewProfile={handleViewProfile}
+        renderCard={renderCard}
       />
 
       <AnimatePresence>
