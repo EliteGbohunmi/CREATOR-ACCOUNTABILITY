@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Pin, BadgeCheck, MoreHorizontal, Smile, MessageCircle,
-  Repeat2, Send, Bookmark, ChevronDown, Sparkles, Megaphone, Zap,
+  BadgeCheck, MoreHorizontal, Heart, MessageCircle,
+  Send, Bookmark, ChevronDown, Sparkles, Megaphone,
 } from 'lucide-react'
 import type { FullPost } from '../../lib/communityThreads'
 
@@ -10,7 +10,7 @@ const c = {
   bg: '#141414', border: '#4A3B18', divider: '#2E2E2E',
   text: '#F5F5F5', dim: '#A1A1AA', faint: '#71717A',
   gold: '#E3A008', goldSoft: '#2E2610', pill: '#1F1F1F',
-  green: '#4ADE80', coral: '#F87171',
+  coral: '#F87171',
 }
 
 const AVATAR_COLORS = ['#E3A008', '#6FA8F5', '#F56F91', '#6FCB73', '#B98CF5']
@@ -34,7 +34,6 @@ function relDate(iso: string) {
   if (diff < 604_800_000) return Math.floor(diff / 86_400_000) + 'd'
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
-
 function typeLabel(post: FullPost) {
   if (post.post_type === 'boost') {
     return post.engagement_type ? `Boost · ${post.engagement_type}` : 'Boost'
@@ -43,14 +42,15 @@ function typeLabel(post: FullPost) {
   return 'Say hi'
 }
 function typeIcon(post: FullPost) {
-  if (post.post_type === 'boost') return <Megaphone size={12} color={c.faint} />
-  return <Sparkles size={12} color={c.faint} />
+  return post.post_type === 'boost'
+    ? <Megaphone size={12} color={c.faint} />
+    : <Sparkles size={12} color={c.faint} />
 }
 
 interface Props {
   post: FullPost
   currentUserId: string | null
-  onReact: (emoji: '❤️' | '🔥' | '👏') => void
+  onReact: () => void
   onBookmark: () => void
   onShare: () => void
   onMenu: () => void
@@ -65,8 +65,8 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
   const avatarUrl = post.profiles?.avatar_url
   const goDetail = () => navigate(`/post/${post.id}`)
 
-  const totalReactions = post.reactions.reduce((a, r) => a + r.count, 0)
-  const stackedEmojis = post.reactions.filter(r => r.count > 0).map(r => r.emoji)
+  const likeCount = post.reactions.find(r => r.emoji === '❤️')?.count ?? post.likes_count ?? 0
+  const liked = post.reactions.find(r => r.emoji === '❤️')?.mine || false
   const long = post.content.length > 220
   const body = expanded || !long ? post.content : post.content.slice(0, 220).trimEnd() + '…'
 
@@ -80,7 +80,6 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#5F4D20' }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = c.border }}
     >
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {typeIcon(post)}
@@ -91,7 +90,6 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         <span style={{ fontSize: 11, color: c.faint }}>{relDate(post.created_at)}</span>
       </div>
 
-      {/* Author */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <button
           onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`) }}
@@ -123,7 +121,6 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         </button>
       </div>
 
-      {/* Body — clicking here navigates */}
       <div
         onClick={goDetail}
         style={{ color: c.text, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 12, cursor: 'pointer' }}
@@ -141,38 +138,27 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
 
       <div style={{ borderTop: `1px dashed ${c.divider}`, margin: '4px 0 12px' }} />
 
-      {/* Action bar — each button stops propagation */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={(e) => { e.stopPropagation(); onReact('❤️') }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: c.goldSoft, border: 'none', borderRadius: 999, padding: '5px 10px 5px 8px', cursor: 'pointer' }}
-            aria-label="React"
-          >
-            <Smile size={14} color={c.gold} />
-            <span style={{ fontWeight: 700, fontSize: 12, color: c.gold }}>{totalReactions}</span>
-          </button>
-          {stackedEmojis.length > 0 && (
-            <div style={{ display: 'flex' }}>
-              {stackedEmojis.map((e, i) => (
-                <span key={e} style={{ width: 20, height: 20, borderRadius: '50%', background: c.bg, border: `1.5px solid ${c.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, marginLeft: i === 0 ? 0 : -6 }}>{e}</span>
-              ))}
-            </div>
-          )}
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onReact() }}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            background: liked ? c.goldSoft : 'transparent',
+            border: `1px solid ${liked ? c.gold : 'transparent'}`,
+            borderRadius: 999, padding: '5px 10px', cursor: 'pointer',
+            color: liked ? c.gold : c.dim,
+          }}
+          aria-label="Like"
+        >
+          <Heart size={15} fill={liked ? c.gold : 'none'} />
+          <span style={{ fontWeight: 700, fontSize: 12 }}>{likeCount}</span>
+        </button>
         <button
           onClick={(e) => { e.stopPropagation(); goDetail() }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', color: c.dim, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
           aria-label="View comments"
         >
           <MessageCircle size={16} /> {post.comment_count}
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation() }}
-          style={{ background: 'none', border: 'none', color: c.green, cursor: 'pointer', padding: 0 }}
-          aria-label="Repost"
-        >
-          <Repeat2 size={16} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onShare() }}
@@ -190,7 +176,6 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         </button>
       </div>
 
-      {/* Replies pill */}
       {post.comment_count > 0 && (
         <button
           onClick={(e) => { e.stopPropagation(); goDetail() }}

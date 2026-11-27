@@ -36,19 +36,23 @@ export async function getPostById(postId: string, currentUserId: string | null):
     .select('id, content, link, user_id, created_at, post_type, platform, engagement_type, profiles(name, role, verified, avatar_url)')
     .eq('id', postId)
     .maybeSingle()
-  if (error || !post) return null
+  if (error) { console.error('getPostById post:', error); return null }
+  if (!post) return null
 
-  const [reactRes, commentsRes, bookmarkRes, likesRes] = await Promise.all([
-    supabase.from('community_reactions').select('emoji, user_id').eq('post_id', postId),
-    supabase.from('community_comments').select('id', { count: 'exact', head: true }).eq('post_id', postId),
-    currentUserId
-      ? supabase.from('community_bookmarks').select('id').eq('post_id', postId).eq('user_id', currentUserId).maybeSingle()
-      : Promise.resolve({ data: null }),
-    supabase.from('community_likes').select('id', { count: 'exact', head: true }).eq('post_id', postId),
-  ])
+  // tolerant parallel fetches — a missing table must not kill the whole load
+  const safe = async <T,>(fn: () => Promise<{ data: T | null; error: any; count?: number | null }>) => {
+    try { return await fn() } catch { return { data: null as any, error: null, count: null } }
+  }
+
+  const reactRes = await safe(() => supabase.from('community_reactions').select('emoji, user_id').eq('post_id', postId))
+  const commentsRes = await safe(() => supabase.from('community_comments').select('id', { count: 'exact', head: true }).eq('post_id', postId))
+  const bookmarkRes = currentUserId
+    ? await safe(() => supabase.from('community_bookmarks').select('id').eq('post_id', postId).eq('user_id', currentUserId).maybeSingle())
+    : { data: null as any, error: null, count: null }
+  const likesRes = await safe(() => supabase.from('community_likes').select('id', { count: 'exact', head: true }).eq('post_id', postId))
 
   const counts: Record<string, { count: number; mine: boolean }> = {}
-  ;(reactRes.data || []).forEach((r: any) => {
+  ;((reactRes.data as any[]) || []).forEach((r: any) => {
     if (!counts[r.emoji]) counts[r.emoji] = { count: 0, mine: false }
     counts[r.emoji].count++
     if (r.user_id === currentUserId) counts[r.emoji].mine = true
@@ -61,12 +65,13 @@ export async function getPostById(postId: string, currentUserId: string | null):
   }))
 
   return {
-    ...post,
+    ...(post as any),
+    engagement_type: (post as any).engagement_type || null,
     reactions,
-    comment_count: commentsRes.count || 0,
-    bookmarked: !!(bookmarkRes as any)?.data,
-    likes_count: likesRes.count || 0,
-  } as any
+    comment_count: (commentsRes as any)?.count || 0,
+    bookmarked: !!((bookmarkRes as any)?.data),
+    likes_count: (likesRes as any)?.count || 0,
+  }
 }
 
 export async function getCommentTree(postId: string): Promise<ThreadComment[]> {
@@ -75,9 +80,10 @@ export async function getCommentTree(postId: string): Promise<ThreadComment[]> {
     .select('id, post_id, user_id, parent_id, content, created_at, profiles(name, role, verified, avatar_url)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
-  if (error || !data) return []
+  if (error) { console.error('getCommentTree:', error); return [] }
+  if (!data) return []
 
-  const mapped: ThreadComment[] = data.map((c: any) => ({ ...c, likes_count: 0, children: [] }))
+  const mapped: ThreadComment[] = (data as any[]).map((c: any) => ({ ...c, likes_count: 0, children: [] }))
   const byId: Record<string, ThreadComment> = {}
   mapped.forEach(c => { byId[c.id] = c })
 
@@ -101,7 +107,8 @@ export async function addThreadComment(input: {
     content: input.content.trim(),
     parent_id: input.parentId,
   })
-  return error ? { ok: false, error: error.message } : { ok: true, error: null }
+  if (error) { console.error('addThreadComment:', error); return { ok: false, error: error.message } }
+  return { ok: true, error: null }
 }
 
 export async function toggleBookmark(postId: string, userId: string): Promise<{ on: boolean; error: string | null }> {
@@ -128,4 +135,23 @@ export async function toggleReaction(
   }
   const { error } = await supabase.from('community_reactions').insert({ post_id: postId, user_id: userId, emoji })
   return { on: true, error: error?.message || null }
+}
+
+export async function getBookmarkedPosts(userId: string) {
+  const { data, error } = await supabase
+    .from('community_bookmarks')
+    .select('post_id, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) return []
+  return data || []
+}
+
+export async function getMyReactions(userId: string) {
+  const { data, error } = await supabase
+    .from('community_reactions')
+    .select('post_id, emoji')
+    .eq('user_id', userId)
+  if (error) return []
+  return data || []
 }

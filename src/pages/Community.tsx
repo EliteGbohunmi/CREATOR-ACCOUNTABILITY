@@ -221,16 +221,13 @@ export default function Community() {
       <ThreadedPostCard
         post={full}
         currentUserId={currentUserId}
-        onReact={(emoji) => {
-          if (emoji === '❤️') onToggleLike(p.id)
-          else if (emoji === '🔥') onToggleBoost(p.id)
-          else onToggleEngagement(p.id)
-        }}
+        onReact={() => onToggleLike(p.id)}
         onBookmark={() => {
           if (!currentUserId) { toast.error('Sign in to bookmark'); return }
-          toggleBookmark(p.id, currentUserId).then(r => {
-            if (r.error) toast.error('Could not update bookmark')
-            else toast.success(r.on ? 'Bookmarked' : 'Removed bookmark')
+          toggleBookmark(p.id, currentUserId).then(async r => {
+            if (r.error) { toast.error('Could not update bookmark'); return }
+            toast.success(r.on ? 'Bookmarked' : 'Removed bookmark')
+            await fetchPosts()
           })
         }}
         onShare={() => {

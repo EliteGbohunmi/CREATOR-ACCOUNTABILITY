@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  ArrowLeft, Pin, BadgeCheck, Smile, MessageCircle, Repeat2, Send,
+  ArrowLeft, BadgeCheck, Heart, MessageCircle, Send,
   Bookmark, MoreHorizontal, Loader, Sparkles, Megaphone,
 } from 'lucide-react'
 import Layout from '../components/Layout'
@@ -16,8 +16,7 @@ import ThreadedComment from '../components/community/ThreadedComment'
 const c = {
   card: '#141414', border: '#4A3B18', divider: '#2E2E2E', line: '#2A2A2A',
   text: '#F5F5F5', dim: '#A1A1AA', faint: '#71717A', gold: '#E3A008',
-  goldSoft: '#2E2610', green: '#4ADE80', coral: '#F87171',
-  inputBorder: '#262626',
+  goldSoft: '#2E2610', coral: '#F87171', inputBorder: '#262626',
 }
 
 const AVATAR_COLORS = ['#E3A008', '#6FA8F5', '#F56F91', '#6FCB73', '#B98CF5']
@@ -100,16 +99,17 @@ export default function PostDetailPage() {
     const r = await toggleBookmark(postId, currentUserId)
     if (r.error) { toast.error('Could not update bookmark'); return }
     setBookmarked(r.on)
+    toast.success(r.on ? 'Bookmarked' : 'Removed bookmark')
   }
 
-  const onReact = async (emoji: '❤️' | '🔥' | '👏') => {
-    if (!currentUserId || !postId || !post) { toast.error('Sign in to react'); return }
-    const r = await toggleReaction(postId, currentUserId, emoji)
-    if (r.error) { toast.error('Could not react'); return }
+  const onReact = async () => {
+    if (!currentUserId || !postId || !post) { toast.error('Sign in to like'); return }
+    const r = await toggleReaction(postId, currentUserId, '❤️')
+    if (r.error) { toast.error('Could not like'); return }
     setPost({
       ...post,
       reactions: post.reactions.map(rr =>
-        rr.emoji === emoji
+        rr.emoji === '❤️'
           ? { ...rr, count: rr.mine ? Math.max(0, rr.count - 1) : rr.count + 1, mine: !rr.mine }
           : rr
       ),
@@ -147,8 +147,8 @@ export default function PostDetailPage() {
   const role = post.profiles?.role || ''
   const verified = post.profiles?.verified
   const avatarUrl = post.profiles?.avatar_url
-  const totalReactions = post.reactions.reduce((a, r) => a + r.count, 0)
-  const stacked = post.reactions.filter(r => r.count > 0).map(r => r.emoji)
+  const liked = post.reactions.find(r => r.emoji === '❤️')?.mine || false
+  const likeCount = post.reactions.find(r => r.emoji === '❤️')?.count ?? 0
   const isBoost = post.post_type === 'boost'
 
   return (
@@ -201,54 +201,30 @@ export default function PostDetailPage() {
 
           <div style={{ borderTop: `1px dashed ${c.divider}`, margin: '4px 0 12px' }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: c.goldSoft, borderRadius: 999, padding: '5px 10px 5px 8px' }}>
-                <Smile size={14} color={c.gold} />
-                <span style={{ fontWeight: 700, fontSize: 12, color: c.gold }}>{totalReactions}</span>
-              </div>
-              {stacked.length > 0 && (
-                <div style={{ display: 'flex' }}>
-                  {stacked.map((e, i) => (
-                    <span key={e} style={{ width: 20, height: 20, borderRadius: '50%', background: c.card, border: `1.5px solid ${c.card}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, marginLeft: i === 0 ? 0 : -6 }}>{e}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', color: c.dim, fontSize: 12, fontWeight: 600, padding: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button
+              onClick={onReact}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                background: liked ? c.goldSoft : 'transparent',
+                border: `1px solid ${liked ? c.gold : 'transparent'}`,
+                borderRadius: 999, padding: '5px 10px', cursor: 'pointer',
+                color: liked ? c.gold : c.dim,
+              }}
+              aria-label="Like"
+            >
+              <Heart size={15} fill={liked ? c.gold : 'none'} />
+              <span style={{ fontWeight: 700, fontSize: 12 }}>{likeCount}</span>
+            </button>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: c.dim, fontSize: 12, fontWeight: 600 }}>
               <MessageCircle size={16} /> {post.comment_count}
-            </button>
-            <button style={{ background: 'none', border: 'none', color: c.green, padding: 0 }} aria-label="Repost">
-              <Repeat2 size={16} />
-            </button>
+            </div>
             <button style={{ background: 'none', border: 'none', color: c.coral, padding: 0 }} aria-label="Share">
               <Send size={16} />
             </button>
             <button onClick={onBookmark} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }} aria-label="Bookmark">
               <Bookmark size={18} color={bookmarked ? c.gold : c.dim} fill={bookmarked ? c.gold : 'none'} />
             </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-            {(['❤️', '🔥', '👏'] as const).map(emoji => {
-              const r = post.reactions.find(x => x.emoji === emoji)
-              return (
-                <button
-                  key={emoji}
-                  onClick={() => onReact(emoji)}
-                  style={{
-                    background: r?.mine ? c.goldSoft : 'transparent',
-                    border: `1px solid ${r?.mine ? c.gold : c.inputBorder}`,
-                    borderRadius: 999, padding: '6px 12px',
-                    fontSize: 13, color: c.text, cursor: 'pointer',
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                  }}
-                >
-                  <span>{emoji}</span>
-                  <span style={{ fontWeight: 700, fontSize: 12, color: r?.mine ? c.gold : c.dim }}>{r?.count || 0}</span>
-                </button>
-              )
-            })}
           </div>
         </article>
 
