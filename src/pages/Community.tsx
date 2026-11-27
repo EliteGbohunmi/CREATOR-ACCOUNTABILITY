@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { X, Loader, Users, Trophy, Flame, Calendar, Mail, ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -28,6 +29,7 @@ function getAvatarGradient(name?: string | null) {
 export default function Community() {
   const { user } = useAuth()
   const currentUserId = user?.id ?? null
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [loading, setLoading] = useState(true)
@@ -92,6 +94,18 @@ export default function Community() {
   }, [currentUserId])
 
   useEffect(() => { fetchPosts() }, [fetchPosts])
+  useEffect(() => {
+    const targetUser = searchParams.get('profile')
+    if (targetUser) {
+      setSelectedUserId(targetUser)
+      fetchUserProfile(targetUser)
+      // clean the URL so refresh doesn't re-open
+      const next = new URLSearchParams(searchParams)
+      next.delete('profile')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams])
+
 
   useEffect(() => {
     const channel = supabase.channel('community-board')

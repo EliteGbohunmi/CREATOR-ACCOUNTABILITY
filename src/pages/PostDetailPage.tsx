@@ -237,7 +237,7 @@ export default function PostDetailPage() {
           {/* Author */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
             <button
-              onClick={() => navigate(`/profile/${post.user_id}`)}
+              onClick={() => navigate(`/community?profile=${post.user_id}`)}
               style={{
                 width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
                 background: avatarUrl ? 'transparent' : avatarBg(name),
