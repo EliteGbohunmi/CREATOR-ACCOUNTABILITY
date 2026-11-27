@@ -1,6 +1,6 @@
 import { Component, ReactNode } from 'react'
 
-export default class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
   static getDerivedStateFromError(error: Error) { return { error } }
   componentDidCatch(error: Error, info: any) { console.error('Boundary caught:', error, info) }
@@ -17,3 +17,5 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
     return this.props.children
   }
 }
+
+export default ErrorBoundary
