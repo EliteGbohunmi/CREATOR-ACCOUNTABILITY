@@ -21,6 +21,7 @@ import Leaderboard from './pages/Leaderboard'
 import Community from './pages/Community'
 import SavedPosts from './pages/SavedPosts'
 import PostDetailPage from './pages/PostDetailPage'
+import ErrorBoundary from './components/ErrorBoundary'
 import Notifications from './pages/Notifications'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
