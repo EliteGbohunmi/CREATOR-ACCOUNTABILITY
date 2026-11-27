@@ -105,8 +105,8 @@ function AppRoutes() {
       <Route path="/vault" element={<ProtectedRoute><Vault /></ProtectedRoute>} />
       <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
       <Route path="/partners" element={<ProtectedRoute><Partners /></ProtectedRoute>} />
-      <Route path="/community" element={<ProtectedRoute>
-        <Route path="/post/:postId" element={<ErrorBoundary><PostDetailPage /></ErrorBoundary>} /><Community /></ProtectedRoute>} />
+      <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
+      <Route path="/post/:postId" element={<ProtectedRoute><ErrorBoundary><PostDetailPage /></ErrorBoundary></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
     </Routes>
   )
