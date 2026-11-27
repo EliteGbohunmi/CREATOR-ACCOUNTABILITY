@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
   ArrowLeft, BadgeCheck, Heart, MessageCircle, Send,
   Bookmark, MoreHorizontal, Loader, Sparkles, Megaphone,
-  CornerDownRight, Share2,
+  CornerDownRight, Share2, X, Users, Trophy, Flame, Calendar, Mail, ShieldCheck,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { useAuth } from '../lib/AuthContext'
+import { supabase } from '../lib/supabase'
 import {
   getPostById, getCommentTree, addThreadComment, toggleBookmark, toggleReaction,
   type FullPost, type ThreadComment,
 } from '../lib/communityThreads'
 import ThreadedComment from '../components/community/ThreadedComment'
-import ProfileModal from '../components/community/ProfileModal'
-import { supabase } from '../lib/supabase'
 
 const c = {
   card: '#141414', border: '#4A3B18', divider: '#2E2E2E', line: '#2A2A2A',
@@ -34,6 +34,21 @@ function initials(name: string) {
   if (!p.length) return '?'
   if (p.length === 1) return p[0][0]?.toUpperCase() || '?'
   return (p[0][0] + p[1][0]).toUpperCase()
+}
+function getInitials(name?: string | null) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return '?'
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
+function getAvatarGradient(name?: string | null) {
+  const g = [['#F5A623', '#D9821A'], ['#6FA8F5', '#3D7DD9'], ['#F56F91', '#D93D63'], ['#6FCB73', '#3DA843'], ['#B98CF5', '#8A4DD9']]
+  const key = name || '?'
+  let h = 0
+  for (let i = 0; i < key.length; i++) h = key.charCodeAt(i) + ((h << 5) - h)
+  const [a, b] = g[Math.abs(h) % g.length]
+  return `linear-gradient(135deg, ${a}, ${b})`
 }
 function relDate(iso: string) {
   const d = new Date(iso)
@@ -65,6 +80,7 @@ export default function PostDetailPage() {
   const [draft, setDraft] = useState('')
   const [posting, setPosting] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
+
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [profileData, setProfileData] = useState<any | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
@@ -81,6 +97,25 @@ export default function PostDetailPage() {
   }
 
   useEffect(() => { load() }, [postId, currentUserId])
+
+  const openProfile = async (userId: string) => {
+    if (!userId) return
+    setSelectedUserId(userId)
+    setLoadingProfile(true)
+    try {
+      const { data: profile } = await supabase.from('profiles').select('id, name, email, created_at, bio, avatar_url, username').eq('id', userId).single()
+      const { data: streak } = await supabase.from('streaks').select('current_streak, best_streak, last_checked_in').eq('user_id', userId).single()
+      const { count: partnerCount } = await supabase.from('accountability_partners').select('*', { count: 'exact', head: true }).or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      const { count: postCount } = await supabase.from('community_posts').select('*', { count: 'exact', head: true }).eq('user_id', userId)
+      setProfileData({ ...profile, streak: streak || { current_streak: 0, best_streak: 0 }, partnerCount: partnerCount || 0, postCount: postCount || 0 })
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load profile')
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
+  const closeProfile = () => { setSelectedUserId(null); setProfileData(null) }
 
   const submitRoot = async () => {
     if (!currentUserId || !postId) { toast.error('Sign in to reply'); return }
@@ -134,25 +169,6 @@ export default function PostDetailPage() {
     setTree(prev => toggleLikeInTree(prev, id))
   }
 
-  const openProfile = async (userId: string) => {
-    if (!userId) return
-    setSelectedUserId(userId)
-    setLoadingProfile(true)
-    try {
-      const { data: profile } = await supabase.from('profiles').select('id, name, email, created_at, bio, avatar_url, username').eq('id', userId).single()
-      const { data: streak } = await supabase.from('streaks').select('current_streak, best_streak, last_checked_in').eq('user_id', userId).single()
-      const { count: partnerCount } = await supabase.from('accountability_partners').select('*', { count: 'exact', head: true }).or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-      const { count: postCount } = await supabase.from('community_posts').select('*', { count: 'exact', head: true }).eq('user_id', userId)
-      setProfileData({ ...profile, streak: streak || { current_streak: 0, best_streak: 0 }, partnerCount: partnerCount || 0, postCount: postCount || 0 })
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to load profile')
-    } finally {
-      setLoadingProfile(false)
-    }
-  }
-  const closeProfile = () => { setSelectedUserId(null); setProfileData(null) }
-
   if (loading) {
     return (
       <Layout>
@@ -196,11 +212,11 @@ export default function PostDetailPage() {
   const likeCount = post.reactions.find(r => r.emoji === '❤️')?.count ?? 0
   const isBoost = post.post_type === 'boost'
   const replyCount = countTree(tree)
+  const isOwnProfile = selectedUserId === currentUserId
 
   return (
     <Layout>
       <div style={{ maxWidth: 680, margin: '0 auto', paddingBottom: 140 }}>
-        {/* Sticky header */}
         <div style={{
           position: 'sticky', top: 0, zIndex: 20,
           background: 'rgba(10,10,10,0.85)',
@@ -212,9 +228,7 @@ export default function PostDetailPage() {
         }}>
           <button
             onClick={() => navigate(-1)}
-            style={{ width: 40, height: 40, borderRadius: 12, background: c.surface, border: `1px solid ${c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'border-color 0.15s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3A3A3A' }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = c.inputBorder }}
+            style={{ width: 40, height: 40, borderRadius: 12, background: c.surface, border: `1px solid ${c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
             aria-label="Back"
           >
             <ArrowLeft size={18} color={c.text} />
@@ -225,51 +239,26 @@ export default function PostDetailPage() {
           </div>
           <button
             onClick={onShare}
-            style={{ width: 40, height: 40, borderRadius: 12, background: c.surface, border: `1px solid ${c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'border-color 0.15s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3A3A3A' }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = c.inputBorder }}
+            style={{ width: 40, height: 40, borderRadius: 12, background: c.surface, border: `1px solid ${c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
             aria-label="Share"
           >
             <Share2 size={16} color={c.text} />
           </button>
         </div>
 
-        {/* Main post */}
-        <article style={{
-          background: c.card,
-          border: `1px solid ${c.border}`,
-          borderRadius: 18,
-          padding: 20,
-          marginTop: 14,
-          marginBottom: 16,
-          boxShadow: '0 12px 40px -20px rgba(0,0,0,0.6)',
-        }}>
-          {/* Metadata pill row */}
+        <article style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 18, padding: 20, marginTop: 14, marginBottom: 16, boxShadow: '0 12px 40px -20px rgba(0,0,0,0.6)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: c.goldSoft, borderRadius: 20, padding: '5px 10px',
-            }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: c.goldSoft, borderRadius: 20, padding: '5px 10px' }}>
               {isBoost ? <Megaphone size={11} color={c.gold} /> : <Sparkles size={11} color={c.gold} />}
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.gold }}>
-                {typeLabel(post)}
-              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.gold }}>{typeLabel(post)}</span>
             </div>
             <span style={{ fontSize: 11, color: c.faint, fontWeight: 500 }}>{relDate(post.created_at)}</span>
           </div>
 
-          {/* Author */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
             <button
               onClick={() => openProfile(post.user_id)}
-              style={{
-                width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
-                background: avatarUrl ? 'transparent' : avatarBg(name),
-                border: 'none', padding: 0, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, color: '#0A0A0A', fontWeight: 700, fontSize: 15,
-                fontFamily: 'Space Grotesk',
-              }}
+              style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', background: avatarUrl ? 'transparent' : avatarBg(name), border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#0A0A0A', fontWeight: 700, fontSize: 15, fontFamily: 'Space Grotesk' }}
               aria-label={`View ${name}'s profile`}
             >
               {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(name)}
@@ -286,26 +275,14 @@ export default function PostDetailPage() {
             </button>
           </div>
 
-          {/* Content */}
           <div style={{ color: c.text, fontSize: 16, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 20, letterSpacing: '-0.005em' }}>
             {post.content}
           </div>
 
-          {/* Footer actions */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            paddingTop: 16, borderTop: `1px solid ${c.divider}`,
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 16, borderTop: `1px solid ${c.divider}` }}>
             <button
               onClick={onReact}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: liked ? c.goldSoft : c.surface,
-                border: `1px solid ${liked ? 'rgba(227,160,8,0.4)' : c.inputBorder}`,
-                borderRadius: 20, padding: '7px 13px', cursor: 'pointer',
-                color: liked ? c.gold : c.dim,
-                transition: 'all 0.15s',
-              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: liked ? c.goldSoft : c.surface, border: `1px solid ${liked ? 'rgba(227,160,8,0.4)' : c.inputBorder}`, borderRadius: 20, padding: '7px 13px', cursor: 'pointer', color: liked ? c.gold : c.dim }}
               aria-label="Like"
             >
               <Heart size={15} fill={liked ? c.gold : 'none'} />
@@ -314,27 +291,12 @@ export default function PostDetailPage() {
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: c.surface, border: `1px solid ${c.inputBorder}`, borderRadius: 20, padding: '7px 13px', color: c.dim, fontSize: 12.5, fontWeight: 700 }}>
               <MessageCircle size={15} /> {post.comment_count}
             </div>
-            <button
-              onClick={onShare}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: c.surface, border: `1px solid ${c.inputBorder}`,
-                borderRadius: 20, padding: '7px 13px', cursor: 'pointer',
-                color: c.dim, transition: 'all 0.15s',
-              }}
-              aria-label="Share"
-            >
+            <button onClick={onShare} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: c.surface, border: `1px solid ${c.inputBorder}`, borderRadius: 20, padding: '7px 13px', cursor: 'pointer', color: c.dim }} aria-label="Share">
               <Send size={14} />
             </button>
             <button
               onClick={onBookmark}
-              style={{
-                marginLeft: 'auto', width: 36, height: 36, borderRadius: 10,
-                background: bookmarked ? c.goldSoft : c.surface,
-                border: `1px solid ${bookmarked ? 'rgba(227,160,8,0.4)' : c.inputBorder}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
+              style={{ marginLeft: 'auto', width: 36, height: 36, borderRadius: 10, background: bookmarked ? c.goldSoft : c.surface, border: `1px solid ${bookmarked ? 'rgba(227,160,8,0.4)' : c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               aria-label="Bookmark"
             >
               <Bookmark size={16} color={bookmarked ? c.gold : c.dim} fill={bookmarked ? c.gold : 'none'} />
@@ -342,46 +304,24 @@ export default function PostDetailPage() {
           </div>
         </article>
 
-        {/* Composer */}
-        <div style={{
-          background: c.card,
-          border: `1px solid ${c.inputBorder}`,
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 20,
-          transition: 'border-color 0.15s',
-        }}>
+        <div style={{ background: c.card, border: `1px solid ${c.inputBorder}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
             <CornerDownRight size={12} color={c.gold} />
-            <span style={{ fontSize: 10, color: c.dim, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>
-              Write a reply
-            </span>
+            <span style={{ fontSize: 10, color: c.dim, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>Write a reply</span>
           </div>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Add to the conversation…"
             rows={2}
-            style={{
-              width: '100%', background: 'transparent', border: 'none',
-              color: c.text, fontSize: 14.5, lineHeight: 1.55, resize: 'vertical',
-              outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-              minHeight: 48,
-            }}
+            style={{ width: '100%', background: 'transparent', border: 'none', color: c.text, fontSize: 14.5, lineHeight: 1.55, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', minHeight: 48 }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
             <span style={{ fontSize: 11, color: c.faint }}>{draft.length}/2000</span>
             <button
               onClick={submitRoot}
               disabled={!draft.trim() || posting}
-              style={{
-                background: c.gold, color: '#0A0A0A', border: 'none',
-                borderRadius: 10, padding: '9px 18px', fontWeight: 700,
-                fontSize: 13, cursor: draft.trim() ? 'pointer' : 'not-allowed',
-                opacity: draft.trim() ? 1 : 0.35,
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                transition: 'opacity 0.15s',
-              }}
+              style={{ background: c.gold, color: '#0A0A0A', border: 'none', borderRadius: 10, padding: '9px 18px', fontWeight: 700, fontSize: 13, cursor: draft.trim() ? 'pointer' : 'not-allowed', opacity: draft.trim() ? 1 : 0.35, display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
               <Send size={13} />
               {posting ? 'Posting…' : 'Reply'}
@@ -389,76 +329,117 @@ export default function PostDetailPage() {
           </div>
         </div>
 
-        {/* Replies section */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, paddingLeft: 4 }}>
-          <span style={{ fontSize: 11, color: c.dim, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
-            Replies
-          </span>
-          <span style={{
-            background: replyCount > 0 ? c.goldSoft : c.surface,
-            color: replyCount > 0 ? c.gold : c.faint,
-            fontSize: 10, fontWeight: 800, borderRadius: 10, padding: '2px 8px',
-            border: `1px solid ${replyCount > 0 ? 'rgba(227,160,8,0.3)' : c.inputBorder}`,
-          }}>
+          <span style={{ fontSize: 11, color: c.dim, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Replies</span>
+          <span style={{ background: replyCount > 0 ? c.goldSoft : c.surface, color: replyCount > 0 ? c.gold : c.faint, fontSize: 10, fontWeight: 800, borderRadius: 10, padding: '2px 8px', border: `1px solid ${replyCount > 0 ? 'rgba(227,160,8,0.3)' : c.inputBorder}` }}>
             {replyCount}
           </span>
           <div style={{ flex: 1, height: 1, background: c.divider }} />
         </div>
 
         {tree.length === 0 ? (
-          <div style={{
-            textAlign: 'center', padding: '3rem 1.5rem',
-            border: `1px dashed ${c.inputBorder}`, borderRadius: 16,
-            background: c.surface,
-          }}>
-            <div style={{
-              width: 48, height: 48, borderRadius: 14,
-              background: c.card, border: `1px solid ${c.inputBorder}`,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              marginBottom: 12,
-            }}>
+          <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: `1px dashed ${c.inputBorder}`, borderRadius: 16, background: c.surface }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: c.card, border: `1px solid ${c.inputBorder}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
               <MessageCircle size={20} color={c.faint} />
             </div>
-            <div style={{ color: c.text, fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-              No replies yet
-            </div>
-            <div style={{ color: c.faint, fontSize: 12.5 }}>
-              Be the first to share your thoughts
-            </div>
+            <div style={{ color: c.text, fontSize: 14, fontWeight: 600, marginBottom: 4 }}>No replies yet</div>
+            <div style={{ color: c.faint, fontSize: 12.5 }}>Be the first to share your thoughts</div>
           </div>
         ) : (
-          <div style={{
-            background: c.card, border: `1px solid ${c.inputBorder}`,
-            borderRadius: 16, padding: '8px 16px 16px',
-          }}>
+          <div style={{ background: c.card, border: `1px solid ${c.inputBorder}`, borderRadius: 16, padding: '8px 16px 16px' }}>
             {tree.map((comment, i) => (
-              <div key={comment.id} style={{
-                paddingTop: i === 0 ? 8 : 0,
-                borderTop: i === 0 ? 'none' : `1px solid ${c.divider}`,
-                marginTop: i === 0 ? 0 : 4,
-                paddingBottom: 4,
-              }}>
-                <ThreadedComment
-                  comment={comment}
-                  depth={0}
-                  currentUserId={currentUserId}
-                  onReply={submitNested}
-                  onLike={onLikeComment}
-                  onViewProfile={openProfile}
-                />
+              <div key={comment.id} style={{ paddingTop: i === 0 ? 8 : 0, borderTop: i === 0 ? 'none' : `1px solid ${c.divider}`, marginTop: i === 0 ? 0 : 4, paddingBottom: 4 }}>
+                <ThreadedComment comment={comment} depth={0} currentUserId={currentUserId} onReply={submitNested} onLike={onLikeComment} onViewProfile={openProfile} />
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <ProfileModal
-        open={!!selectedUserId}
-        profileData={profileData}
-        loading={loadingProfile}
-        isOwnProfile={selectedUserId === currentUserId}
-        onClose={closeProfile}
-      />
+      {/* Inline profile modal — same implementation as Community, proven to work */}
+      <AnimatePresence>
+        {selectedUserId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={modalStyles.overlay}
+            onClick={closeProfile}
+          >
+            <motion.div
+              initial={{ y: 24, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 24, opacity: 0, scale: 0.98 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 240 }}
+              style={modalStyles.card}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button style={modalStyles.close} onClick={closeProfile} aria-label="Close">
+                <X size={18} color="#8A8A8A" />
+              </button>
+              {loadingProfile ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                  <Loader size={26} color="#5C5C5C" className="animate-spin" />
+                </div>
+              ) : profileData ? (
+                <>
+                  <div style={modalStyles.top}>
+                    <div style={modalStyles.banner} />
+                    <div style={modalStyles.avatarRing}>
+                      <div style={{ ...modalStyles.avatar, background: profileData.avatar_url ? 'transparent' : getAvatarGradient(profileData.name) }}>
+                        {profileData.avatar_url
+                          ? <img src={profileData.avatar_url} alt={profileData.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : getInitials(profileData.name)}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ padding: '0 1.4rem 1.4rem', textAlign: 'center' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#F5F1EA', margin: '0.8rem 0 0.1rem', fontFamily: 'Space Grotesk', letterSpacing: '-0.02em' }}>
+                      {profileData.name}
+                      {isOwnProfile && <span style={{ fontSize: '0.62rem', marginLeft: '0.5rem', color: '#F5A623', background: 'rgba(245,166,35,0.12)', padding: '0.1rem 0.5rem', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, verticalAlign: 'middle' }}>you</span>}
+                    </h2>
+                    {profileData.username && <p style={{ color: '#F5A623', fontSize: '0.78rem', fontWeight: 600, margin: 0 }}>@{profileData.username}</p>}
+                    <p style={{ color: '#7A7A7A', fontSize: '0.78rem', margin: '0.25rem 0 0', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Mail size={11} /> {profileData.email}
+                    </p>
+                  </div>
+                  <div style={modalStyles.stats}>
+                    <div style={modalStyles.stat}>
+                      <span style={modalStyles.statIcon}><Flame size={13} color="#F5A623" /></span>
+                      <span style={modalStyles.statValue}>{profileData.streak?.current_streak || 0}</span>
+                      <span style={modalStyles.statLabel}>Streak</span>
+                    </div>
+                    <div style={modalStyles.stat}>
+                      <span style={modalStyles.statIcon}><Trophy size={13} color="#4CAF50" /></span>
+                      <span style={modalStyles.statValue}>{profileData.streak?.best_streak || 0}</span>
+                      <span style={modalStyles.statLabel}>Best</span>
+                    </div>
+                    <div style={modalStyles.stat}>
+                      <span style={modalStyles.statIcon}><Users size={13} color="#6FA8F5" /></span>
+                      <span style={modalStyles.statValue}>{profileData.partnerCount}</span>
+                      <span style={modalStyles.statLabel}>Partners</span>
+                    </div>
+                    <div style={modalStyles.stat}>
+                      <span style={modalStyles.statIcon}><ShieldCheck size={13} color="#B98CF5" /></span>
+                      <span style={modalStyles.statValue}>{profileData.postCount}</span>
+                      <span style={modalStyles.statLabel}>Posts</span>
+                    </div>
+                  </div>
+                  <div style={{ padding: '0 1.4rem 1.4rem' }}>
+                    <div style={modalStyles.sectionLabel}>About</div>
+                    <p style={modalStyles.bio}>{profileData.bio || "This creator hasn't added a bio yet."}</p>
+                    <div style={modalStyles.metaRow}>
+                      <span style={modalStyles.metaItem}><Calendar size={11} /> Joined {new Date(profileData.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p style={{ color: '#8A8A8A', padding: '2rem', textAlign: 'center' }}>No profile data</p>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   )
 }
@@ -472,4 +453,23 @@ function toggleLikeInTree(nodes: ThreadComment[], id: string): ThreadComment[] {
     if (n.children.length) return { ...n, children: toggleLikeInTree(n.children, id) }
     return n
   })
+}
+
+const modalStyles: Record<string, React.CSSProperties> = {
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1.25rem' },
+  card: { background: 'linear-gradient(180deg, #161616 0%, #0A0A0A 100%)', border: '1px solid #262626', borderRadius: '24px', width: '100%', maxWidth: '420px', position: 'relative', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.9)', maxHeight: '90vh', overflowY: 'auto' },
+  close: { position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'rgba(0,0,0,0.5)', border: '1px solid #262626', borderRadius: '10px', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, backdropFilter: 'blur(6px)' },
+  top: { position: 'relative', height: '92px' },
+  banner: { position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(245,166,35,0.28), transparent 65%), radial-gradient(circle at bottom left, rgba(111,168,245,0.14), transparent 60%)' },
+  avatarRing: { position: 'absolute', bottom: '-32px', left: '1.4rem', padding: 3, borderRadius: '24px', background: 'linear-gradient(135deg, #F5A623, #D9821A)', boxShadow: '0 12px 30px -12px rgba(245,166,35,0.6)' },
+  avatar: { width: '72px', height: '72px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 700, color: '#0A0A0A', fontFamily: 'Space Grotesk', overflow: 'hidden', border: '3px solid #0A0A0A' },
+  stats: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', padding: '0.4rem 1.4rem 1rem', marginTop: '1.6rem' },
+  stat: { background: 'rgba(255,255,255,0.03)', border: '1px solid #1E1E1E', borderRadius: '12px', padding: '0.6rem 0.4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem' },
+  statIcon: { display: 'flex', marginBottom: '0.1rem' },
+  statValue: { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: '0.95rem', color: '#F5F1EA', lineHeight: 1 },
+  statLabel: { fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7A7A7A', fontWeight: 600 },
+  sectionLabel: { color: '#5C5C5C', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: '0.4rem' },
+  bio: { color: '#B0B0B0', fontSize: '0.85rem', lineHeight: 1.55, margin: 0, background: 'rgba(255,255,255,0.02)', border: '1px solid #1A1A1A', borderRadius: '12px', padding: '0.75rem 0.9rem' },
+  metaRow: { display: 'flex', gap: '0.75rem', marginTop: '0.6rem', flexWrap: 'wrap' },
+  metaItem: { display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: '#7A7A7A', fontSize: '0.73rem', fontWeight: 500 },
 }
