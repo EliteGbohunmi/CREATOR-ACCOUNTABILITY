@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import {
   ArrowLeft, BadgeCheck, Heart, MessageCircle, Send,
   Bookmark, MoreHorizontal, Loader, Sparkles, Megaphone,
+  CornerDownRight, Share2,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { useAuth } from '../lib/AuthContext'
@@ -17,6 +18,7 @@ const c = {
   card: '#141414', border: '#4A3B18', divider: '#2E2E2E', line: '#2A2A2A',
   text: '#F5F5F5', dim: '#A1A1AA', faint: '#71717A', gold: '#E3A008',
   goldSoft: '#2E2610', coral: '#F87171', inputBorder: '#262626',
+  surface: '#0F0F0F',
 }
 
 const AVATAR_COLORS = ['#E3A008', '#6FA8F5', '#F56F91', '#6FCB73', '#B98CF5']
@@ -116,6 +118,13 @@ export default function PostDetailPage() {
     })
   }
 
+  const onShare = () => {
+    if (!post) return
+    const url = `${window.location.origin}/post/${post.id}`
+    if (navigator.share) navigator.share({ title: post.profiles?.name || 'Post', url }).catch(() => {})
+    else navigator.clipboard.writeText(url).then(() => toast.success('Link copied'))
+  }
+
   const onLikeComment = (id: string) => {
     setTree(prev => toggleLikeInTree(prev, id))
   }
@@ -123,8 +132,9 @@ export default function PostDetailPage() {
   if (loading) {
     return (
       <Layout>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
-          <Loader size={26} color={c.faint} className="animate-spin" />
+        <div style={{ maxWidth: 700, margin: '0 auto', padding: '20px 16px' }}>
+          <div style={{ height: 44, borderRadius: 12, background: '#141414', marginBottom: 16 }} />
+          <div style={{ height: 200, borderRadius: 16, background: '#141414' }} />
         </div>
       </Layout>
     )
@@ -133,10 +143,21 @@ export default function PostDetailPage() {
   if (notFound || !post) {
     return (
       <Layout>
-        <div style={{ textAlign: 'center', padding: '4rem 1.5rem' }}>
-          <p style={{ color: c.dim, fontSize: 15 }}>This post doesn't exist or was removed.</p>
-          <button onClick={() => navigate(-1)} style={{ marginTop: 16, background: 'transparent', border: `1px solid ${c.inputBorder}`, color: c.dim, borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontSize: 13 }}>
-            Go back
+        <div style={{ maxWidth: 500, margin: '80px auto', textAlign: 'center', padding: '0 1.5rem' }}>
+          <div style={{ width: 64, height: 64, borderRadius: 20, background: c.surface, border: `1px solid ${c.inputBorder}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+            <Sparkles size={24} color={c.faint} />
+          </div>
+          <h2 style={{ color: c.text, fontSize: 20, fontWeight: 700, margin: '0 0 8px', fontFamily: 'Space Grotesk' }}>
+            Post not found
+          </h2>
+          <p style={{ color: c.dim, fontSize: 14, margin: '0 0 24px', lineHeight: 1.5 }}>
+            This post may have been deleted or the link is incorrect.
+          </p>
+          <button
+            onClick={() => navigate('/community')}
+            style={{ background: c.gold, color: '#0A0A0A', border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+          >
+            Back to community
           </button>
         </div>
       </Layout>
@@ -150,114 +171,260 @@ export default function PostDetailPage() {
   const liked = post.reactions.find(r => r.emoji === '❤️')?.mine || false
   const likeCount = post.reactions.find(r => r.emoji === '❤️')?.count ?? 0
   const isBoost = post.post_type === 'boost'
+  const replyCount = countTree(tree)
 
   return (
     <Layout>
-      <div style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 140 }}>
-        <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 4px', marginBottom: 12, borderBottom: `1px solid ${c.divider}` }}>
+      <div style={{ maxWidth: 680, margin: '0 auto', paddingBottom: 140 }}>
+        {/* Sticky header */}
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 20,
+          background: 'rgba(10,10,10,0.85)',
+          backdropFilter: 'saturate(180%) blur(20px)',
+          WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+          display: 'flex', alignItems: 'center', gap: 14,
+          padding: '14px 4px', marginBottom: 4,
+          borderBottom: `1px solid ${c.divider}`,
+        }}>
           <button
             onClick={() => navigate(-1)}
-            style={{ width: 36, height: 36, borderRadius: '50%', background: 'transparent', border: `1px solid ${c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            style={{ width: 40, height: 40, borderRadius: 12, background: c.surface, border: `1px solid ${c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'border-color 0.15s' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3A3A3A' }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = c.inputBorder }}
             aria-label="Back"
           >
             <ArrowLeft size={18} color={c.text} />
           </button>
-          <div>
-            <div style={{ fontSize: 11, color: c.faint, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Thread</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: c.text }}>Post</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: c.faint, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 2 }}>Thread</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: c.text, fontFamily: 'Space Grotesk', letterSpacing: '-0.02em' }}>Post</div>
           </div>
+          <button
+            onClick={onShare}
+            style={{ width: 40, height: 40, borderRadius: 12, background: c.surface, border: `1px solid ${c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'border-color 0.15s' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3A3A3A' }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = c.inputBorder }}
+            aria-label="Share"
+          >
+            <Share2 size={16} color={c.text} />
+          </button>
         </div>
 
-        <article style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {isBoost ? <Megaphone size={12} color={c.faint} /> : <Sparkles size={12} color={c.faint} />}
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: c.dim }}>
+        {/* Main post */}
+        <article style={{
+          background: c.card,
+          border: `1px solid ${c.border}`,
+          borderRadius: 18,
+          padding: 20,
+          marginTop: 14,
+          marginBottom: 16,
+          boxShadow: '0 12px 40px -20px rgba(0,0,0,0.6)',
+        }}>
+          {/* Metadata pill row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: c.goldSoft, borderRadius: 20, padding: '5px 10px',
+            }}>
+              {isBoost ? <Megaphone size={11} color={c.gold} /> : <Sparkles size={11} color={c.gold} />}
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.gold }}>
                 {typeLabel(post)}
               </span>
             </div>
-            <span style={{ fontSize: 11, color: c.faint }}>{relDate(post.created_at)}</span>
+            <span style={{ fontSize: 11, color: c.faint, fontWeight: 500 }}>{relDate(post.created_at)}</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', background: avatarUrl ? 'transparent' : avatarBg(name), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#0A0A0A', fontWeight: 700, fontSize: 14, fontFamily: 'Space Grotesk' }}>
+          {/* Author */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+            <button
+              onClick={() => navigate(`/profile/${post.user_id}`)}
+              style={{
+                width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
+                background: avatarUrl ? 'transparent' : avatarBg(name),
+                border: 'none', padding: 0, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, color: '#0A0A0A', fontWeight: 700, fontSize: 15,
+                fontFamily: 'Space Grotesk',
+              }}
+              aria-label={`View ${name}'s profile`}
+            >
               {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(name)}
-            </div>
+            </button>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontWeight: 700, fontSize: 14, color: c.text }}>{name}</span>
-                {verified && <BadgeCheck size={14} color="#3B82F6" fill="#3B82F6" stroke={c.card} />}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: c.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                {verified && <BadgeCheck size={15} color="#3B82F6" fill="#3B82F6" stroke={c.card} />}
               </div>
-              {role && <div style={{ fontSize: 12, color: c.dim, marginTop: 1 }}>{role}</div>}
+              {role && <div style={{ fontSize: 12, color: c.dim, marginTop: 2 }}>{role}</div>}
             </div>
-            <button style={{ width: 32, height: 32, borderRadius: '50%', background: '#262626', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <button style={{ width: 34, height: 34, borderRadius: 10, background: c.surface, border: `1px solid ${c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
               <MoreHorizontal size={16} color={c.dim} />
             </button>
           </div>
 
-          <div style={{ color: c.text, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 14 }}>
+          {/* Content */}
+          <div style={{ color: c.text, fontSize: 16, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 20, letterSpacing: '-0.005em' }}>
             {post.content}
           </div>
 
-          <div style={{ borderTop: `1px dashed ${c.divider}`, margin: '4px 0 12px' }} />
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Footer actions */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            paddingTop: 16, borderTop: `1px solid ${c.divider}`,
+          }}>
             <button
               onClick={onReact}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                background: liked ? c.goldSoft : 'transparent',
-                border: `1px solid ${liked ? c.gold : 'transparent'}`,
-                borderRadius: 999, padding: '5px 10px', cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: liked ? c.goldSoft : c.surface,
+                border: `1px solid ${liked ? 'rgba(227,160,8,0.4)' : c.inputBorder}`,
+                borderRadius: 20, padding: '7px 13px', cursor: 'pointer',
                 color: liked ? c.gold : c.dim,
+                transition: 'all 0.15s',
               }}
               aria-label="Like"
             >
               <Heart size={15} fill={liked ? c.gold : 'none'} />
-              <span style={{ fontWeight: 700, fontSize: 12 }}>{likeCount}</span>
+              <span style={{ fontWeight: 700, fontSize: 12.5 }}>{likeCount}</span>
             </button>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: c.dim, fontSize: 12, fontWeight: 600 }}>
-              <MessageCircle size={16} /> {post.comment_count}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: c.surface, border: `1px solid ${c.inputBorder}`, borderRadius: 20, padding: '7px 13px', color: c.dim, fontSize: 12.5, fontWeight: 700 }}>
+              <MessageCircle size={15} /> {post.comment_count}
             </div>
-            <button style={{ background: 'none', border: 'none', color: c.coral, padding: 0 }} aria-label="Share">
-              <Send size={16} />
+            <button
+              onClick={onShare}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: c.surface, border: `1px solid ${c.inputBorder}`,
+                borderRadius: 20, padding: '7px 13px', cursor: 'pointer',
+                color: c.dim, transition: 'all 0.15s',
+              }}
+              aria-label="Share"
+            >
+              <Send size={14} />
             </button>
-            <button onClick={onBookmark} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }} aria-label="Bookmark">
-              <Bookmark size={18} color={bookmarked ? c.gold : c.dim} fill={bookmarked ? c.gold : 'none'} />
+            <button
+              onClick={onBookmark}
+              style={{
+                marginLeft: 'auto', width: 36, height: 36, borderRadius: 10,
+                background: bookmarked ? c.goldSoft : c.surface,
+                border: `1px solid ${bookmarked ? 'rgba(227,160,8,0.4)' : c.inputBorder}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              aria-label="Bookmark"
+            >
+              <Bookmark size={16} color={bookmarked ? c.gold : c.dim} fill={bookmarked ? c.gold : 'none'} />
             </button>
           </div>
         </article>
 
-        <div style={{ background: c.card, border: `1px solid ${c.inputBorder}`, borderRadius: 14, padding: 12, marginBottom: 20 }}>
-          <div style={{ fontSize: 11, color: c.faint, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
-            Write a reply
+        {/* Composer */}
+        <div style={{
+          background: c.card,
+          border: `1px solid ${c.inputBorder}`,
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 20,
+          transition: 'border-color 0.15s',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <CornerDownRight size={12} color={c.gold} />
+            <span style={{ fontSize: 10, color: c.dim, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>
+              Write a reply
+            </span>
           </div>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Add to the conversation…"
             rows={2}
-            style={{ width: '100%', background: 'transparent', border: 'none', color: c.text, fontSize: 14, lineHeight: 1.5, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            style={{
+              width: '100%', background: 'transparent', border: 'none',
+              color: c.text, fontSize: 14.5, lineHeight: 1.55, resize: 'vertical',
+              outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+              minHeight: 48,
+            }}
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+            <span style={{ fontSize: 11, color: c.faint }}>{draft.length}/2000</span>
             <button
               onClick={submitRoot}
               disabled={!draft.trim() || posting}
-              style={{ background: c.gold, color: '#0A0A0A', border: 'none', borderRadius: 10, padding: '8px 16px', fontWeight: 700, fontSize: 13, cursor: draft.trim() ? 'pointer' : 'not-allowed', opacity: draft.trim() ? 1 : 0.4 }}
+              style={{
+                background: c.gold, color: '#0A0A0A', border: 'none',
+                borderRadius: 10, padding: '9px 18px', fontWeight: 700,
+                fontSize: 13, cursor: draft.trim() ? 'pointer' : 'not-allowed',
+                opacity: draft.trim() ? 1 : 0.35,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                transition: 'opacity 0.15s',
+              }}
             >
+              <Send size={13} />
               {posting ? 'Posting…' : 'Reply'}
             </button>
           </div>
         </div>
 
-        <div>
-          <div style={{ fontSize: 11, color: c.faint, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
-            {tree.length === 0 ? 'No replies yet' : `${countTree(tree)} ${countTree(tree) === 1 ? 'reply' : 'replies'}`}
-          </div>
-          {tree.map(comment => (
-            <ThreadedComment key={comment.id} comment={comment} depth={0} currentUserId={currentUserId} onReply={submitNested} onLike={onLikeComment} />
-          ))}
+        {/* Replies section */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, paddingLeft: 4 }}>
+          <span style={{ fontSize: 11, color: c.dim, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
+            Replies
+          </span>
+          <span style={{
+            background: replyCount > 0 ? c.goldSoft : c.surface,
+            color: replyCount > 0 ? c.gold : c.faint,
+            fontSize: 10, fontWeight: 800, borderRadius: 10, padding: '2px 8px',
+            border: `1px solid ${replyCount > 0 ? 'rgba(227,160,8,0.3)' : c.inputBorder}`,
+          }}>
+            {replyCount}
+          </span>
+          <div style={{ flex: 1, height: 1, background: c.divider }} />
         </div>
+
+        {tree.length === 0 ? (
+          <div style={{
+            textAlign: 'center', padding: '3rem 1.5rem',
+            border: `1px dashed ${c.inputBorder}`, borderRadius: 16,
+            background: c.surface,
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 14,
+              background: c.card, border: `1px solid ${c.inputBorder}`,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 12,
+            }}>
+              <MessageCircle size={20} color={c.faint} />
+            </div>
+            <div style={{ color: c.text, fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+              No replies yet
+            </div>
+            <div style={{ color: c.faint, fontSize: 12.5 }}>
+              Be the first to share your thoughts
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            background: c.card, border: `1px solid ${c.inputBorder}`,
+            borderRadius: 16, padding: '8px 16px 16px',
+          }}>
+            {tree.map((comment, i) => (
+              <div key={comment.id} style={{
+                paddingTop: i === 0 ? 8 : 0,
+                borderTop: i === 0 ? 'none' : `1px solid ${c.divider}`,
+                marginTop: i === 0 ? 0 : 4,
+                paddingBottom: 4,
+              }}>
+                <ThreadedComment
+                  comment={comment}
+                  depth={0}
+                  currentUserId={currentUserId}
+                  onReply={submitNested}
+                  onLike={onLikeComment}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Layout>
   )
