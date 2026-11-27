@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Pin, BadgeCheck, MoreHorizontal, Smile, MessageCircle,
-  Repeat2, Send, Bookmark, ChevronDown,
+  Repeat2, Send, Bookmark, ChevronDown, Sparkles, Megaphone, Zap,
 } from 'lucide-react'
 import type { FullPost } from '../../lib/communityThreads'
 
@@ -35,6 +35,18 @@ function relDate(iso: string) {
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
+function typeLabel(post: FullPost) {
+  if (post.post_type === 'boost') {
+    return post.engagement_type ? `Boost · ${post.engagement_type}` : 'Boost'
+  }
+  if (post.engagement_type) return `Say hi · ${post.engagement_type}`
+  return 'Say hi'
+}
+function typeIcon(post: FullPost) {
+  if (post.post_type === 'boost') return <Megaphone size={12} color={c.faint} />
+  return <Sparkles size={12} color={c.faint} />
+}
+
 interface Props {
   post: FullPost
   currentUserId: string | null
@@ -51,8 +63,7 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
   const role = post.profiles?.role || ''
   const verified = post.profiles?.verified
   const avatarUrl = post.profiles?.avatar_url
-  const goDetail = (e?: React.MouseEvent) => { e?.stopPropagation(); navigate(`/post/${post.id}`) }
-  const stop = (e: React.MouseEvent) => e.stopPropagation()
+  const goDetail = () => navigate(`/post/${post.id}`)
 
   const totalReactions = post.reactions.reduce((a, r) => a + r.count, 0)
   const stackedEmojis = post.reactions.filter(r => r.count > 0).map(r => r.emoji)
@@ -61,38 +72,41 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
 
   return (
     <article
-      onClick={() => goDetail()}
       style={{
         background: c.bg, border: `1px solid ${c.border}`, borderRadius: 16,
-        padding: 16, marginBottom: 14, cursor: 'pointer',
+        padding: 16, marginBottom: 14,
         transition: 'border-color 200ms ease',
       }}
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#5F4D20' }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = c.border }}
     >
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Pin size={12} color={c.faint} fill={c.faint} />
+          {typeIcon(post)}
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: c.dim }}>
-            {post.post_type === 'boost' ? 'Boost' : 'Value'}
+            {typeLabel(post)}
           </span>
         </div>
         <span style={{ fontSize: 11, color: c.faint }}>{relDate(post.created_at)}</span>
       </div>
 
+      {/* Author */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <div
+        <button
           onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`) }}
           style={{
             width: 44, height: 44, borderRadius: '50%', overflow: 'hidden',
             background: avatarUrl ? 'transparent' : avatarBg(name),
+            border: 'none', padding: 0, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0, color: '#0A0A0A', fontWeight: 700, fontSize: 14,
-            fontFamily: 'Space Grotesk', cursor: 'pointer',
+            fontFamily: 'Space Grotesk',
           }}
+          aria-label={`View ${name}'s profile`}
         >
           {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(name)}
-        </div>
+        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: c.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
@@ -103,15 +117,16 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         <button
           onClick={(e) => { e.stopPropagation(); onMenu() }}
           style={{ width: 32, height: 32, borderRadius: '50%', background: '#262626', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-          aria-label="More"
+          aria-label="More actions"
         >
           <MoreHorizontal size={16} color={c.dim} />
         </button>
       </div>
 
+      {/* Body — clicking here navigates */}
       <div
-        onClick={() => goDetail()}
-        style={{ color: c.text, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 12 }}
+        onClick={goDetail}
+        style={{ color: c.text, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 12, cursor: 'pointer' }}
       >
         {body}
         {long && !expanded && (
@@ -126,11 +141,13 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
 
       <div style={{ borderTop: `1px dashed ${c.divider}`, margin: '4px 0 12px' }} />
 
+      {/* Action bar — each button stops propagation */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={(e) => { e.stopPropagation(); onReact('❤️') }}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: c.goldSoft, border: 'none', borderRadius: 999, padding: '5px 10px 5px 8px', cursor: 'pointer' }}
+            aria-label="React"
           >
             <Smile size={14} color={c.gold} />
             <span style={{ fontWeight: 700, fontSize: 12, color: c.gold }}>{totalReactions}</span>
@@ -146,13 +163,22 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         <button
           onClick={(e) => { e.stopPropagation(); goDetail() }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', color: c.dim, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+          aria-label="View comments"
         >
           <MessageCircle size={16} /> {post.comment_count}
         </button>
-        <button onClick={stop} style={{ background: 'none', border: 'none', color: c.green, cursor: 'pointer', padding: 0 }} aria-label="Repost">
+        <button
+          onClick={(e) => { e.stopPropagation() }}
+          style={{ background: 'none', border: 'none', color: c.green, cursor: 'pointer', padding: 0 }}
+          aria-label="Repost"
+        >
           <Repeat2 size={16} />
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onShare() }} style={{ background: 'none', border: 'none', color: c.coral, cursor: 'pointer', padding: 0 }} aria-label="Share">
+        <button
+          onClick={(e) => { e.stopPropagation(); onShare() }}
+          style={{ background: 'none', border: 'none', color: c.coral, cursor: 'pointer', padding: 0 }}
+          aria-label="Share"
+        >
           <Send size={16} />
         </button>
         <button
@@ -164,6 +190,7 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         </button>
       </div>
 
+      {/* Replies pill */}
       {post.comment_count > 0 && (
         <button
           onClick={(e) => { e.stopPropagation(); goDetail() }}

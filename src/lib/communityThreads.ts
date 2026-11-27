@@ -22,6 +22,7 @@ export type FullPost = {
   created_at: string
   post_type: 'say_hi' | 'boost'
   platform: string | null
+  engagement_type: 'comment' | 'like' | 'share' | 'watch' | null
   profiles?: { name: string | null; role: string | null; verified: boolean | null; avatar_url: string | null } | null
   reactions: Reaction[]
   comment_count: number
@@ -32,7 +33,7 @@ export type FullPost = {
 export async function getPostById(postId: string, currentUserId: string | null): Promise<FullPost | null> {
   const { data: post, error } = await supabase
     .from('community_posts')
-    .select('id, content, link, user_id, created_at, post_type, platform, profiles(name, role, verified, avatar_url)')
+    .select('id, content, link, user_id, created_at, post_type, platform, engagement_type, profiles(name, role, verified, avatar_url)')
     .eq('id', postId)
     .maybeSingle()
   if (error || !post) return null

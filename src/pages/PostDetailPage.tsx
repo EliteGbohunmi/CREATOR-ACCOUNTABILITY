@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Pin, BadgeCheck, Smile, MessageCircle, Repeat2, Send, Bookmark, MoreHorizontal, Loader } from 'lucide-react'
+import {
+  ArrowLeft, Pin, BadgeCheck, Smile, MessageCircle, Repeat2, Send,
+  Bookmark, MoreHorizontal, Loader, Sparkles, Megaphone,
+} from 'lucide-react'
 import Layout from '../components/Layout'
 import { useAuth } from '../lib/AuthContext'
 import {
@@ -38,6 +41,13 @@ function relDate(iso: string) {
   if (diff < 604_800_000) return Math.floor(diff / 86_400_000) + 'd ago'
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
+function typeLabel(post: FullPost) {
+  if (post.post_type === 'boost') {
+    return post.engagement_type ? `Boost · ${post.engagement_type}` : 'Boost'
+  }
+  if (post.engagement_type) return `Say hi · ${post.engagement_type}`
+  return 'Say hi'
+}
 
 export default function PostDetailPage() {
   const { postId } = useParams<{ postId: string }>()
@@ -54,7 +64,7 @@ export default function PostDetailPage() {
   const [bookmarked, setBookmarked] = useState(false)
 
   const load = async () => {
-    if (!postId) return
+    if (!postId) { setNotFound(true); setLoading(false); return }
     const p = await getPostById(postId, currentUserId)
     if (!p) { setNotFound(true); setLoading(false); return }
     setPost(p)
@@ -73,7 +83,7 @@ export default function PostDetailPage() {
     setPosting(true)
     const res = await addThreadComment({ postId, userId: currentUserId, content: body, parentId: null })
     setPosting(false)
-    if (!res.ok) { toast.error('Could not post reply'); return }
+    if (!res.ok) { toast.error('Could not post reply: ' + (res.error || 'unknown')); return }
     setDraft('')
     await load()
   }
@@ -81,7 +91,7 @@ export default function PostDetailPage() {
   const submitNested = async (parentId: string, content: string) => {
     if (!currentUserId || !postId) { toast.error('Sign in to reply'); return }
     const res = await addThreadComment({ postId, userId: currentUserId, content, parentId })
-    if (!res.ok) { toast.error('Could not post reply'); return }
+    if (!res.ok) { toast.error('Could not post reply: ' + (res.error || 'unknown')); return }
     await load()
   }
 
@@ -139,6 +149,7 @@ export default function PostDetailPage() {
   const avatarUrl = post.profiles?.avatar_url
   const totalReactions = post.reactions.reduce((a, r) => a + r.count, 0)
   const stacked = post.reactions.filter(r => r.count > 0).map(r => r.emoji)
+  const isBoost = post.post_type === 'boost'
 
   return (
     <Layout>
@@ -160,9 +171,9 @@ export default function PostDetailPage() {
         <article style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Pin size={12} color={c.faint} fill={c.faint} />
+              {isBoost ? <Megaphone size={12} color={c.faint} /> : <Sparkles size={12} color={c.faint} />}
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: c.dim }}>
-                {post.post_type === 'boost' ? 'Boost' : 'Value'}
+                {typeLabel(post)}
               </span>
             </div>
             <span style={{ fontSize: 11, color: c.faint }}>{relDate(post.created_at)}</span>
@@ -204,13 +215,13 @@ export default function PostDetailPage() {
                 </div>
               )}
             </div>
-            <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', color: c.dim, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+            <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', color: c.dim, fontSize: 12, fontWeight: 600, padding: 0 }}>
               <MessageCircle size={16} /> {post.comment_count}
             </button>
-            <button style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', color: c.green, cursor: 'pointer', padding: 0 }} aria-label="Repost">
+            <button style={{ background: 'none', border: 'none', color: c.green, padding: 0 }} aria-label="Repost">
               <Repeat2 size={16} />
             </button>
-            <button style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', color: c.coral, cursor: 'pointer', padding: 0 }} aria-label="Share">
+            <button style={{ background: 'none', border: 'none', color: c.coral, padding: 0 }} aria-label="Share">
               <Send size={16} />
             </button>
             <button onClick={onBookmark} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }} aria-label="Bookmark">
@@ -279,7 +290,6 @@ export default function PostDetailPage() {
 function countTree(nodes: ThreadComment[]): number {
   return nodes.reduce((acc, n) => acc + 1 + countTree(n.children), 0)
 }
-
 function toggleLikeInTree(nodes: ThreadComment[], id: string): ThreadComment[] {
   return nodes.map(n => {
     if (n.id === id) return { ...n, likes_count: (n.likes_count || 0) + 1 }
