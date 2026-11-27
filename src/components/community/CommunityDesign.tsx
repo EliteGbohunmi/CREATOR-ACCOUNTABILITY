@@ -1,7 +1,8 @@
 import { useState, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Send, Trash2, Link2, MessageCircle, Heart, ExternalLink, Plus, X,
-  Sparkles, Megaphone, Zap,
+  Sparkles, Megaphone, Zap, Bookmark,
 } from 'lucide-react'
 
 export type CommunityPost = {
@@ -84,6 +85,7 @@ export default function CommunityDesign({
   onCreatePost, onDeletePost, onToggleLike, onToggleBoost, onToggleEngagement,
   onReply, onDeleteReply, onViewProfile, renderCard,
 }: Props) {
+  const navigate = useNavigate()
   const [mode, setMode] = useState<'say_hi' | 'boost'>('say_hi')
   const [content, setContent] = useState('')
   const [link, setLink] = useState('')
@@ -197,6 +199,9 @@ export default function CommunityDesign({
             {k === 'all' ? 'All' : k === 'say_hi' ? 'Say hi' : k === 'boost' ? 'Boosts' : 'Mine'}
           </button>
         ))}
+        <button onClick={() => navigate('/saved')} className="cm-filter-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <Bookmark size={11} /> Saved
+        </button>
         <select className="cm-filter-pill" value={platformFilter} onChange={e => onPlatformFilterChange(e.target.value)} style={{ paddingRight: '1.5rem' }}>
           <option value="">All platforms</option>
           {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}

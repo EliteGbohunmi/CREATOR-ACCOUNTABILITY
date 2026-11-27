@@ -19,6 +19,7 @@ import Feed from './pages/Feed'
 import Partners from './pages/Partners'
 import Leaderboard from './pages/Leaderboard'
 import Community from './pages/Community'
+import SavedPosts from './pages/SavedPosts'
 import PostDetailPage from './pages/PostDetailPage'
 import Notifications from './pages/Notifications'
 
