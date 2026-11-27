@@ -11,19 +11,9 @@ import {
 import ThreadedComment from '../components/community/ThreadedComment'
 
 const c = {
-  bg: '#0A0A0A',
-  card: '#141414',
-  border: '#4A3B18',
-  divider: '#2E2E2E',
-  line: '#2A2A2A',
-  text: '#F5F5F5',
-  dim: '#A1A1AA',
-  faint: '#71717A',
-  gold: '#E3A008',
-  goldSoft: '#2E2610',
-  green: '#4ADE80',
-  coral: '#F87171',
-  input: '#141414',
+  card: '#141414', border: '#4A3B18', divider: '#2E2E2E', line: '#2A2A2A',
+  text: '#F5F5F5', dim: '#A1A1AA', faint: '#71717A', gold: '#E3A008',
+  goldSoft: '#2E2610', green: '#4ADE80', coral: '#F87171',
   inputBorder: '#262626',
 }
 
@@ -153,14 +143,7 @@ export default function PostDetailPage() {
   return (
     <Layout>
       <div style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 140 }}>
-        {/* Sticky header */}
-        <div style={{
-          position: 'sticky', top: 0, zIndex: 20,
-          background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(10px)',
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '12px 4px', marginBottom: 12,
-          borderBottom: `1px solid ${c.divider}`,
-        }}>
+        <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 4px', marginBottom: 12, borderBottom: `1px solid ${c.divider}` }}>
           <button
             onClick={() => navigate(-1)}
             style={{ width: 36, height: 36, borderRadius: '50%', background: 'transparent', border: `1px solid ${c.inputBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
@@ -174,7 +157,6 @@ export default function PostDetailPage() {
           </div>
         </div>
 
-        {/* Full post card */}
         <article style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -259,7 +241,6 @@ export default function PostDetailPage() {
           </div>
         </article>
 
-        {/* Root composer */}
         <div style={{ background: c.card, border: `1px solid ${c.inputBorder}`, borderRadius: 14, padding: 12, marginBottom: 20 }}>
           <div style={{ fontSize: 11, color: c.faint, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
             Write a reply
@@ -269,42 +250,25 @@ export default function PostDetailPage() {
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Add to the conversation…"
             rows={2}
-            style={{
-              width: '100%', background: 'transparent', border: 'none',
-              color: c.text, fontSize: 14, lineHeight: 1.5, resize: 'vertical',
-              outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-            }}
+            style={{ width: '100%', background: 'transparent', border: 'none', color: c.text, fontSize: 14, lineHeight: 1.5, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
             <button
               onClick={submitRoot}
               disabled={!draft.trim() || posting}
-              style={{
-                background: c.gold, color: '#0A0A0A', border: 'none',
-                borderRadius: 10, padding: '8px 16px', fontWeight: 700,
-                fontSize: 13, cursor: draft.trim() ? 'pointer' : 'not-allowed',
-                opacity: draft.trim() ? 1 : 0.4,
-              }}
+              style={{ background: c.gold, color: '#0A0A0A', border: 'none', borderRadius: 10, padding: '8px 16px', fontWeight: 700, fontSize: 13, cursor: draft.trim() ? 'pointer' : 'not-allowed', opacity: draft.trim() ? 1 : 0.4 }}
             >
               {posting ? 'Posting…' : 'Reply'}
             </button>
           </div>
         </div>
 
-        {/* Comment tree */}
         <div>
           <div style={{ fontSize: 11, color: c.faint, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
             {tree.length === 0 ? 'No replies yet' : `${countTree(tree)} ${countTree(tree) === 1 ? 'reply' : 'replies'}`}
           </div>
           {tree.map(comment => (
-            <ThreadedComment
-              key={comment.id}
-              comment={comment}
-              depth={0}
-              currentUserId={currentUserId}
-              onReply={submitNested}
-              onLike={onLikeComment}
-            />
+            <ThreadedComment key={comment.id} comment={comment} depth={0} currentUserId={currentUserId} onReply={submitNested} onLike={onLikeComment} />
           ))}
         </div>
       </div>

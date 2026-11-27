@@ -7,29 +7,10 @@ import {
 import type { FullPost } from '../../lib/communityThreads'
 
 const c = {
-  bg: '#141414',
-  border: '#4A3B18',
-  divider: '#2E2E2E',
-  text: '#F5F5F5',
-  dim: '#A1A1AA',
-  faint: '#71717A',
-  gold: '#E3A008',
-  goldSoft: '#2E2610',
-  pill: '#1F1F1F',
-  menu: '#262626',
-  green: '#4ADE80',
-  coral: '#F87171',
-}
-
-function relDate(iso: string) {
-  const d = new Date(iso)
-  const now = Date.now()
-  const diff = now - d.getTime()
-  if (diff < 60_000) return 'Just now'
-  if (diff < 3_600_000) return Math.floor(diff / 60_000) + 'm'
-  if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + 'h'
-  if (diff < 604_800_000) return Math.floor(diff / 86_400_000) + 'd'
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  bg: '#141414', border: '#4A3B18', divider: '#2E2E2E',
+  text: '#F5F5F5', dim: '#A1A1AA', faint: '#71717A',
+  gold: '#E3A008', goldSoft: '#2E2610', pill: '#1F1F1F',
+  green: '#4ADE80', coral: '#F87171',
 }
 
 const AVATAR_COLORS = ['#E3A008', '#6FA8F5', '#F56F91', '#6FCB73', '#B98CF5']
@@ -43,6 +24,15 @@ function initials(name: string) {
   if (!p.length) return '?'
   if (p.length === 1) return p[0][0]?.toUpperCase() || '?'
   return (p[0][0] + p[1][0]).toUpperCase()
+}
+function relDate(iso: string) {
+  const d = new Date(iso)
+  const diff = Date.now() - d.getTime()
+  if (diff < 60_000) return 'Just now'
+  if (diff < 3_600_000) return Math.floor(diff / 60_000) + 'm'
+  if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + 'h'
+  if (diff < 604_800_000) return Math.floor(diff / 86_400_000) + 'd'
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
 interface Props {
@@ -61,20 +51,11 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
   const role = post.profiles?.role || ''
   const verified = post.profiles?.verified
   const avatarUrl = post.profiles?.avatar_url
-  const avatar = avatarUrl
-    ? <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-    : initials(name)
-
-  const goDetail = (e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    navigate(`/post/${post.id}`)
-  }
-
+  const goDetail = (e?: React.MouseEvent) => { e?.stopPropagation(); navigate(`/post/${post.id}`) }
   const stop = (e: React.MouseEvent) => e.stopPropagation()
 
   const totalReactions = post.reactions.reduce((a, r) => a + r.count, 0)
   const stackedEmojis = post.reactions.filter(r => r.count > 0).map(r => r.emoji)
-
   const long = post.content.length > 220
   const body = expanded || !long ? post.content : post.content.slice(0, 220).trimEnd() + '…'
 
@@ -82,18 +63,13 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
     <article
       onClick={() => goDetail()}
       style={{
-        background: c.bg,
-        border: `1px solid ${c.border}`,
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 14,
-        cursor: 'pointer',
-        transition: 'border-color 200ms ease, transform 200ms ease',
+        background: c.bg, border: `1px solid ${c.border}`, borderRadius: 16,
+        padding: 16, marginBottom: 14, cursor: 'pointer',
+        transition: 'border-color 200ms ease',
       }}
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#5F4D20' }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = c.border }}
     >
-      {/* Metadata row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Pin size={12} color={c.faint} fill={c.faint} />
@@ -104,13 +80,18 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         <span style={{ fontSize: 11, color: c.faint }}>{relDate(post.created_at)}</span>
       </div>
 
-      {/* Author */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <div
           onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`) }}
-          style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', background: avatarUrl ? 'transparent' : avatarBg(name), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#0A0A0A', fontWeight: 700, fontSize: 14, fontFamily: 'Space Grotesk', cursor: 'pointer' }}
+          style={{
+            width: 44, height: 44, borderRadius: '50%', overflow: 'hidden',
+            background: avatarUrl ? 'transparent' : avatarBg(name),
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, color: '#0A0A0A', fontWeight: 700, fontSize: 14,
+            fontFamily: 'Space Grotesk', cursor: 'pointer',
+          }}
         >
-          {avatar}
+          {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(name)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -121,14 +102,13 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onMenu() }}
-          style={{ width: 32, height: 32, borderRadius: '50%', background: c.menu, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-          aria-label="More actions"
+          style={{ width: 32, height: 32, borderRadius: '50%', background: '#262626', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+          aria-label="More"
         >
           <MoreHorizontal size={16} color={c.dim} />
         </button>
       </div>
 
-      {/* Body */}
       <div
         onClick={() => goDetail()}
         style={{ color: c.text, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 12 }}
@@ -144,12 +124,9 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         )}
       </div>
 
-      {/* Dashed divider */}
       <div style={{ borderTop: `1px dashed ${c.divider}`, margin: '4px 0 12px' }} />
 
-      {/* Action bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        {/* Reaction pill */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={(e) => { e.stopPropagation(); onReact('❤️') }}
@@ -161,46 +138,23 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
           {stackedEmojis.length > 0 && (
             <div style={{ display: 'flex' }}>
               {stackedEmojis.map((e, i) => (
-                <span
-                  key={e}
-                  style={{
-                    width: 20, height: 20, borderRadius: '50%', background: c.bg,
-                    border: `1.5px solid ${c.bg}`, display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: 11, marginLeft: i === 0 ? 0 : -6,
-                  }}
-                >{e}</span>
+                <span key={e} style={{ width: 20, height: 20, borderRadius: '50%', background: c.bg, border: `1.5px solid ${c.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, marginLeft: i === 0 ? 0 : -6 }}>{e}</span>
               ))}
             </div>
           )}
         </div>
-
-        {/* Comment */}
         <button
           onClick={(e) => { e.stopPropagation(); goDetail() }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', color: c.dim, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
         >
           <MessageCircle size={16} /> {post.comment_count}
         </button>
-
-        {/* Repost */}
-        <button
-          onClick={stop}
-          style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', color: c.green, cursor: 'pointer', padding: 0 }}
-          aria-label="Repost"
-        >
+        <button onClick={stop} style={{ background: 'none', border: 'none', color: c.green, cursor: 'pointer', padding: 0 }} aria-label="Repost">
           <Repeat2 size={16} />
         </button>
-
-        {/* Share */}
-        <button
-          onClick={(e) => { e.stopPropagation(); onShare() }}
-          style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', color: c.coral, cursor: 'pointer', padding: 0 }}
-          aria-label="Share"
-        >
+        <button onClick={(e) => { e.stopPropagation(); onShare() }} style={{ background: 'none', border: 'none', color: c.coral, cursor: 'pointer', padding: 0 }} aria-label="Share">
           <Send size={16} />
         </button>
-
-        {/* Bookmark */}
         <button
           onClick={(e) => { e.stopPropagation(); onBookmark() }}
           style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
@@ -210,26 +164,14 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         </button>
       </div>
 
-      {/* Replies preview pill */}
       {post.comment_count > 0 && (
         <button
           onClick={(e) => { e.stopPropagation(); goDetail() }}
-          style={{
-            marginTop: 12, width: '100%', background: c.pill, border: 'none',
-            borderRadius: 12, padding: '10px 14px', display: 'flex',
-            alignItems: 'center', gap: 10, cursor: 'pointer',
-          }}
+          style={{ marginTop: 12, width: '100%', background: c.pill, border: 'none', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
         >
           <div style={{ display: 'flex' }}>
             {[0, 1, 2].slice(0, Math.min(3, post.comment_count)).map((i) => (
-              <div
-                key={i}
-                style={{
-                  width: 20, height: 20, borderRadius: '50%',
-                  background: AVATAR_COLORS[i % AVATAR_COLORS.length],
-                  border: `1.5px solid ${c.pill}`, marginLeft: i === 0 ? 0 : -6,
-                }}
-              />
+              <div key={i} style={{ width: 20, height: 20, borderRadius: '50%', background: AVATAR_COLORS[i % AVATAR_COLORS.length], border: `1.5px solid ${c.pill}`, marginLeft: i === 0 ? 0 : -6 }} />
             ))}
           </div>
           <span style={{ fontSize: 13, fontWeight: 600, color: c.text, flex: 1, textAlign: 'left' }}>

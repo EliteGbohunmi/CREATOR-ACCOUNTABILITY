@@ -3,13 +3,8 @@ import { Heart, CornerDownRight, BadgeCheck } from 'lucide-react'
 import type { ThreadComment } from '../../lib/communityThreads'
 
 const c = {
-  text: '#F5F5F5',
-  dim: '#A1A1AA',
-  faint: '#71717A',
-  gold: '#E3A008',
-  line: '#2A2A2A',
-  surface: '#141414',
-  border: '#262626',
+  text: '#F5F5F5', dim: '#A1A1AA', faint: '#71717A', gold: '#E3A008',
+  line: '#2A2A2A', surface: '#141414', border: '#262626',
 }
 
 const AVATAR_COLORS = ['#E3A008', '#6FA8F5', '#F56F91', '#6FCB73', '#B98CF5']
@@ -66,15 +61,14 @@ export default function ThreadedComment({ comment, depth, currentUserId, onReply
       {depth > 0 && (
         <div style={{ position: 'absolute', left: -12, top: 4, bottom: 4, width: 1, background: c.line }} />
       )}
-
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <div
           style={{
             width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
             background: avatarUrl ? 'transparent' : avatarBg(name),
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#0A0A0A', fontWeight: 700, fontSize: 12, fontFamily: 'Space Grotesk',
-            overflow: 'hidden',
+            color: '#0A0A0A', fontWeight: 700, fontSize: 12,
+            fontFamily: 'Space Grotesk', overflow: 'hidden',
           }}
         >
           {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(name)}
@@ -112,21 +106,12 @@ export default function ThreadedComment({ comment, depth, currentUserId, onReply
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
                 placeholder={`Reply to ${name}…`}
-                style={{
-                  flex: 1, background: c.surface, border: `1px solid ${c.border}`,
-                  borderRadius: 8, padding: '6px 10px', color: c.text,
-                  fontSize: 13, outline: 'none', fontFamily: 'inherit',
-                }}
+                style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 10px', color: c.text, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
               />
               <button
                 onClick={submit}
                 disabled={!draft.trim() || sending}
-                style={{
-                  background: c.gold, color: '#0A0A0A', border: 'none',
-                  borderRadius: 8, padding: '6px 12px', fontWeight: 700,
-                  fontSize: 12, cursor: draft.trim() ? 'pointer' : 'not-allowed',
-                  opacity: draft.trim() ? 1 : 0.4,
-                }}
+                style={{ background: c.gold, color: '#0A0A0A', border: 'none', borderRadius: 8, padding: '6px 12px', fontWeight: 700, fontSize: 12, cursor: draft.trim() ? 'pointer' : 'not-allowed', opacity: draft.trim() ? 1 : 0.4 }}
               >
                 {sending ? '…' : 'Reply'}
               </button>
@@ -134,14 +119,7 @@ export default function ThreadedComment({ comment, depth, currentUserId, onReply
           )}
 
           {comment.children.map(child => (
-            <ThreadedComment
-              key={child.id}
-              comment={child}
-              depth={depth + 1}
-              currentUserId={currentUserId}
-              onReply={onReply}
-              onLike={onLike}
-            />
+            <ThreadedComment key={child.id} comment={child} depth={depth + 1} currentUserId={currentUserId} onReply={onReply} onLike={onLike} />
           ))}
         </div>
       </div>

@@ -76,22 +76,14 @@ export async function getCommentTree(postId: string): Promise<ThreadComment[]> {
     .order('created_at', { ascending: true })
   if (error || !data) return []
 
-  const mapped: ThreadComment[] = data.map((c: any) => ({
-    ...c,
-    likes_count: 0,
-    children: [],
-  }))
-
+  const mapped: ThreadComment[] = data.map((c: any) => ({ ...c, likes_count: 0, children: [] }))
   const byId: Record<string, ThreadComment> = {}
   mapped.forEach(c => { byId[c.id] = c })
 
   const roots: ThreadComment[] = []
   mapped.forEach(c => {
-    if (c.parent_id && byId[c.parent_id]) {
-      byId[c.parent_id].children.push(c)
-    } else {
-      roots.push(c)
-    }
+    if (c.parent_id && byId[c.parent_id]) byId[c.parent_id].children.push(c)
+    else roots.push(c)
   })
   return roots
 }
@@ -108,17 +100,13 @@ export async function addThreadComment(input: {
     content: input.content.trim(),
     parent_id: input.parentId,
   })
-  if (error) return { ok: false, error: error.message }
-  return { ok: true, error: null }
+  return error ? { ok: false, error: error.message } : { ok: true, error: null }
 }
 
 export async function toggleBookmark(postId: string, userId: string): Promise<{ on: boolean; error: string | null }> {
   const { data: existing } = await supabase
-    .from('community_bookmarks')
-    .select('id')
-    .eq('post_id', postId)
-    .eq('user_id', userId)
-    .maybeSingle()
+    .from('community_bookmarks').select('id')
+    .eq('post_id', postId).eq('user_id', userId).maybeSingle()
   if (existing) {
     const { error } = await supabase.from('community_bookmarks').delete().eq('id', existing.id)
     return { on: false, error: error?.message || null }
@@ -128,17 +116,11 @@ export async function toggleBookmark(postId: string, userId: string): Promise<{ 
 }
 
 export async function toggleReaction(
-  postId: string,
-  userId: string,
-  emoji: '❤️' | '🔥' | '👏'
+  postId: string, userId: string, emoji: '❤️' | '🔥' | '👏'
 ): Promise<{ on: boolean; error: string | null }> {
   const { data: existing } = await supabase
-    .from('community_reactions')
-    .select('id')
-    .eq('post_id', postId)
-    .eq('user_id', userId)
-    .eq('emoji', emoji)
-    .maybeSingle()
+    .from('community_reactions').select('id')
+    .eq('post_id', postId).eq('user_id', userId).eq('emoji', emoji).maybeSingle()
   if (existing) {
     const { error } = await supabase.from('community_reactions').delete().eq('id', existing.id)
     return { on: false, error: error?.message || null }
