@@ -250,6 +250,7 @@ export default function Community() {
           else navigator.clipboard.writeText(url).then(() => toast.success('Link copied'))
         }}
         onMenu={() => toast('More actions coming soon')}
+        onViewProfile={handleViewProfile}
       />
     )
   }

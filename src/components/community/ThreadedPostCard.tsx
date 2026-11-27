@@ -54,9 +54,10 @@ interface Props {
   onBookmark: () => void
   onShare: () => void
   onMenu: () => void
+  onViewProfile?: (userId: string) => void
 }
 
-export default function ThreadedPostCard({ post, currentUserId, onReact, onBookmark, onShare, onMenu }: Props) {
+export default function ThreadedPostCard({ post, currentUserId, onReact, onBookmark, onShare, onMenu, onViewProfile }: Props) {
   const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
   const name = post.profiles?.name || 'Anonymous'
@@ -72,6 +73,7 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
 
   return (
     <article
+      onClick={() => goDetail()}
       style={{
         background: c.bg, border: `1px solid ${c.border}`, borderRadius: 16,
         padding: 16, marginBottom: 14,
@@ -92,7 +94,7 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <button
-          onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`) }}
+          onClick={(e) => { e.stopPropagation(); if (onViewProfile) onViewProfile(post.user_id); else navigate(`/profile/${post.user_id}`) }}
           style={{
             width: 44, height: 44, borderRadius: '50%', overflow: 'hidden',
             background: avatarUrl ? 'transparent' : avatarBg(name),
@@ -121,10 +123,7 @@ export default function ThreadedPostCard({ post, currentUserId, onReact, onBookm
         </button>
       </div>
 
-      <div
-        onClick={goDetail}
-        style={{ color: c.text, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 12, cursor: 'pointer' }}
-      >
+      <div style={{ color: c.text, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 12 }}>
         {body}
         {long && !expanded && (
           <button
