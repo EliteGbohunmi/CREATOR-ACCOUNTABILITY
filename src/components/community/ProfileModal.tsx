@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Loader, Users, Trophy, Flame, Calendar, Mail, ShieldCheck } from 'lucide-react'
 
@@ -26,7 +27,7 @@ interface Props {
 }
 
 export default function ProfileModal({ open, profileData, loading, isOwnProfile, onClose }: Props) {
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -111,7 +112,8 @@ export default function ProfileModal({ open, profileData, loading, isOwnProfile,
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }
 
@@ -127,7 +129,7 @@ function Stat({ icon, value, label }: { icon: React.ReactNode; value: number; la
 
 const overlayStyle: React.CSSProperties = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1.25rem',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1.25rem',
 }
 const cardStyle: React.CSSProperties = {
   background: 'linear-gradient(180deg, #161616 0%, #0A0A0A 100%)',
