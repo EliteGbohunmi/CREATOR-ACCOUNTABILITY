@@ -34,9 +34,10 @@ interface Props {
   currentUserId: string | null
   onReply: (parentId: string, content: string) => Promise<void>
   onLike: (commentId: string) => void
+  onViewProfile?: (userId: string) => void
 }
 
-export default function ThreadedComment({ comment, depth, currentUserId, onReply, onLike }: Props) {
+export default function ThreadedComment({ comment, depth, currentUserId, onReply, onLike, onViewProfile }: Props) {
   const [replyOpen, setReplyOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -62,9 +63,11 @@ export default function ThreadedComment({ comment, depth, currentUserId, onReply
         <div style={{ position: 'absolute', left: -12, top: 4, bottom: 4, width: 1, background: c.line }} />
       )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <div
+        <button
+          onClick={() => onViewProfile?.(comment.user_id)}
           style={{
             width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+            border: 'none', padding: 0, cursor: onViewProfile ? 'pointer' : 'default',
             background: avatarUrl ? 'transparent' : avatarBg(name),
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#0A0A0A', fontWeight: 700, fontSize: 12,
@@ -72,10 +75,15 @@ export default function ThreadedComment({ comment, depth, currentUserId, onReply
           }}
         >
           {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(name)}
-        </div>
+        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: c.text }}>{name}</span>
+            <button
+              onClick={() => onViewProfile?.(comment.user_id)}
+              style={{ background: 'none', border: 'none', padding: 0, fontFamily: 'inherit', fontWeight: 700, fontSize: 13, color: c.text, cursor: onViewProfile ? 'pointer' : 'default' }}
+            >
+              {name}
+            </button>
             {verified && <BadgeCheck size={12} color="#3B82F6" fill="#3B82F6" stroke={c.surface} />}
             {role && <span style={{ fontSize: 11, color: c.faint }}>· {role}</span>}
             <span style={{ fontSize: 11, color: c.faint }}>· {timeAgo(comment.created_at)}</span>
@@ -119,7 +127,7 @@ export default function ThreadedComment({ comment, depth, currentUserId, onReply
           )}
 
           {comment.children.map(child => (
-            <ThreadedComment key={child.id} comment={child} depth={depth + 1} currentUserId={currentUserId} onReply={onReply} onLike={onLike} />
+            <ThreadedComment key={child.id} comment={child} depth={depth + 1} currentUserId={currentUserId} onReply={onReply} onLike={onLike} onViewProfile={onViewProfile} />
           ))}
         </div>
       </div>

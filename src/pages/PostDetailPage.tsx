@@ -13,6 +13,8 @@ import {
   type FullPost, type ThreadComment,
 } from '../lib/communityThreads'
 import ThreadedComment from '../components/community/ThreadedComment'
+import ProfileModal from '../components/community/ProfileModal'
+import { supabase } from '../lib/supabase'
 
 const c = {
   card: '#141414', border: '#4A3B18', divider: '#2E2E2E', line: '#2A2A2A',
@@ -63,6 +65,9 @@ export default function PostDetailPage() {
   const [draft, setDraft] = useState('')
   const [posting, setPosting] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [profileData, setProfileData] = useState<any | null>(null)
+  const [loadingProfile, setLoadingProfile] = useState(false)
 
   const load = async () => {
     if (!postId) { setNotFound(true); setLoading(false); return }
@@ -128,6 +133,25 @@ export default function PostDetailPage() {
   const onLikeComment = (id: string) => {
     setTree(prev => toggleLikeInTree(prev, id))
   }
+
+  const openProfile = async (userId: string) => {
+    if (!userId) return
+    setSelectedUserId(userId)
+    setLoadingProfile(true)
+    try {
+      const { data: profile } = await supabase.from('profiles').select('id, name, email, created_at, bio, avatar_url, username').eq('id', userId).single()
+      const { data: streak } = await supabase.from('streaks').select('current_streak, best_streak, last_checked_in').eq('user_id', userId).single()
+      const { count: partnerCount } = await supabase.from('accountability_partners').select('*', { count: 'exact', head: true }).or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      const { count: postCount } = await supabase.from('community_posts').select('*', { count: 'exact', head: true }).eq('user_id', userId)
+      setProfileData({ ...profile, streak: streak || { current_streak: 0, best_streak: 0 }, partnerCount: partnerCount || 0, postCount: postCount || 0 })
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load profile')
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
+  const closeProfile = () => { setSelectedUserId(null); setProfileData(null) }
 
   if (loading) {
     return (
@@ -237,7 +261,7 @@ export default function PostDetailPage() {
           {/* Author */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
             <button
-              onClick={() => navigate(`/community?profile=${post.user_id}`)}
+              onClick={() => openProfile(post.user_id)}
               style={{
                 width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
                 background: avatarUrl ? 'transparent' : avatarBg(name),
@@ -420,12 +444,21 @@ export default function PostDetailPage() {
                   currentUserId={currentUserId}
                   onReply={submitNested}
                   onLike={onLikeComment}
+                  onViewProfile={openProfile}
                 />
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <ProfileModal
+        open={!!selectedUserId}
+        profileData={profileData}
+        loading={loadingProfile}
+        isOwnProfile={selectedUserId === currentUserId}
+        onClose={closeProfile}
+      />
     </Layout>
   )
 }
